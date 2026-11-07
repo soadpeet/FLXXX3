@@ -1,5 +1,6 @@
 #include "analyzer/analyzerwaveform.h"
 
+#include <cmath>
 #include <memory>
 #include <vector>
 
@@ -12,6 +13,13 @@
 #include "waveform/waveformfactory.h"
 
 namespace {
+
+// Same as fmod(position, length) < 1, without the slow fmod(): this ran for
+// every sample frame and took more than a third of the analysis time on
+// Android.
+inline bool strideBoundaryReached(double position, double length) {
+    return position - std::floor(position / length) * length < 1.0;
+}
 
 mixxx::Logger kLogger("AnalyzerWaveform");
 
@@ -272,7 +280,7 @@ bool AnalyzerWaveform::processSamples(const CSAMPLE* pIn, SINT count) {
 
         m_stride.m_position++;
 
-        if (fmod(m_stride.m_position, m_stride.m_length) < 1) {
+        if (strideBoundaryReached(m_stride.m_position, m_stride.m_length)) {
             VERIFY_OR_DEBUG_ASSERT(m_currentStride + ChannelCount <= m_waveform->getDataSize()) {
                 qWarning() << "AnalyzerWaveform::process - currentStride > waveform size";
                 return false;
@@ -282,7 +290,7 @@ bool AnalyzerWaveform::processSamples(const CSAMPLE* pIn, SINT count) {
             m_waveform->setCompletion(m_currentStride);
         }
 
-        if (fmod(m_stride.m_position, m_stride.m_averageLength) < 1) {
+        if (strideBoundaryReached(m_stride.m_position, m_stride.m_averageLength)) {
             VERIFY_OR_DEBUG_ASSERT(m_currentSummaryStride + ChannelCount <= m_waveformSummary->getDataSize()) {
                 qWarning() << "AnalyzerWaveform::process - current summary stride > waveform summary size";
                 return false;

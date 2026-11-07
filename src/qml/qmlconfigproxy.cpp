@@ -86,6 +86,14 @@ const QString kStemReorderOnChangeKey = QStringLiteral("stem_reorder_on_change")
 const QString kStemSplitTracksKey = QStringLiteral("stem_split_tracks");
 const QString kEndOfTrackWarningTimeKey = QStringLiteral("EndOfTrackWarningTime");
 const QString kWaveformTypeKey = QStringLiteral("WaveformType");
+// Android edition: 3BAND (type Filtered) is the default waveform look.
+#ifdef __ANDROID__
+constexpr mixxx::qml::QmlWaveformDisplay::Type kDefaultWaveformType =
+        mixxx::qml::QmlWaveformDisplay::Type::Filtered;
+#else
+constexpr mixxx::qml::QmlWaveformDisplay::Type kDefaultWaveformType =
+        mixxx::qml::QmlWaveformDisplay::Type::RGB;
+#endif
 const QString kWaveformOptionsKey = QStringLiteral("waveform_options");
 const QString kWaveformCachingEnabledKey = QStringLiteral("EnableWaveformCaching");
 const QString kWaveformGenerationWithAnalysisEnabledKey =
@@ -392,7 +400,13 @@ void QmlConfigProxy::set_waveformDefaultZoom(double value) {
             3,
             &QmlConfigProxy::waveformDefaultZoomChanged);
 }
+#ifdef __ANDROID__
+// Android edition: 30 fps for the waveforms. The weaker devices (tablet) cannot
+// render two full-width waveforms at 60 fps and stay responsive.
+PROPERTY_IMPL_GETTER(kWaveformGroup, kFrameRateKey, int, waveformFrameRate, 30);
+#else
 PROPERTY_IMPL_GETTER(kWaveformGroup, kFrameRateKey, int, waveformFrameRate, 60);
+#endif
 void QmlConfigProxy::set_waveformFrameRate(int frameRate) {
     const int sanitizedFrameRate = std::clamp(frameRate, 1, 240);
     if (WaveformWidgetFactory::isCreated()) {
@@ -612,7 +626,7 @@ PROPERTY_IMPL_GETTER(kWaveformGroup,
         kWaveformTypeKey,
         QmlWaveformDisplay::Type,
         waveformType,
-        QmlWaveformDisplay::Type::RGB);
+        kDefaultWaveformType);
 void QmlConfigProxy::set_waveformType(QmlWaveformDisplay::Type type) {
     if (WaveformWidgetFactory::isCreated()) {
         WaveformWidgetFactory::instance()->setWidgetType(
@@ -622,7 +636,7 @@ void QmlConfigProxy::set_waveformType(QmlWaveformDisplay::Type type) {
         setConfigValueAndNotify<QmlWaveformDisplay::Type>(kWaveformGroup,
                 kWaveformTypeKey,
                 type,
-                QmlWaveformDisplay::Type::RGB,
+                kDefaultWaveformType,
                 &QmlConfigProxy::waveformTypeChanged);
     }
     emit waveformEnabledChanged();
@@ -631,7 +645,7 @@ void QmlConfigProxy::set_waveformType(QmlWaveformDisplay::Type type) {
 bool QmlConfigProxy::waveformEnabled() const {
     return m_pConfig->getValue<int>(
                    ConfigKey(kWaveformGroup, kWaveformTypeKey),
-                   static_cast<int>(QmlWaveformDisplay::Type::RGB)) !=
+                   static_cast<int>(kDefaultWaveformType)) !=
             static_cast<int>(WaveformWidgetType::Empty);
 }
 

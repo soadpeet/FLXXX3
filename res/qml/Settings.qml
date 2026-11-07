@@ -299,6 +299,32 @@ Popup {
                 }
             }
         }
+
+        // Touch-friendly close button: on small screens the popup fills the
+        // whole window, so there is no area outside of it to tap on.
+        Rectangle {
+            id: closeButton
+
+            anchors.right: parent.right
+            anchors.top: parent.top
+            color: closeTap.pressed ? Theme.darkGray3 : Theme.darkGray
+            height: 48
+            radius: 8
+            width: 48
+            z: 10
+
+            Text {
+                anchors.centerIn: parent
+                color: Theme.white
+                font.pixelSize: 24
+                text: "✕"
+            }
+            TapHandler {
+                id: closeTap
+
+                onTapped: root.close()
+            }
+        }
     }
 
     onActiveCategoryIndexChanged: updateActiveCategory()

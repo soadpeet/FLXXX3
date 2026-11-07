@@ -566,6 +566,42 @@ QmlLibraryProxy::AddResult QmlLibraryProxy::addSource(
                     mixxx::FileInfo(newPath.toLocalFile())));
 }
 
+QVariantList QmlLibraryProxy::libraryDirectories() const {
+    QVariantList result;
+    if (!s_pLibrary) {
+        return result;
+    }
+    const auto directories =
+            s_pLibrary->trackCollectionManager()->internalCollection()->getRootDirectories();
+    for (const auto& directory : directories) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("path"), directory.path);
+        entry.insert(QStringLiteral("trackCount"), directory.trackCount);
+        result << entry;
+    }
+    return result;
+}
+
+bool QmlLibraryProxy::removeLibraryDirectory(const QString& path) {
+    if (!s_pLibrary) {
+        return false;
+    }
+    auto* pManager = s_pLibrary->trackCollectionManager();
+    const QString wanted = QDir::cleanPath(path);
+    const auto directories = pManager->internalCollection()->loadRootDirs();
+    for (const auto& directory : directories) {
+        if (QDir::cleanPath(directory.location()) != wanted) {
+            continue;
+        }
+        if (pManager->removeDirectory(directory) != DirectoryDAO::RemoveResult::Ok) {
+            return false;
+        }
+        pManager->purgeAllTracks(QDir(directory.location()));
+        return true;
+    }
+    return false;
+}
+
 QmlLibraryProxy::RemoveResult QmlLibraryProxy::removeSource(
         const QUrl& oldPath, SourceRemovalType removalType) {
     VERIFY_OR_DEBUG_ASSERT(s_pLibrary) {

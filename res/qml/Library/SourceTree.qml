@@ -8,7 +8,7 @@ Mixxx.LibrarySourceTree {
 
     defaultColumns: [
         Mixxx.TrackListColumn {
-            autoHideWidth: 750
+            autoHideWidth: Qt.platform.os === "android" ? 1000000 : 750
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Album
             preferredWidth: 100
 
@@ -21,6 +21,9 @@ Mixxx.LibrarySourceTree {
                     asynchronous: true
                     clip: true
                     fillMode: Image.PreserveAspectCrop
+                    // Decode/scale to thumbnail size instead of the full
+                    // embedded cover: cheaper on CPU, GPU and memory.
+                    sourceSize: Qt.size(96, 96)
                     source: cover_art
                 }
             }
@@ -90,7 +93,7 @@ Mixxx.LibrarySourceTree {
         // },
         Mixxx.TrackListColumn {
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Title
-            fillSpan: 3
+            fillSpan: Qt.platform.os === "android" ? 4 : 3
             label: qsTr("Title")
 
             delegate: DefaultDelegate {
@@ -105,7 +108,7 @@ Mixxx.LibrarySourceTree {
             }
         },
         Mixxx.TrackListColumn {
-            autoHideWidth: 690
+            autoHideWidth: Qt.platform.os === "android" ? 1000000 : 690
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Album
             fillSpan: 1
             label: qsTr("Album")
@@ -114,7 +117,7 @@ Mixxx.LibrarySourceTree {
             }
         },
         Mixxx.TrackListColumn {
-            autoHideWidth: 750
+            autoHideWidth: Qt.platform.os === "android" ? 1000000 : 750
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Year
             label: qsTr("Year")
             preferredWidth: 80
@@ -139,7 +142,7 @@ Mixxx.LibrarySourceTree {
             }
         },
         Mixxx.TrackListColumn {
-            autoHideWidth: 900
+            autoHideWidth: Qt.platform.os === "android" ? 1000000 : 900
             columnIdx: Mixxx.TrackListColumn.SQLColumns.FileType
             label: qsTr("File Type")
             preferredWidth: 70
@@ -148,7 +151,7 @@ Mixxx.LibrarySourceTree {
             }
         },
         Mixxx.TrackListColumn {
-            autoHideWidth: 1200
+            autoHideWidth: Qt.platform.os === "android" ? 1000000 : 1200
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Bitrate
             label: qsTr("Bitrate")
             preferredWidth: 70
@@ -161,6 +164,10 @@ Mixxx.LibrarySourceTree {
     Mixxx.LibraryAllTrackSource {
         columns: root.defaultColumns
         label: qsTr("All...")
+    }
+    Mixxx.LibraryRekordboxSource {
+        columns: root.defaultColumns
+        label: qsTr("Rekordbox")
     }
 
     component DefaultDelegate: LibraryComponent.Cell {

@@ -56,8 +56,14 @@ void ReplayGainSettings::setReplayGainEnabled(bool value) {
 }
 
 bool ReplayGainSettings::getReplayGainAnalyzerEnabled() const {
+#ifdef __ANDROID__
+    // Android edition: no ReplayGain analysis (it was about 20 % of the load
+    // time of a track); the gain is set on the controller.
+    return false;
+#else
     return m_pConfig->getValue(
         ConfigKey(kConfigKey, kReplayGainAnalyzerEnabled), true);
+#endif
 }
 
 void ReplayGainSettings::setReplayGainAnalyzerEnabled(bool value) {

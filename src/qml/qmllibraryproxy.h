@@ -164,6 +164,11 @@ class QmlLibraryProxy : public QObject {
     }
 
     Q_INVOKABLE mixxx::qml::QmlLibraryProxy::AddResult addSource(const QUrl& newPath);
+    // Android edition: the folders of the library (path, trackCount).
+    Q_INVOKABLE QVariantList libraryDirectories() const;
+    // Removes the library folder with this path (as listed by libraryDirectories())
+    // and its tracks from the library. The files stay where they are.
+    Q_INVOKABLE bool removeLibraryDirectory(const QString& path);
     Q_INVOKABLE mixxx::qml::QmlLibraryProxy::RemoveResult removeSource(
             const QUrl& oldPath,
             mixxx::qml::QmlLibraryProxy::SourceRemovalType type);

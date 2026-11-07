@@ -90,6 +90,7 @@ EngineBuffer::EngineBuffer(const QString& group,
           m_endButton(nullptr),
           m_bScalerOverride(false),
           m_iSeekPhaseQueued(0),
+          m_iSeekPhaseExplicit(0),
           m_iEnableSyncQueued(SYNC_REQUEST_NONE),
           m_iSyncModeQueued(static_cast<int>(SyncMode::Invalid)),
           m_slipQuitAndAdopt(0),
@@ -421,6 +422,12 @@ void EngineBuffer::queueNewPlaypos(mixxx::audio::FramePos position, enum SeekReq
 void EngineBuffer::requestSyncPhase() {
     // Don't overwrite m_iSeekQueued
     m_iSeekPhaseQueued = 1;
+    m_iSeekPhaseExplicit = 1;
+}
+
+void EngineBuffer::requestQuantizedPhase() {
+    // Don't overwrite m_iSeekQueued
+    m_iSeekPhaseQueued = 1;
 }
 
 void EngineBuffer::requestEnableSync(bool enabled) {
@@ -553,6 +560,17 @@ void EngineBuffer::slotTrackLoaded(TrackPointer pTrack,
     if (kLogger.traceEnabled()) {
         kLogger.trace() << "slotTrackLoaded" << getGroup();
     }
+#ifdef __ANDROID__
+    // The duration in the Rekordbox database can differ from the real length
+    // of the audio (rounded, different decoder). The time display and the
+    // waveform position use it, so take the real length of the file.
+    if (pTrack && trackSampleRate.isValid()) {
+        const double realDuration = trackNumFrame.value() / trackSampleRate.value();
+        if (realDuration > 0.0 && std::abs(realDuration - pTrack->getDuration()) > 0.02) {
+            pTrack->setDuration(realDuration);
+        }
+    }
+#endif
     TrackPointer pOldTrack = m_pCurrentTrack;
     m_pause.lock();
 
@@ -602,6 +620,7 @@ void EngineBuffer::slotTrackLoaded(TrackPointer pTrack,
     if (pChannel) {
         m_queuedSeek.setValue(kCloneSeek);
         m_iSeekPhaseQueued = 0;
+        m_iSeekPhaseExplicit = 0;
     }
 
     // Start buffer processing after all EngineContols are up to date
@@ -814,7 +833,7 @@ void EngineBuffer::slotControlPlayRequest(double v) {
                 && m_pVinylControlControl && !m_pVinylControlControl->isEnabled()
 #endif
         ) {
-            requestSyncPhase();
+            requestQuantizedPhase();
         }
     }
 
@@ -1197,7 +1216,7 @@ void EngineBuffer::processTrackLocked(
             (m_playPos > playpos_old) == backwards) {
         // TODO() The resulting seek is processed in the following callback
         // That is to late
-        requestSyncPhase();
+        requestQuantizedPhase();
     }
 
     bool end_of_track = atEnd && !backwards;
@@ -1371,6 +1390,7 @@ void EngineBuffer::processSeek(bool paused) {
     mixxx::audio::FramePos position = queuedSeek.position;
 
     // Add SEEK_PHASE bit, if any
+    [[maybe_unused]] const bool explicitPhaseRequest = m_iSeekPhaseExplicit.fetchAndStoreRelease(0) != 0;
     if (m_iSeekPhaseQueued.fetchAndStoreRelease(0)) {
         seekType |= SEEK_PHASE;
     }
@@ -1418,8 +1438,16 @@ void EngineBuffer::processSeek(bool paused) {
         if (kLogger.traceEnabled()) {
             kLogger.trace() << "processSeek" << getGroup() << "Seeking phase";
         }
+#ifdef __ANDROID__
+        // Rekordbox-like quantize: snapping to the beat uses the own beatgrid.
+        // Aligning the phase to another deck is part of sync, so it only
+        // happens for synchronized decks or on an explicit phase-sync request.
+        const bool matchOtherDeck = explicitPhaseRequest || m_pSyncControl->isSynchronized();
+#else
+        const bool matchOtherDeck = true;
+#endif
         const mixxx::audio::FramePos syncPosition =
-                m_pBpmControl->getBeatMatchPosition(position, true, true);
+                m_pBpmControl->getBeatMatchPosition(position, true, true, matchOtherDeck);
         position = m_pLoopingControl->getSyncPositionInsideLoop(position, syncPosition);
         if (kLogger.traceEnabled()) {
             kLogger.trace()

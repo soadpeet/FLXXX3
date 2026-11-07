@@ -1,3 +1,6 @@
+#include <unordered_map>
+#include <algorithm>
+#include <algorithm>
 #include "waveformrenderersignalbase.h"
 
 #include "control/controlproxy.h"
@@ -161,18 +164,31 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
         float* pMidGain,
         float* pHighGain) {
     if (pAllGain) {
+#ifdef __ANDROID__
+        // Android edition: fixed height. The tracks are normalised beforehand,
+        // so the loudest points reach just below the beat ticks (5 % of the
+        // height at the top and at the bottom).
+        *pAllGain = 0.9f;
+#else
         *pAllGain = static_cast<CSAMPLE_GAIN>(
                             m_waveformRenderer->getGain()) *
                 m_allChannelVisualGain;
-        ;
+#endif
     }
 
     if (pLowGain || pMidGain || pHighGain) {
         // Per-band gain from the EQ knobs.
         CSAMPLE_GAIN lowVisualGain = 1.0, midVisualGain = 1.0, highVisualGain = 1.0;
 
+        // Android edition: the waveform does not change with the EQ knobs or
+        // kill switches (like on the Pioneer players).
+#ifdef __ANDROID__
+        const bool followEq = false;
+#else
+        const bool followEq = !m_pEQEnabled || m_pEQEnabled->get() > 0.0;
+#endif
         // Only adjust low/mid/high gains if EQs are enabled or if there is no EQs CO setup.
-        if (!m_pEQEnabled || m_pEQEnabled->get() > 0.0) {
+        if (followEq) {
             if (m_pLowFilterControlObject &&
                     m_pMidFilterControlObject &&
                     m_pHighFilterControlObject) {
@@ -198,6 +214,11 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
             }
         }
 
+#ifdef __ANDROID__
+        lowVisualGain *= m_lowVisualGain;
+        midVisualGain *= m_midVisualGain;
+        highVisualGain *= m_highVisualGain;
+#endif
         if (pLowGain != nullptr) {
             *pLowGain = lowVisualGain;
         }
@@ -209,3 +230,57 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
         }
     }
 }
+
+#ifdef __ANDROID__
+float WaveformRendererSignalBase::trackAutoGain(const Waveform* pWaveform, int dataSize) {
+    // The result is cached per waveform for all renderers (the renderer
+    // objects themselves can be recreated).
+    struct Entry {
+        int dataSize;
+        int completionStep;
+        float gain;
+    };
+    static thread_local std::unordered_map<const Waveform*, Entry> cache;
+
+    // While the analysis is still running the completion grows; rescan only
+    // after every 5 % of progress, not in every frame.
+    const int step = std::max(1, dataSize / 20);
+    const int completionStep = pWaveform->getCompletion() / step;
+    const auto it = cache.find(pWaveform);
+    if (it != cache.end() && it->second.dataSize == dataSize &&
+            it->second.completionStep == completionStep) {
+        return it->second.gain;
+    }
+    const WaveformData* pData = pWaveform->data();
+    // A few single spikes must not decide the height: use the value that 99.5 %
+    // of the columns stay below (histogram, one pass).
+    int histogram[256] = {};
+    int nonZero = 0;
+    for (int i = 0; i < dataSize; ++i) {
+        const unsigned char v = pData[i].filtered.all;
+        ++histogram[v];
+        if (v > 0) {
+            ++nonZero;
+        }
+    }
+    int maxAll = 0;
+    const int allowed = nonZero / 200; // 0.5 %
+    int above = 0;
+    for (int v = 255; v >= 0; --v) {
+        above += histogram[v];
+        if (above > allowed) {
+            maxAll = v;
+            break;
+        }
+    }
+    // 0.9: leave room for the ticks at the top and bottom.
+    const float gain = maxAll > 8
+            ? std::min(4.0f, 0.855f * 255.0f / expandPeaks(static_cast<float>(maxAll)))
+            : 0.855f;
+    if (cache.size() > 16) {
+        cache.clear();
+    }
+    cache[pWaveform] = Entry{dataSize, completionStep, gain};
+    return gain;
+}
+#endif

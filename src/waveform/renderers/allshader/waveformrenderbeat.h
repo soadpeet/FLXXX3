@@ -39,6 +39,10 @@ class allshader::WaveformRenderBeat final
   private:
     QColor m_color;
     bool m_isSlipRenderer;
+#ifdef __ANDROID__
+    // Orange marks of every 4th beat (RX3 style), a child of this node.
+    rendergraph::GeometryNode* m_pBarNode{nullptr};
+#endif
 
     bool preprocessInner();
 

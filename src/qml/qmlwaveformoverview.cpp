@@ -41,6 +41,11 @@ void QmlWaveformOverview::componentComplete() {
                 this,
                 &QmlWaveformOverview::slotWaveformUpdated,
                 Qt::UniqueConnection);
+        connect(pConfig,
+                &QmlConfigProxy::waveformTypeChanged,
+                this,
+                &QmlWaveformOverview::slotWaveformUpdated,
+                Qt::UniqueConnection);
     }
     QQuickPaintedItem::componentComplete();
 }
@@ -166,6 +171,7 @@ void QmlWaveformOverview::slotWaveformUpdated() {
     update();
 }
 
+
 void QmlWaveformOverview::paint(QPainter* pPainter) {
     if (!m_pTrack) {
         return;
@@ -221,9 +227,16 @@ void QmlWaveformOverview::paint(QPainter* pPainter) {
 
     pPainter->save();
     if (!m_stereo) {
-        pPainter->translate(0.0, height());
+#ifdef __ANDROID__
+        // Android edition: the lower part of the overview is kept free for the
+        // minute markers below the waveform.
+        const double waveHeight = height() * 0.8;
+#else
+        const double waveHeight = height();
+#endif
+        pPainter->translate(0.0, waveHeight);
         pPainter->scale(width() / desiredWidth,
-                -height() / (2.0 * kDesiredChannelHeight) * amplitudeScale);
+                -waveHeight / (2.0 * kDesiredChannelHeight) * amplitudeScale);
     } else {
         switch (static_cast<int>(m_channels)) {
         case static_cast<int>(ChannelFlag::LeftChannel):
@@ -243,9 +256,26 @@ void QmlWaveformOverview::paint(QPainter* pPainter) {
         }
     }
 
+#ifdef __ANDROID__
+    // 0 = BLUE (type Simple), 1 = RGB, 2 = 3BAND (type Filtered): as selected
+    // for the scrolling waveform.
+    int scheme = 1;
+    if (auto* pConfig = qobject_cast<QmlConfigProxy*>(QmlConfigProxyBase::s_pInstance)) {
+        const auto type = pConfig->waveformType();
+        scheme = type == QmlWaveformDisplayType::Simple
+                ? 0
+                : (type == QmlWaveformDisplayType::Filtered ? 2 : 1);
+    }
+#endif
     for (int currentCompletion = 0;
             currentCompletion < waveformCompletion;
             currentCompletion += 2) {
+#ifdef __ANDROID__
+        if (!m_stereo) {
+            drawScheme(pPainter, pWaveform, currentCompletion, scheme);
+            continue;
+        }
+#endif
         switch (m_renderer) {
         case Renderer::Filtered:
             drawFiltered(pPainter, m_channels, pWaveform, currentCompletion);
@@ -406,6 +436,19 @@ void QmlWaveformOverview::drawMinuteMarkers(QPainter* pPainter, double duration)
         return;
     }
     pPainter->save();
+#ifdef __ANDROID__
+    if (!m_stereo) {
+        // Thick ticks in the strip below the waveform.
+        const QColor markerColor(235, 235, 235, 230);
+        const double stripTop = height() * 0.84;
+        for (double seconds = 60.0; seconds < duration; seconds += 60.0) {
+            const double x = width() * seconds / duration;
+            pPainter->fillRect(QRectF(x - 1.5, stripTop, 3.0, height() - stripTop), markerColor);
+        }
+        pPainter->restore();
+        return;
+    }
+#endif
     pPainter->setPen(QPen(QColor(245, 245, 245, 180), 1));
     const double markerHeight = height() * 0.08;
     for (double seconds = 60.0; seconds < duration; seconds += 60.0) {
@@ -448,6 +491,64 @@ QColor QmlWaveformOverview::getRgbPenColor(
     }
     return QColor();
 }
+
+#ifdef __ANDROID__
+void QmlWaveformOverview::drawScheme(QPainter* pPainter,
+        ConstWaveformPointer pWaveform,
+        int completion,
+        int scheme) const {
+    // low / mid / high colours, identical to the scrolling waveform
+    static const QColor kColors[3][3] = {
+            {QColor(0x2560ff), QColor(0x6cc3ff), QColor(0xffffff)},
+            {QColor(0xff2d2d), QColor(0x2fe05a), QColor(0x2f7bff)},
+            {QColor(0x1e5bff), QColor(0xa8672a), QColor(0xf6e8d2)},
+    };
+
+    const double offsetX = completion / 2.0;
+    const double all = static_cast<double>(pWaveform->getAll(completion)) +
+            pWaveform->getAll(completion + 1);
+    const double band[3] = {
+            static_cast<double>(pWaveform->getLow(completion)) + pWaveform->getLow(completion + 1),
+            static_cast<double>(pWaveform->getMid(completion)) + pWaveform->getMid(completion + 1),
+            static_cast<double>(pWaveform->getHigh(completion)) + pWaveform->getHigh(completion + 1)};
+    const double strongest = std::max({band[0], band[1], band[2]});
+    if (all <= 0.0 || strongest <= 0.0) {
+        return;
+    }
+    const QColor* palette = kColors[scheme == 0 ? 0 : (scheme == 1 ? 1 : 2)];
+
+    if (scheme == 2) {
+        // 3BAND overview (RX3 style): the bands are stacked on the baseline,
+        // blue (low) at the bottom, orange (mid) on top of it and white
+        // (high) at the tip; together they are as high as the column.
+        const double sum = band[0] + band[1] + band[2];
+        const double lowHeight = all * band[0] / sum;
+        const double midHeight = all * band[1] / sum;
+        pPainter->setPen(QColor(0x1f64f0));
+        pPainter->drawLine(QPointF(offsetX, 0), QPointF(offsetX, lowHeight));
+        pPainter->setPen(QColor(0xffa21f));
+        pPainter->drawLine(QPointF(offsetX, lowHeight), QPointF(offsetX, lowHeight + midHeight));
+        pPainter->setPen(QColor(0xffffff));
+        pPainter->drawLine(QPointF(offsetX, lowHeight + midHeight), QPointF(offsetX, all));
+        return;
+    }
+    // BLUE / RGB: one colour per column, mixed from the three bands.
+    double red = 0;
+    double green = 0;
+    double blue = 0;
+    for (int b = 0; b < 3; ++b) {
+        red += band[b] * palette[b].redF();
+        green += band[b] * palette[b].greenF();
+        blue += band[b] * palette[b].blueF();
+    }
+    const double maxComponent = std::max({red, green, blue});
+    if (maxComponent <= 0.0) {
+        return;
+    }
+    pPainter->setPen(QColor::fromRgbF(red / maxComponent, green / maxComponent, blue / maxComponent));
+    pPainter->drawLine(QPointF(offsetX, 0), QPointF(offsetX, all));
+}
+#endif
 
 } // namespace qml
 } // namespace mixxx

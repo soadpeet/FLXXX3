@@ -461,6 +461,11 @@ unsigned int SoundManagerConfig::getFramesPerBuffer() const {
 // the second, etc. This is so that latency values are roughly equivalent
 // between different sample rates.
 void SoundManagerConfig::setAudioBufferSizeIndex(unsigned int sizeIndex) {
+#ifdef __ANDROID__
+    // Android edition: small, fixed buffer (about 10 ms) so that the sound
+    // follows the buttons closely; the saved value is ignored.
+    sizeIndex = static_cast<unsigned int>(AudioBufferSizeIndex::Size10xms);
+#endif
     // latency should be either the min of kMaxAudioBufferSizeIndex and the passed value
     // if it's 0, pretend it was 1 -- bkgood
     m_audioBufferSizeIndex = sizeIndex != 0 ? math_min(sizeIndex, kMaxAudioBufferSizeIndex) : 1;
@@ -548,6 +553,17 @@ void SoundManagerConfig::loadDefaults(SoundManager* soundManager, unsigned int f
                 m_api = SoundManagerConfig::kAPIDirectSound;
             }
 #endif
+#ifdef __ANDROID__
+            // Android only offers the Oboe host API. Prefer an entry that
+            // names it, otherwise take the first one.
+            m_api = apiList.first();
+            for (const QString& api : std::as_const(apiList)) {
+                if (api.contains(QStringLiteral("oboe"), Qt::CaseInsensitive)) {
+                    m_api = api;
+                    break;
+                }
+            }
+#endif
 #ifdef Q_OS_IOS
             m_api = SoundManagerConfig::kAPIIosAudio;
 #elif defined(Q_OS_MACOS)
@@ -562,7 +578,12 @@ void SoundManagerConfig::loadDefaults(SoundManager* soundManager, unsigned int f
         clearInputs();
         const QList<SoundDevicePointer> outputDevices =
                 soundManager->getDeviceList(m_api, true, false);
-        if (!outputDevices.isEmpty()) {
+#ifdef __ANDROID__
+        const bool androidRouted = applyAndroidPreferredRouting(soundManager);
+#else
+        const bool androidRouted = false;
+#endif
+        if (!androidRouted && !outputDevices.isEmpty()) {
             for (const auto& pDevice : outputDevices) {
                 if (pDevice->getNumOutputChannels() < 2) {
                     continue;
@@ -595,6 +616,35 @@ void SoundManagerConfig::loadDefaults(SoundManager* soundManager, unsigned int f
     m_syncBuffers = kDefaultSyncBuffers;
     m_forceNetworkClock = false;
 }
+
+#ifdef __ANDROID__
+bool SoundManagerConfig::applyAndroidPreferredRouting(SoundManager* soundManager) {
+    // Device names on Android are "<product name>: <type>", see
+    // PortAudioEnumerator::initialize().
+    static const QString kPreferredDevice = QStringLiteral("DDJ-FLX4");
+    const QList<SoundDevicePointer> outputDevices =
+            soundManager->getDeviceList(m_api, true, false);
+    for (const auto& pDevice : outputDevices) {
+        const SoundDeviceId deviceId = pDevice->getDeviceId();
+        if (!deviceId.name.contains(kPreferredDevice, Qt::CaseInsensitive) ||
+                pDevice->getNumOutputChannels() < 4) {
+            continue;
+        }
+        clearOutputs();
+        addOutput(deviceId,
+                AudioOutput(AudioPathType::Main, 0, mixxx::audio::ChannelCount::stereo(), 0));
+        addOutput(deviceId,
+                AudioOutput(AudioPathType::Headphones,
+                        2,
+                        mixxx::audio::ChannelCount::stereo(),
+                        0));
+        qInfo() << "Android: routed Main to channels 1-2 and Headphones to"
+                << "channels 3-4 of" << deviceId.name;
+        return true;
+    }
+    return false;
+}
+#endif
 
 QSet<SoundDeviceId> SoundManagerConfig::getDevices() const {
     QSet<SoundDeviceId> devices;

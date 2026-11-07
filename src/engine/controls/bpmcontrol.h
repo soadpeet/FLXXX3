@@ -41,10 +41,14 @@ class BpmControl : public EngineControl {
             mixxx::audio::FramePos thisPosition,
             bool respectLoops,
             bool playing);
+    /// matchOtherDeck: if false, a deck that is not synchronized keeps its own
+    /// beat phase (quantize against its own beatgrid only) instead of aligning
+    /// to the phase of another playing deck.
     mixxx::audio::FramePos getBeatMatchPosition(
             mixxx::audio::FramePos thisPosition,
             bool respectLoops,
-            bool playing);
+            bool playing,
+            bool matchOtherDeck = true);
     double getPhaseOffset(mixxx::audio::FramePos thisPosition);
     /// getBeatDistance is adjusted to include the user offset so it's
     /// transparent to other decks.

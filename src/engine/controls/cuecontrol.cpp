@@ -219,6 +219,10 @@ void CueControl::notifySeek(mixxx::audio::FramePos position) {
 }
 
 void CueControl::createControls() {
+    m_pAutoCue = std::make_unique<ControlPushButton>(ConfigKey(m_group, "auto_cue"), true, 0.0);
+    m_pAutoCue->setButtonMode(mixxx::control::ButtonMode::Toggle);
+    m_pQuantizeSubdivision = std::make_unique<ControlObject>(
+            ConfigKey(m_group, "quantize_subdivision"), false, false, false, 4.0);
     m_pCueSet = std::make_unique<ControlPushButton>(ConfigKey(m_group, "cue_set"));
     m_pCueSet->setButtonMode(mixxx::control::ButtonMode::Trigger);
     m_pCueClear = std::make_unique<ControlPushButton>(ConfigKey(m_group, "cue_clear"));
@@ -632,6 +636,28 @@ void CueControl::trackLoaded(TrackPointer pNewTrack) {
     // Update COs with cues from track.
     loadCuesFromTrack();
 
+#ifdef __ANDROID__
+    // Android edition: without AUTO CUE a loaded track waits on the first beat
+    // of its beat grid (the Rekordbox grid, if there is one); AUTO CUE starts
+    // at the first sound.
+    if (!(m_pAutoCue && m_pAutoCue->toBool())) {
+        mixxx::audio::FramePos firstBeat = mixxx::audio::kStartFramePos;
+        const mixxx::BeatsPointer pBeats = pNewTrack->getBeats();
+        if (pBeats) {
+            // A first beat a few ms before the start of the track counts as the
+            // start (Rekordbox grid).
+            const mixxx::audio::FramePos beat =
+                    pBeats->findNextBeat(mixxx::audio::FramePos(-3000.0));
+            if (beat.isValid()) {
+                firstBeat = std::max(beat, mixxx::audio::kStartFramePos);
+            }
+        }
+        // The cue point (CUE marker) is where the track waits.
+        pNewTrack->setMainCuePosition(firstBeat);
+        seekOnLoad(firstBeat);
+        return;
+    }
+#endif
     // Seek track according to SeekOnLoadMode.
     SeekOnLoadMode seekOnLoadMode = getSeekOnLoadPreference();
 
@@ -861,6 +887,11 @@ void CueControl::loadCuesFromTrack() {
 }
 
 void CueControl::trackAnalyzed() {
+#ifdef __ANDROID__
+    // The track waits on the first beat of its grid; a finished analysis must
+    // not move it.
+    return;
+#endif
     if (frameInfo().currentPosition != m_usedSeekOnLoadPosition.getValue()) {
         // the track is already manual cued, don't re-cue
         return;
@@ -2389,6 +2420,12 @@ mixxx::audio::FramePos CueControl::getQuantizedCurrentPosition() {
         return info.currentPosition;
     }
 
+#ifdef __ANDROID__
+    // Cues and hotcues snap to the grid of the QUANTIZE BEAT VALUE.
+    if (m_pLoadedTrack && info.currentPosition.isValid()) {
+        return quantizeCuePoint(info.currentPosition);
+    }
+#endif
     const auto closestBeat =
             mixxx::audio::FramePos::fromEngineSamplePosMaybeInvalid(
                     m_pClosestBeat->get());
@@ -2434,6 +2471,25 @@ mixxx::audio::FramePos CueControl::quantizeCuePoint(mixxx::audio::FramePos posit
         return position;
     }
 
+#ifdef __ANDROID__
+    // Android edition: QUANTIZE BEAT VALUE (1/8, 1/4, 1/2, 1 beat) of the
+    // UTILITY menu: snap to the nearest step of that grid between two beats.
+    const double steps = m_pQuantizeSubdivision
+            ? std::max(1.0, std::round(m_pQuantizeSubdivision->get()))
+            : 1.0;
+    if (steps > 1.0) {
+        const auto previousBeat = pBeats->findPrevBeat(position);
+        const auto nextBeat = pBeats->findNextBeat(position);
+        if (previousBeat.isValid() && nextBeat.isValid() && nextBeat > previousBeat) {
+            const double step = (nextBeat - previousBeat) / steps;
+            const double count = std::round((position - previousBeat) / step);
+            const auto gridPosition = previousBeat + count * step;
+            if (gridPosition <= trackEndPosition) {
+                return gridPosition;
+            }
+        }
+    }
+#endif
     const auto quantizedPosition = pBeats->findClosestBeat(position);
     // The closest beat can be an unreachable interpolated beat past the end of
     // the track.
@@ -2453,7 +2509,14 @@ bool CueControl::isTrackAtIntroCue() {
 }
 
 SeekOnLoadMode CueControl::getSeekOnLoadPreference() {
+#ifdef __ANDROID__
+    // Without AUTO CUE a loaded track waits on the first beat of its grid
+    // (see trackLoaded); with AUTO CUE it starts at the first sound.
+    return m_pAutoCue && m_pAutoCue->toBool() ? SeekOnLoadMode::FirstSound
+                                              : SeekOnLoadMode::Beginning;
+#else
     return getConfig()->getValue(ConfigKey("[Controls]", "CueRecall"), SeekOnLoadMode::IntroStart);
+#endif
 }
 
 void CueControl::hotcueFocusColorPrev(double value) {

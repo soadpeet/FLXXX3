@@ -70,6 +70,33 @@ void VisibleEffectsList::readEffectsXml(
             visibleEffects.prepend(pManifest);
         }
     }
+#ifdef __ANDROID__
+    // Android edition: fixed list in the order of the Pioneer Beat FX (the
+    // effects that do not exist yet are added as they get written).
+    {
+        const QStringList wanted = {
+                QStringLiteral("org.mixxx.effects.delay"),
+                QStringLiteral("org.mixxx.effects.echo"),
+                QStringLiteral("org.mixxx.effects.pingpong"),
+                QStringLiteral("org.mixxx.effects.reverb"),
+                QStringLiteral("org.mixxx.effects.flanger"),
+                QStringLiteral("org.mixxx.effects.phaser"),
+                QStringLiteral("org.mixxx.effects.filter"),
+        };
+        QList<EffectManifestPointer> fixedList;
+        for (const QString& id : wanted) {
+            for (const EffectManifestPointer& pManifest : manifests) {
+                if (pManifest->id() == id) {
+                    fixedList.append(pManifest);
+                    break;
+                }
+            }
+        }
+        if (!fixedList.isEmpty()) {
+            visibleEffects = fixedList;
+        }
+    }
+#endif
     setList(visibleEffects);
 }
 

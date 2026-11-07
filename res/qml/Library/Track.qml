@@ -18,6 +18,9 @@ Item {
     DragHandler {
         id: dragHandler
 
+        // Touch screens scroll the list; system drag-and-drop is only for
+        // mouse/touchpad (it also crashes in QDrag on Android).
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         target: value
     }
     TapHandler {

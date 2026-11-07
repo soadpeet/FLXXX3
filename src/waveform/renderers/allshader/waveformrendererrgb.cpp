@@ -93,6 +93,9 @@ bool WaveformRendererRGB::preprocessInner() {
     float midGain = 1.0f;
     float highGain = 1.0f;
     getGains(&allGain, &lowGain, &midGain, &highGain);
+#ifdef __ANDROID__
+    allGain = trackAutoGain(waveform.data(), dataSize);
+#endif
 
     const float breadth = static_cast<float>(m_waveformRenderer->getBreadth());
     const float halfBreadth = breadth / 2.0f;
@@ -117,9 +120,16 @@ bool WaveformRendererRGB::preprocessInner() {
 
     const int numVerticesPerLine = 6; // 2 triangles
 
+#ifdef __ANDROID__
+    // Android edition: thin lines. Only every second pixel column gets a bar
+    // (one pixel wide), so the lines do not run into each other.
+    const int barCount = (pixelLength + 1) / 2;
+    const int reserved = numVerticesPerLine * (barCount + 1);
+#else
     const int reserved = numVerticesPerLine *
             // Slip renderer only render a single channel, so the vertices count doesn't change
             ((splitLeftRight && !m_isSlipRenderer ? pixelLength * 2 : pixelLength) + 1);
+#endif
 
     geometry().setDrawingMode(Geometry::DrawingMode::Triangles);
     geometry().allocate(reserved);
@@ -134,9 +144,20 @@ bool WaveformRendererRGB::preprocessInner() {
                     static_cast<float>(m_axesColor_g),
                     static_cast<float>(m_axesColor_b)});
 
+#ifdef __ANDROID__
+    // A bar stands for two pixel columns.
+    const double maxSamplingRange = visualIncrementPerPixel;
+#else
     const double maxSamplingRange = visualIncrementPerPixel / 2.0;
+#endif
 
     for (int pos = 0; pos < pixelLength; ++pos) {
+#ifdef __ANDROID__
+        if (pos & 1) {
+            xVisualFrame += visualIncrementPerPixel;
+            continue;
+        }
+#endif
         const int visualFrameStart = std::lround(xVisualFrame - maxSamplingRange);
         const int visualFrameStop = std::lround(xVisualFrame + maxSamplingRange);
 
@@ -169,6 +190,10 @@ bool WaveformRendererRGB::preprocessInner() {
             }
         }
         float maxAllChn[2]{static_cast<float>(u8maxAllChn[0]), static_cast<float>(u8maxAllChn[1])};
+#ifdef __ANDROID__
+        maxAllChn[0] = expandPeaks(maxAllChn[0]);
+        maxAllChn[1] = expandPeaks(maxAllChn[1]);
+#endif
 
         // In case we don't render individual color per channel, all the
         // signal information is in the first field of each array. If

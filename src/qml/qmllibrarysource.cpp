@@ -57,5 +57,16 @@ QmlLibraryAllTrackSource::QmlLibraryAllTrackSource(
             &QmlLibraryAbstractSource::slotShowTrackModel);
 }
 
+QmlLibraryRekordboxSource::QmlLibraryRekordboxSource(
+        QObject* parent, const QList<QmlLibraryTrackListColumn*>& columns)
+        : QmlLibraryAbstractSource(parent, columns),
+          m_pLibraryFeature(std::make_unique<RekordboxFeature>(
+                  QmlLibraryProxy::get(), QmlConfigProxy::get())) {
+    connect(m_pLibraryFeature.get(),
+            &LibraryFeature::showTrackModel,
+            this,
+            &QmlLibraryAbstractSource::slotShowTrackModel);
+}
+
 } // namespace qml
 } // namespace mixxx

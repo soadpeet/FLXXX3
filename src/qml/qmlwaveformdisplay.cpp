@@ -360,8 +360,13 @@ QSGNode* QmlWaveformDisplay::updatePaintNode(QSGNode* node, UpdatePaintNodeData*
 
     DEBUG_ASSERT(!node || node->childCount() == 1);
 
-    auto* pClipNode = dynamic_cast<QSGClipNode*>(node);
-    auto* pBgNode = pClipNode ? dynamic_cast<QSGSimpleRectNode*>(pClipNode->lastChild()) : nullptr;
+    // The node tree (clip node -> background node -> renderers) is only ever
+    // created below, so static_cast is safe. dynamic_cast failed on Android
+    // (type_info of Qt classes is not unique across the shared libraries): the
+    // whole renderer stack, including all waveform marks, was rebuilt every
+    // frame.
+    auto* pClipNode = node ? static_cast<QSGClipNode*>(node) : nullptr;
+    auto* pBgNode = pClipNode ? static_cast<QSGSimpleRectNode*>(pClipNode->lastChild()) : nullptr;
 
     if (!pBgNode) {
         if (pClipNode) {

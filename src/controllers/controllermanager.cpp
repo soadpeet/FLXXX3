@@ -20,6 +20,10 @@
 #include "controllers/midi/portmidienumerator.h"
 #endif
 
+#ifdef __ANDROID_MIDI__
+#include "controllers/midi/androidmidienumerator.h"
+#endif
+
 #ifdef __HSS1394__
 #include "controllers/midi/hss1394enumerator.h"
 #endif
@@ -173,6 +177,9 @@ void ControllerManager::slotInitialize() {
 #ifdef __PORTMIDI__
         m_enumerators.push_back(std::make_unique<PortMidiEnumerator>(m_pConfig));
 #endif
+#ifdef __ANDROID_MIDI__
+        m_enumerators.push_back(std::make_unique<AndroidMidiEnumerator>());
+#endif
 #ifdef __HSS1394__
         m_enumerators.push_back(std::make_unique<Hss1394Enumerator>());
 #endif
@@ -285,6 +292,22 @@ void ControllerManager::slotSetUpDevices() {
 
         // The filename for this device name.
         QString deviceName = sanitizeDeviceName(name);
+
+#ifdef __ANDROID_MIDI__
+        // Android: the controller preferences page is hard to use on a
+        // touchscreen, so set up the DDJ-FLX4 automatically the first time it
+        // shows up. Explicit user settings are never overwritten.
+        if (name.contains(QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive)) {
+            const ConfigKey enabledKey(QStringLiteral("[Controller]"), deviceName);
+            if (!m_pConfig->exists(enabledKey)) {
+                m_pConfig->set(enabledKey, ConfigValue(1));
+            }
+            const ConfigKey mappingKey(kSettingsGroup, deviceName);
+            if (m_pConfig->getValueString(mappingKey).isEmpty()) {
+                m_pConfig->set(mappingKey, ConfigValue(QStringLiteral("Pioneer-DDJ-FLX4.midi.xml")));
+            }
+        }
+#endif
 
         // Check if device is enabled
         if (!m_pConfig->getValue(ConfigKey("[Controller]", deviceName), 0)) {

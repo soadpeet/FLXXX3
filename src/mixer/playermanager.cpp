@@ -132,6 +132,15 @@ PlayerManager::PlayerManager(UserSettingsPointer pConfig,
     m_pCONumAuxiliaries->connectValueChangeRequest(this,
             &PlayerManager::slotChangeNumAuxiliaries, Qt::DirectConnection);
 
+#ifdef __ANDROID__
+    m_pMasterDeck = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("master_deck")),
+            false,
+            false,
+            false,
+            0.0);
+#endif
+
     // This is parented to the PlayerManager so does not need to be deleted
     m_pSamplerBank = new SamplerBank(m_pConfig, this);
 
@@ -638,11 +647,16 @@ void PlayerManager::slotLoadTrackToPlayer(
         // button repeatedly.
         // AutoDJProcessor is initialized after PlayerManager, so check that the
         // ControlProxy is pointing to the real ControlObject.
+#ifdef __ANDROID__
+        // No Auto DJ in the Android edition (no [AutoDJ] controls).
+        const bool autoDjSkipClone = false;
+#else
         if (!m_pAutoDjEnabled) {
             m_pAutoDjEnabled = make_parented<ControlProxy>("[AutoDJ]", "enabled", this);
         }
         bool autoDjSkipClone = m_pAutoDjEnabled->toBool() &&
                 (pPlayer == m_decks.at(0) || pPlayer == m_decks.at(1));
+#endif
 
         if (cloneOnDoubleTap && m_lastLoadedPlayer == group &&
                 elapsed < mixxx::Duration::fromSeconds(0.5) &&

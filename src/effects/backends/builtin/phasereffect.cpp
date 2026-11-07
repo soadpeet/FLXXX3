@@ -37,7 +37,8 @@ EffectManifestPointer PhaserEffect::getManifest() {
             "1/4 - 4 seconds if no tempo is detected"));
     period->setValueScaler(EffectManifestParameter::ValueScaler::Linear);
     period->setUnitsHint(EffectManifestParameter::UnitsHint::Beats);
-    period->setRange(0.0, 1.0, 4.0);
+    // Android edition: period in beats, 0 - 8 (default 1).
+    period->setRange(0.0, 1.0, 8.0);
 
     EffectManifestParameterPointer fb = pManifest->addParameter();
     fb->setId("feedback");

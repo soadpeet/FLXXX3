@@ -486,6 +486,99 @@ QImage WaveformMark::performImageGeneration(float devicePixelRatio,
         return {};
     }
 
+#ifdef __ANDROID__
+    // Android edition, RX3 style markers (only for the main marks, not for the
+    // end marks of loops): the main cue is a small white triangle under the
+    // waveform, hotcues are squares in their colour with their letter above
+    // the waveform, memory cues (hotcue slots 16 and up, see the Rekordbox
+    // import) are red triangles above the waveform.
+    // Intro / outro marks (blue lines with a flag) are not shown.
+    // Loop: only a thin white line at the start; the end has no mark (the
+    // loop area is drawn by the mark range).
+    if (getHotCue() < 0 &&
+            (getItem() == QLatin1String("loop_start_position") ||
+                    getItem() == QLatin1String("loop_end_position"))) {
+        QImage lineImage{QSize{3, std::max(1, static_cast<int>(std::ceil(m_breadth * devicePixelRatio)))},
+                QImage::Format_ARGB32_Premultiplied};
+        lineImage.setDevicePixelRatio(devicePixelRatio);
+        lineImage.fill(Qt::transparent);
+        if (getItem() == QLatin1String("loop_start_position")) {
+            QPainter linePainter(&lineImage);
+            linePainter.fillRect(QRectF(1.0, 0.0, 1.0, m_breadth), QColor(255, 255, 255));
+            linePainter.end();
+        }
+        if (labelMark) {
+            labelMark->setAreaRect(QRectF());
+        }
+        m_linePosition = 1.5f;
+        m_offset = -1.f;
+        return lineImage;
+    }
+    if (labelMark && getHotCue() < 0 &&
+            (m_text == QStringLiteral("\u25E2") || m_text == QStringLiteral("\u25E3"))) {
+        QImage hidden{QSize{3, std::max(1, static_cast<int>(std::ceil(m_breadth * devicePixelRatio)))},
+                QImage::Format_ARGB32_Premultiplied};
+        hidden.setDevicePixelRatio(devicePixelRatio);
+        hidden.fill(Qt::transparent);
+        labelMark->setAreaRect(QRectF());
+        m_linePosition = 1.5f;
+        m_offset = -1.f;
+        return hidden;
+    }
+    if (labelMark && (getHotCue() >= 0 || m_text == QLatin1String("CUE"))) {
+        const bool atTop = (m_align & Qt::AlignVertical_Mask) == Qt::AlignTop;
+        const bool isMemoryCue = getHotCue() >= 16;
+        const bool isMainCue = getHotCue() < 0;
+        const int size = std::max(11, static_cast<int>(std::lround(m_breadth * 0.075f))) | 1;
+        const float width = static_cast<float>(size + 2); // odd: the centre is at x.5
+        const QSize imageSize{
+                static_cast<int>(std::ceil(width * devicePixelRatio)),
+                static_cast<int>(std::ceil(m_breadth * devicePixelRatio))};
+        if (imageSize.width() > 0 && imageSize.height() > 0) {
+            QImage image{imageSize, QImage::Format_ARGB32_Premultiplied};
+            image.setDevicePixelRatio(devicePixelRatio);
+            image.fill(Qt::transparent);
+            QPainter painter(&image);
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setRenderHint(QPainter::TextAntialiasing);
+            const float cx = width / 2.f;
+            const float half = size / 2.f;
+            const float top = atTop ? 1.f : m_breadth - 1.f - size;
+            if (isMainCue || isMemoryCue) {
+                QPolygonF triangle;
+                if (isMainCue) { // points up, onto the position
+                    triangle << QPointF(cx - half, top + size) << QPointF(cx + half, top + size)
+                             << QPointF(cx, top);
+                } else { // points down, onto the position
+                    triangle << QPointF(cx - half, top) << QPointF(cx + half, top)
+                             << QPointF(cx, top + size);
+                }
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(isMainCue ? QColor(255, 255, 255) : QColor(224, 48, 48));
+                painter.drawPolygon(triangle);
+            } else {
+                const QRectF square(cx - half, top, size, size);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(fillColor());
+                painter.drawRect(square);
+                QFont font;
+                font.setBold(true);
+                font.setPixelSize(std::max(8, static_cast<int>(size * 0.8f)));
+                painter.setFont(font);
+                painter.setPen(QColor(0, 0, 0));
+                const int hot = getHotCue();
+                painter.drawText(square,
+                        Qt::AlignCenter,
+                        hot < 8 ? QString(QChar('A' + hot)) : QString::number(hot + 1));
+            }
+            painter.end();
+            labelMark->setAreaRect(QRectF(cx - half, top, size, size));
+            m_linePosition = width / 2.f;
+            m_offset = -(width - 1.f) / 2.f;
+            return image;
+        }
+    }
+#endif
     // Load the pixmap from file.
     // If that succeeds loading the text and stroke is skipped.
 

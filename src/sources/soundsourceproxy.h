@@ -217,7 +217,7 @@ class SoundSourceProxy {
 
     const TrackPointer m_pTrack;
 
-    const QUrl m_url;
+    QUrl m_url; // non-const on Android: may be rebound to a cached copy
 
     const QList<mixxx::SoundSourceProviderRegistration> m_providerRegistrations;
 
@@ -227,6 +227,11 @@ class SoundSourceProxy {
     int m_providerRegistrationIndex;
 
     void findProviderAndInitSoundSource();
+#ifdef __ANDROID__
+    /// If the file is on removable media and a cached copy exists, use that
+    /// instead (see AndroidTrackCache).
+    void useCachedFileIfAvailable();
+#endif
 
     bool initSoundSourceWithProvider(
             mixxx::SoundSourceProviderPointer&& pProvider);

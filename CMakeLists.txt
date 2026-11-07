@@ -2385,6 +2385,8 @@ if(ANDROID)
   )
   set_target_properties(mixxx PROPERTIES QT_ANDROID_ABIS "${ANDROID_ABI}")
   set_target_properties(mixxx PROPERTIES QT_ANDROID_PACKAGE_NAME "org.mixxx")
+  # AMidi (native MIDI API used for MIDI controllers) requires API level 29.
+  set_target_properties(mixxx PROPERTIES QT_ANDROID_MIN_SDK_VERSION 29)
   set_target_properties(
     mixxx
     PROPERTIES QT_ANDROID_VERSION_NAME "${MIXXX_VERSION}"
@@ -3796,6 +3798,21 @@ if(PORTMIDI)
   )
 endif()
 
+# Android MIDI: android.media.midi (Java, via org.mixxx.MidiHelper) for
+# discovery and opening, AMidi (NDK, API 29+) for the data transfer.
+if(ANDROID)
+  target_compile_definitions(mixxx-lib PUBLIC __ANDROID_MIDI__)
+  target_link_libraries(mixxx-lib PUBLIC amidi)
+  target_sources(
+    mixxx-lib
+    PRIVATE
+      src/controllers/midi/androidmidicontroller.cpp
+      src/controllers/midi/androidmidienumerator.cpp
+      src/controllers/midi/androidmidiparser.cpp
+      src/util/androidtrackcache.cpp
+  )
+endif()
+
 # Protobuf
 add_subdirectory(src/proto)
 target_link_libraries(mixxx-lib PUBLIC mixxx-proto)
@@ -4054,6 +4071,9 @@ if(QML)
       # needed for qml/qmlautoreload.cpp
       src/util/autofilereloader.cpp
   )
+  if(ANDROID)
+    target_sources(mixxx-qml-lib PRIVATE src/qml/qmlandroidstatusproxy.cpp)
+  endif()
 
   if(STEM)
     target_compile_definitions(mixxx-qml-lib PUBLIC __STEM__)

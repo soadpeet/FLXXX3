@@ -33,6 +33,8 @@
 #include "library/baseexternallibraryfeature.h"
 #include "library/baseexternalplaylistmodel.h"
 #include "library/baseexternaltrackmodel.h"
+#include <QSet>
+
 #include "library/treeitemmodel.h"
 #include "util/parented_ptr.h"
 
@@ -65,6 +67,9 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
             KeyboardEventFilter* keyboard) override;
 
     TreeItemModel* sidebarModel() const override;
+#ifdef __ANDROID__
+    static void importDataForTrack(const TrackPointer& pTrack);
+#endif
 
   public slots:
     void activate() override;
@@ -75,6 +80,11 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
 
   private slots:
     void htmlLinkClicked(const QUrl& link);
+#ifdef __ANDROID__
+    void checkRemovableVolumes();
+    void parseNextDevice();
+    void rebuildAllSticksList();
+#endif
 
   private:
     QString formatRootViewHtml() const;
@@ -91,4 +101,13 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
     QString m_title;
 
     QSharedPointer<BaseTrackCache> m_trackSource;
+#ifdef __ANDROID__
+    // Android edition: ids of the removable volumes mounted at the last check.
+    QSet<QString> m_mountedVolumes;
+    bool m_volumesChecked = false;
+    bool m_silentParse = false;
+    bool m_shown = false;
+    QString m_devicePlaylist;
+    QStringList m_devicePlaylists;
+#endif
 };

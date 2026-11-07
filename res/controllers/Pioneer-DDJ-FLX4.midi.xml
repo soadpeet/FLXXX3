@@ -18,17 +18,17 @@
             <control>
                 <description>BROWSE - rotate - Scroll tracklist/tree view</description>
                 <group>[Library]</group>
-                <key>MoveVertical</key>
+                <key>PioneerDDJFLX4.browseRotate</key>
                 <status>0xB6</status>
                 <midino>0x40</midino>
                 <options>
-                    <SelectKnob/>
+                    <Script-Binding/>
                 </options>
             </control>
             <control>
-                <description>BROWSE +SHIFT - Zoom waveform</description>
-                <group>[Channel1]</group>
-                <key>PioneerDDJFLX4.waveformZoom</key>
+                <description>BROWSE +SHIFT - Scroll the track list in big steps (Android edition)</description>
+                <group>[Library]</group>
+                <key>PioneerDDJFLX4.browseRotateShift</key>
                 <status>0xB6</status>
                 <midino>0x64</midino>
                 <options>
@@ -419,66 +419,66 @@
             </control>
 
             <control>
-                <description>LOOP IN/4 BEAT (DECK1) - press - Set loop in</description>
+                <description>LOOP IN/4 BEAT (DECK1) - press - Set loop in; nothing inside an active loop (Android edition)</description>
                 <group>[Channel1]</group>
-                <key>loop_in</key>
+                <key>PioneerDDJFLX4.loopInPressed</key>
                 <status>0x90</status>
                 <midino>0x10</midino>
                 <options>
-                    <Normal/>
+                    <Script-Binding/>
                 </options>
             </control>
 
             <control>
-                <description>LOOP IN/4 BEAT (DECK2) - press - Set loop in</description>
+                <description>LOOP IN/4 BEAT (DECK2) - press - Set loop in; nothing inside an active loop (Android edition)</description>
                 <group>[Channel2]</group>
-                <key>loop_in</key>
+                <key>PioneerDDJFLX4.loopInPressed</key>
                 <status>0x91</status>
                 <midino>0x10</midino>
                 <options>
-                    <Normal/>
+                    <Script-Binding/>
                 </options>
             </control>
 
             <control>
-                <description>LOOP OUT (DECK1) - press - Set loop out</description>
+                <description>LOOP OUT (DECK1) - press - Set loop out; nothing inside an active loop (Android edition)</description>
                 <group>[Channel1]</group>
-                <key>loop_out</key>
+                <key>PioneerDDJFLX4.loopOutPressed</key>
                 <status>0x90</status>
                 <midino>0x11</midino>
                 <options>
-                    <Normal/>
+                    <Script-Binding/>
                 </options>
             </control>
             <control>
-                <description>LOOP OUT (DECK2) - press - Set loop out</description>
+                <description>LOOP OUT (DECK2) - press - Set loop out; nothing inside an active loop (Android edition)</description>
                 <group>[Channel2]</group>
-                <key>loop_out</key>
+                <key>PioneerDDJFLX4.loopOutPressed</key>
                 <status>0x91</status>
                 <midino>0x11</midino>
                 <options>
-                    <Normal/>
+                    <Script-Binding/>
                 </options>
             </control>
 
             <control>
-                <description>RELOOP/EXIT (DECK1) - press - (loop off) Reloop, (loop on) Loop exit</description>
+                <description>RELOOP/EXIT (DECK1) - press - (loop on) Loop exit, (loop off) new 4 beat loop (Android edition)</description>
                 <group>[Channel1]</group>
-                <key>reloop_toggle</key>
+                <key>PioneerDDJFLX4.loopExitOrFourBeat</key>
                 <status>0x90</status>
                 <midino>0x4D</midino>
                 <options>
-                    <Normal/>
+                    <Script-Binding/>
                 </options>
             </control>
             <control>
-                <description>RELOOP/EXIT (DECK2) - press - (loop off) Reloop, (loop on) Loop exit</description>
+                <description>RELOOP/EXIT (DECK2) - press - (loop on) Loop exit, (loop off) new 4 beat loop (Android edition)</description>
                 <group>[Channel2]</group>
-                <key>reloop_toggle</key> <!-- check if correct -->
+                <key>PioneerDDJFLX4.loopExitOrFourBeat</key>
                 <status>0x91</status>
                 <midino>0x4D</midino>
                 <options>
-                    <Normal/>
+                    <Script-Binding/>
                 </options>
             </control>
 
@@ -2983,23 +2983,7 @@
                 <minimum>0.5</minimum>
             </output>
 
-            <!-- BEAT SYNC Ch1 9058 Shift 9060 Ch2 9158 Shift 9160 -->
-            <output>
-                <group>[Channel1]</group>
-                <key>sync_enabled</key>
-                <status>0x90</status>
-                <midino>0x58</midino>
-                <on>0x7F</on>
-                <minimum>0.5</minimum>
-            </output>
-            <output>
-                <group>[Channel2]</group>
-                <key>sync_enabled</key>
-                <status>0x91</status>
-                <midino>0x58</midino>
-                <on>0x7F</on>
-                <minimum>0.5</minimum>
-            </output>
+            <!-- BEAT SYNC LEDs (9058 / 9158, shift 9060 / 9160): driven by the script (Android edition) -->
 
             <!-- CH CUE Ch1 9054 Ch2 9154 -->
             <output>

@@ -11,6 +11,7 @@
 
 #include "library/browse/browsefeature.h"
 #include "library/libraryfeature.h"
+#include "library/rekordbox/rekordboxfeature.h"
 #include "library/sidebarmodel.h"
 #include "library/trackset/crate/cratefeature.h"
 #include "library/trackset/playlistfeature.h"
@@ -104,6 +105,24 @@ class QmlLibraryAllTrackSource : public QmlLibraryAbstractSource {
 
   private:
     std::unique_ptr<AllTrackLibraryFeature> m_pLibraryFeature;
+};
+
+// Exposes the Rekordbox USB export library (removable media prepared with
+// rekordbox) in the QML sidebar. Wraps an own RekordboxFeature instance, like
+// QmlLibraryAllTrackSource does for the "All..." feature.
+class QmlLibraryRekordboxSource : public QmlLibraryAbstractSource {
+    Q_OBJECT
+    QML_NAMED_ELEMENT(LibraryRekordboxSource)
+  public:
+    explicit QmlLibraryRekordboxSource(QObject* parent = nullptr,
+            const QList<QmlLibraryTrackListColumn*>& columns = {});
+
+    LibraryFeature* internal() override {
+        return m_pLibraryFeature.get();
+    }
+
+  private:
+    std::unique_ptr<RekordboxFeature> m_pLibraryFeature;
 };
 
 } // namespace qml

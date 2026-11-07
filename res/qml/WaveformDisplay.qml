@@ -20,6 +20,8 @@ Item {
     // of the type that was used for the scene-graph stack so a change from
     // the legacy preferences dialog can recreate that stack explicitly.
     property int renderedWaveformType: -1
+    // Android edition: fixed gain (the waveform data is already normalised).
+    readonly property real visualGain: Qt.platform.os === "android" ? 1.0 : Mixxx.Config.waveformVisualGainAll
     readonly property string zoomGroup: Mixxx.Config.waveformZoomSynchronization ? "[Channel1]" : group
 
     Connections {
@@ -51,13 +53,14 @@ Item {
         backgroundColor: "transparent"
         frameRate: Mixxx.Config.waveformFrameRate
         group: root.group
-        options: Mixxx.Config.waveformOptions
+        options: Qt.platform.os === "android" ? Mixxx.WaveformDisplay.Option.None : Mixxx.Config.waveformOptions
         visible: Mixxx.Config.waveformEnabled
         zoom: zoomControl.value
 
         Behavior on zoom {
             SmoothedAnimation {
-                duration: 500
+                // Android edition: follows the fingers almost directly.
+                duration: Qt.platform.os === "android" ? 60 : 500
                 velocity: -1
             }
         }
@@ -66,13 +69,11 @@ Item {
             color: '#ff8872'
             endOfTrackWarningTime: Mixxx.Config.waveformEndOfTrackWarningTime
         }
-        Mixxx.WaveformRendererPreroll {
-            color: '#ff8872'
-        }
+        // No pre-roll arrows before the start of the track (Android edition).
         Mixxx.WaveformRendererMarkRange {
             // Loop
             Mixxx.WaveformMarkRange {
-                color: '#00b400'
+                color: Qt.platform.os === "android" ? '#ff8c1a' : '#00b400'
                 disabledColor: '#FFFFFF'
                 disabledOpacity: 0.6
                 enabledControl: "loop_enabled"
@@ -102,18 +103,18 @@ Item {
         Mixxx.WaveformRendererFiltered {
             axesColor: '#a1a1a1a1'
             enabled: root.activeWaveformType === Mixxx.WaveformDisplay.Type.Filtered
-            gainAll: Mixxx.Config.waveformVisualGainAll
+            gainAll: root.visualGain
             gainHigh: Mixxx.Config.waveformVisualGainHigh
             gainLow: Mixxx.Config.waveformVisualGainLow
             gainMid: Mixxx.Config.waveformVisualGainMedium
-            highColor: '#D5C2A2'
-            lowColor: '#2154D7'
-            midColor: '#97632D'
+            highColor: Qt.platform.os === "android" ? '#ffffff' : '#D5C2A2'
+            lowColor: Qt.platform.os === "android" ? '#1e5bff' : '#2154D7'
+            midColor: Qt.platform.os === "android" ? '#ff9a1f' : '#97632D'
         }
         Mixxx.WaveformRendererFiltered {
             axesColor: '#a1a1a1a1'
             enabled: root.activeWaveformType === Mixxx.WaveformDisplay.Type.Stacked
-            gainAll: Mixxx.Config.waveformVisualGainAll
+            gainAll: root.visualGain
             gainHigh: Mixxx.Config.waveformVisualGainHigh
             gainLow: Mixxx.Config.waveformVisualGainLow
             gainMid: Mixxx.Config.waveformVisualGainMedium
@@ -124,29 +125,33 @@ Item {
         }
         Mixxx.WaveformRendererSimple {
             axesColor: '#a1a1a1a1'
-            color: '#D5C2A2'
-            enabled: root.activeWaveformType === Mixxx.WaveformDisplay.Type.Simple
-            gain: Mixxx.Config.waveformVisualGainAll
+            color: Qt.platform.os === "android" ? '#1f8fe8' : '#D5C2A2'
+            enabled: Qt.platform.os !== "android" && root.activeWaveformType === Mixxx.WaveformDisplay.Type.Simple
+            gain: root.visualGain
         }
         Mixxx.WaveformRendererHSV {
             axesColor: '#a1a1a1a1'
             color: '#D5C2A2'
             enabled: root.activeWaveformType === Mixxx.WaveformDisplay.Type.HSV
-            gainAll: Mixxx.Config.waveformVisualGainAll
+            gainAll: root.visualGain
             gainHigh: Mixxx.Config.waveformVisualGainHigh
             gainLow: Mixxx.Config.waveformVisualGainLow
             gainMid: Mixxx.Config.waveformVisualGainMedium
         }
         Mixxx.WaveformRendererRGB {
+            readonly property bool blueScheme: Qt.platform.os === "android" && root.activeWaveformType === Mixxx.WaveformDisplay.Type.Simple
+
             axesColor: '#a1a1a1a1'
-            enabled: root.activeWaveformType === Mixxx.WaveformDisplay.Type.RGB
-            gainAll: Mixxx.Config.waveformVisualGainAll
+            enabled: root.activeWaveformType === Mixxx.WaveformDisplay.Type.RGB || blueScheme
+            gainAll: root.visualGain
             gainHigh: Mixxx.Config.waveformVisualGainHigh
             gainLow: Mixxx.Config.waveformVisualGainLow
             gainMid: Mixxx.Config.waveformVisualGainMedium
-            highColor: '#D5C2A2'
-            lowColor: '#2154D7'
-            midColor: '#97632D'
+            // BLUE: dark blue bass, bright blue mids, pale highs. RGB: red
+            // bass, green mids, blue highs.
+            highColor: blueScheme ? '#ffffff' : '#2f7bff'
+            lowColor: blueScheme ? '#2560ff' : '#ff2d2d'
+            midColor: blueScheme ? '#6cc3ff' : '#2fe05a'
         }
         Mixxx.WaveformRendererStem {
             gainAll: root.splitStemTracks ? 2.0 : 1.0
@@ -169,7 +174,9 @@ Item {
             untilMark.textSize: Mixxx.Config.waveformUntilMarkTextPointSize
 
             defaultMark: Mixxx.WaveformMark {
-                align: "bottom|right"
+                // Android edition: hotcue squares / memory cue triangles above
+                // the waveform.
+                align: Qt.platform.os === "android" ? "top|hcenter" : "bottom|right"
                 color: "#00d9ff"
                 endIcon: Qt.resolvedUrl("images/jump_%1.svg")
                 text: " %1 "
@@ -177,7 +184,7 @@ Item {
             }
 
             Mixxx.WaveformMark {
-                align: 'top|right'
+                align: Qt.platform.os === "android" ? 'bottom|hcenter' : 'top|right'
                 color: 'red'
                 control: "cue_point"
                 text: 'CUE'
@@ -227,6 +234,12 @@ Item {
         }
     }
     Mixxx.ControlProxy {
+        id: touchPlayControl
+
+        group: root.group
+        key: "play"
+    }
+    Mixxx.ControlProxy {
         id: scratchPositionEnableControl
 
         group: root.group
@@ -262,7 +275,36 @@ Item {
             }
         }
     }
+    // Android edition: move the track with one finger (scratch). The scratch
+    // mode is always left when the finger lifts or a second finger arrives
+    // (then the pinch zoom takes over).
+    DragHandler {
+        id: touchDrag
+
+        acceptedDevices: PointerDevice.TouchScreen
+        // Locked while the track plays (no moving by touch).
+        enabled: Qt.platform.os === "android" && touchPlayControl.value <= 0
+        maximumPointCount: 1
+        target: null
+
+        onActiveChanged: {
+            if (active) {
+                scratchPositionControl.value = -centroid.position.x * waveformDisplay.audioSamplePerPixel * 2;
+                scratchPositionEnableControl.value = 1;
+            } else {
+                scratchPositionEnableControl.value = 0;
+                scratchPositionControl.value = 0;
+            }
+        }
+        onCentroidChanged: {
+            if (active)
+                scratchPositionControl.value = -centroid.position.x * waveformDisplay.audioSamplePerPixel * 2;
+        }
+    }
     MouseArea {
+        // Android edition: no mouse scratching (it got stuck during pinch
+        // zoom and kept the deck from playing).
+        enabled: Qt.platform.os !== "android"
         property point mouseAnchor: Qt.point(0, 0)
         property int mouseStatus: WaveformDisplay.MouseStatus.Normal
 

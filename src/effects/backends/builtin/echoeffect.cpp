@@ -46,11 +46,12 @@ EffectManifestPointer EchoEffect::getManifest() {
     delay->setShortName(QObject::tr("Time"));
     delay->setDescription(QObject::tr(
             "Delay time\n"
-            "1/8 - 2 beats if tempo is detected\n"
-            "1/8 - 2 seconds if no tempo is detected"));
+            "1/16 - 8 beats if tempo is detected\n"
+            "1/16 - 8 seconds if no tempo is detected"));
     delay->setValueScaler(EffectManifestParameter::ValueScaler::Linear);
     delay->setUnitsHint(EffectManifestParameter::UnitsHint::Beats);
-    delay->setRange(0.0, 0.5, 2.0);
+    // Android edition: 1/16 - 8 beats (default 1 beat).
+    delay->setRange(0.0, 1.0, 8.0);
 
     EffectManifestParameterPointer feedback = pManifest->addParameter();
     feedback->setId("feedback_amount");
@@ -253,4 +254,51 @@ void EchoEffect::processChannel(
 
     pGroupState->prev_feedback = feedback_current;
     pGroupState->prev_delay_samples = delay_samples;
+}
+
+namespace {
+void setParameterDefault(const EffectManifestPointer& pManifest,
+        const QString& parameterId,
+        double defaultValue) {
+    const auto parameters = pManifest->parameters();
+    for (const auto& pParameter : parameters) {
+        if (pParameter->id() == parameterId) {
+            pParameter->setRange(pParameter->getMinimum(), defaultValue, pParameter->getMaximum());
+        }
+    }
+}
+} // anonymous namespace
+
+// static
+QString DelayEffect::getId() {
+    return "org.mixxx.effects.delay";
+}
+
+// static
+EffectManifestPointer DelayEffect::getManifest() {
+    EffectManifestPointer pManifest = EchoEffect::getManifest();
+    pManifest->setId(getId());
+    pManifest->setName(QObject::tr("Delay"));
+    pManifest->setShortName(QObject::tr("Delay"));
+    pManifest->setDescription(QObject::tr(
+            "Outputs the input signal once after a short time"));
+    setParameterDefault(pManifest, "feedback_amount", 0.0);
+    return pManifest;
+}
+
+// static
+QString PingPongEffect::getId() {
+    return "org.mixxx.effects.pingpong";
+}
+
+// static
+EffectManifestPointer PingPongEffect::getManifest() {
+    EffectManifestPointer pManifest = EchoEffect::getManifest();
+    pManifest->setId(getId());
+    pManifest->setName(QObject::tr("Ping Pong"));
+    pManifest->setShortName(QObject::tr("Ping Pong"));
+    pManifest->setDescription(QObject::tr(
+            "Echo whose repeats bounce between the left and right side"));
+    setParameterDefault(pManifest, "pingpong_amount", 1.0);
+    return pManifest;
 }

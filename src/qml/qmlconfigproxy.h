@@ -351,6 +351,17 @@ class QmlConfigProxy : public QmlConfigProxyBase {
     Q_INVOKABLE QVariantList colorPalette(const QString& paletteName) const;
 
     Q_INVOKABLE QStringList paletteNames() const;
+
+    // Android edition: small persistent settings of the touch interface
+    // (stored in the Mixxx config file, group [AndroidDJ]).
+    Q_INVOKABLE QString androidSetting(const QString& key, const QString& defaultValue) const {
+        return m_pConfig->getValue(ConfigKey(QStringLiteral("[AndroidDJ]"), key),
+                defaultValue);
+    }
+    Q_INVOKABLE void setAndroidSetting(const QString& key, const QString& value) {
+        m_pConfig->setValue(ConfigKey(QStringLiteral("[AndroidDJ]"), key), value);
+        m_pConfig->save();
+    }
   signals:
     void hotcueColorPaletteChanged();
     void trackColorPaletteChanged();

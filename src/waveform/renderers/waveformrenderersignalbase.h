@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 
 #include "skin/legacy/skincontext.h"
@@ -51,12 +53,27 @@ class WaveformRendererSignalBase : public QObject, public WaveformRendererAbstra
     }
 
   protected:
+#ifdef __ANDROID__
+    // Android edition: expands the dynamics of the column height (0..255) so
+    // that single hits (kicks) stand out from the louder level between them.
+    // The loudest value stays where it is.
+    static float expandPeaks(float value) {
+        const float normalized = std::clamp(value / 255.0f, 0.0f, 1.0f);
+        return 255.0f * std::pow(normalized, 1.3f);
+    }
+#endif
+#ifdef __ANDROID__
+    // Android edition: fixed gain that scales the loudest point of the whole
+    // track up to just below the beat ticks.
+    float trackAutoGain(const Waveform* pWaveform, int dataSize);
+#endif
     void getGains(float* pAllGain,
             float* pLowGain,
             float* pMidGain,
             float* highGain);
 
   protected:
+
     std::unique_ptr<ControlProxy> m_pEQEnabled;
     std::unique_ptr<ControlProxy> m_pLowFilterControlObject;
     std::unique_ptr<ControlProxy> m_pMidFilterControlObject;

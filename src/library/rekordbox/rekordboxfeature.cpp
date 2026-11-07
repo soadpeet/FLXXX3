@@ -2,13 +2,24 @@
 
 #include <mp3guessenc.h>
 #include <rekordbox_anlz.h>
+
+#include <QTimer>
+#include <QRegularExpression>
+#include <algorithm>
+#include <cmath>
 #include <rekordbox_pdb.h>
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 #include <QDir>
+#include <QElapsedTimer>
 #include <QMap>
 #include <QMessageBox>
 #include <QSettings>
 #include <QString>
+#include <QStorageInfo>
 #include <QStringList>
 #include <QTextCodec>
 #include <QtDebug>
@@ -24,6 +35,10 @@
 #include "moc_rekordboxfeature.cpp"
 #include "track/beats.h"
 #include "track/cue.h"
+#include "track/trackref.h"
+#ifdef __ANDROID__
+#include "util/androidtrackcache.h"
+#endif
 #include "track/keyfactory.h"
 #include "track/track.h"
 #include "util/color/color.h"
@@ -31,6 +46,7 @@
 #include "util/db/dbconnectionpooler.h"
 #include "util/sandbox.h"
 #include "waveform/waveform.h"
+#include "waveform/waveformfactory.h"
 #include "widget/wlibrary.h"
 #include "widget/wlibrarytextbrowser.h"
 
@@ -241,6 +257,40 @@ QList<TreeItem*> findRekordboxDevices() {
                     device.fileName(),
                     QVariant(QList<QString>{device.filePath(), IS_RECORDBOX_DEVICE}));
             foundDevices << pFoundDevice;
+        }
+    }
+#elif defined(__ANDROID__)
+    // Android: removable volumes (USB sticks, SD cards) are mounted at
+    // /storage/<volume-uuid>. /storage itself is not listable for apps
+    // (drwx--x--x), so QDir::entryInfoList() returns nothing there. Ask the
+    // mount table instead. "emulated" is the internal storage, "self" a helper.
+    const QList<QStorageInfo> volumes = QStorageInfo::mountedVolumes();
+
+    for (const QStorageInfo& volume : volumes) {
+        const QString root = volume.rootPath();
+        // Removable volumes show up in the app's mount table as
+        // /mnt/media_rw/<uuid>; the app-facing path is /storage/<uuid>.
+        QStringList candidates;
+        if (root.startsWith(QStringLiteral("/mnt/media_rw/"))) {
+            candidates << QStringLiteral("/storage/") + QFileInfo(root).fileName();
+            candidates << root;
+        } else if (root.startsWith(QStringLiteral("/storage/")) &&
+                !root.startsWith(QStringLiteral("/storage/emulated")) &&
+                !root.startsWith(QStringLiteral("/storage/self"))) {
+            candidates << root;
+        }
+        if (!volume.isValid() || !volume.isReady() || candidates.isEmpty()) {
+            continue;
+        }
+        for (const QString& candidate : std::as_const(candidates)) {
+            const QString pdbPath = findRekordboxPdbPath(candidate);
+            if (!pdbPath.isEmpty()) {
+                auto* pFoundDevice = new TreeItem(
+                        QFileInfo(root).fileName(),
+                        QVariant(QList<QString>{candidate, IS_RECORDBOX_DEVICE}));
+                foundDevices << pFoundDevice;
+                break;
+            }
         }
     }
 #else // __APPLE__
@@ -882,6 +932,221 @@ void setHotCue(TrackPointer track,
     }
 }
 
+// Waveform columns of the Rekordbox ANLZ detail waveform (tags PWV5 colour /
+// PWV3 mono). The columns run on a fixed clock of 150 columns per second.
+// Band values are scaled to 0..255; "all" is the column height.
+struct RekordboxWaveformColumns {
+    QVector<quint8> low;
+    QVector<quint8> mid;
+    QVector<quint8> high;
+    QVector<quint8> all;
+
+    int size() const {
+        return static_cast<int>(all.size());
+    }
+};
+
+constexpr double kRekordboxWaveformColumnsPerSecond = 150.0;
+
+quint8 scaleToByte(quint32 value, quint32 maximum) {
+    return maximum == 0 ? 0 : static_cast<quint8>(qMin<quint32>(255, (value * 255 + maximum / 2) / maximum));
+}
+
+// PWV5: 2 bytes per column, little endian: red bits 0-2, green 3-5, blue 6-8,
+// height bits 9-13 (5 bit) plus two fine bits 14-15. Red/green/blue carry the
+// low/mid/high frequency share (same convention as Mixxx's RGB waveform).
+RekordboxWaveformColumns decodeColorScrollWaveform(const std::string& entries, uint32_t entryBytes) {
+    RekordboxWaveformColumns columns;
+    if (entryBytes != 2 || entries.size() < 2) {
+        return columns;
+    }
+    const int count = static_cast<int>(entries.size() / 2);
+
+    // Two readings of the 16 bit entries are known: the one used so far
+    // (little endian, height in bits 9-13) and the big endian one that the
+    // format documentation describes (red 15-13, green 12-10, blue 9-7,
+    // height 6-2). The waveform of a track changes smoothly from column to
+    // column, a wrong bit position makes the height jump (a loud part wraps
+    // around to small values). Take the reading with the smaller jumps.
+    const auto heightLittle = [&](int i) {
+        const quint16 packed = static_cast<quint16>(static_cast<quint8>(entries[2 * i])) |
+                (static_cast<quint16>(static_cast<quint8>(entries[2 * i + 1])) << 8);
+        const quint32 coarse = (packed >> 9) & 0x1f;
+        const quint32 fineBits = (packed >> 14) & 0x3;
+        const quint32 fine = ((fineBits & 1) << 1) | ((fineBits >> 1) & 1);
+        return static_cast<int>(coarse * 4 + fine) * 255 / 127;
+    };
+    const auto bigEndianValue = [&](int i) {
+        return static_cast<quint16>((static_cast<quint16>(static_cast<quint8>(entries[2 * i])) << 8) |
+                static_cast<quint8>(entries[2 * i + 1]));
+    };
+    const auto heightBig = [&](int i) {
+        return static_cast<int>((bigEndianValue(i) >> 2) & 0x1f) * 255 / 31;
+    };
+    double jumpsLittle = 0;
+    double jumpsBig = 0;
+    for (int i = 1; i < count; ++i) {
+        jumpsLittle += std::abs(heightLittle(i) - heightLittle(i - 1));
+        jumpsBig += std::abs(heightBig(i) - heightBig(i - 1));
+    }
+    const bool useBig = jumpsBig < jumpsLittle;
+
+    columns.low.reserve(count);
+    columns.mid.reserve(count);
+    columns.high.reserve(count);
+    columns.all.reserve(count);
+    for (int i = 0; i < count; ++i) {
+        if (useBig) {
+            const quint16 value = bigEndianValue(i);
+            columns.low.push_back(scaleToByte((value >> 13) & 0x7, 7));
+            columns.mid.push_back(scaleToByte((value >> 10) & 0x7, 7));
+            columns.high.push_back(scaleToByte((value >> 7) & 0x7, 7));
+            columns.all.push_back(scaleToByte((value >> 2) & 0x1f, 31));
+        } else {
+            const quint16 packed = static_cast<quint16>(static_cast<quint8>(entries[2 * i])) |
+                    (static_cast<quint16>(static_cast<quint8>(entries[2 * i + 1])) << 8);
+            const quint32 coarse = (packed >> 9) & 0x1f;
+            const quint32 fineBits = (packed >> 14) & 0x3;
+            const quint32 fine = ((fineBits & 1) << 1) | ((fineBits >> 1) & 1);
+            columns.low.push_back(scaleToByte(packed & 0x7, 7));
+            columns.mid.push_back(scaleToByte((packed >> 3) & 0x7, 7));
+            columns.high.push_back(scaleToByte((packed >> 6) & 0x7, 7));
+            columns.all.push_back(scaleToByte(coarse * 4 + fine, 127));
+        }
+    }
+    return columns;
+}
+
+// PWV3: 1 byte per column, height in the low 5 bits.
+RekordboxWaveformColumns decodeMonoScrollWaveform(const std::string& entries) {
+    RekordboxWaveformColumns columns;
+    const int count = static_cast<int>(entries.size());
+    for (int i = 0; i < count; ++i) {
+        const quint8 height = scaleToByte(static_cast<quint8>(entries[i]) & 0x1f, 31);
+        columns.low.push_back(height);
+        columns.mid.push_back(height);
+        columns.high.push_back(height);
+        columns.all.push_back(height);
+    }
+    return columns;
+}
+
+// Builds Mixxx's waveform and overview waveform from the Rekordbox columns and
+// puts them on the track. AnalyzerWaveform::shouldAnalyze() then skips the
+// (slow, CPU-heavy) audio analysis for this track.
+void applyRekordboxWaveform(const TrackPointer& track,
+        mixxx::audio::SampleRate sampleRate,
+        int timingOffsetMs,
+        const RekordboxWaveformColumns& columns) {
+    constexpr int kMainVisualSampleRate = 441; // same as AnalyzerWaveform
+    constexpr int kSummaryVisualSamples = 2 * 1920;
+
+    if (track->getWaveform() && track->getWaveformSummary()) {
+        // getTrack() is called several times per track (e.g. once per table
+        // cell); build the waveform only once.
+        return;
+    }
+    const double durationSeconds = track->getDuration();
+    if (columns.size() < 2 || !sampleRate.isValid() || durationSeconds <= 0.0) {
+        return;
+    }
+    const SINT frameLength =
+            static_cast<SINT>(std::round(durationSeconds * sampleRate.value()));
+    if (frameLength <= 0) {
+        return;
+    }
+
+    // Mixxx time = ANLZ time - offset (see readAnalyze), so ANLZ time =
+    // Mixxx time + offset.
+    const double offsetSeconds = timingOffsetMs / 1000.0;
+    const int columnCount = columns.size();
+#ifdef __ANDROID__
+    // The Rekordbox columns are coarse (5 bit height, 3 bit per band), which
+    // makes the waveform restless. A light [1 2 1] smoothing over neighbouring
+    // columns keeps the hits but removes the quantisation noise.
+    const auto smoothed = [](const QVector<quint8>& in) {
+        QVector<quint8> out(in.size());
+        for (int i = 0; i < in.size(); ++i) {
+            const int a = in[qMax(0, i - 1)];
+            const int b = in[i];
+            const int c = in[qMin(in.size() - 1, i + 1)];
+            out[i] = static_cast<quint8>((a + 2 * b + c + 2) / 4);
+        }
+        return out;
+    };
+    RekordboxWaveformColumns smoothColumns;
+    smoothColumns.low = smoothed(columns.low);
+    smoothColumns.mid = smoothed(columns.mid);
+    smoothColumns.high = smoothed(columns.high);
+    smoothColumns.all = smoothed(columns.all);
+    const RekordboxWaveformColumns& columnsUsed = smoothColumns;
+#else
+    const RekordboxWaveformColumns& columnsUsed = columns;
+#endif
+
+    const auto fill = [&](Waveform* pWaveform) {
+        WaveformData* pData = pWaveform->data();
+        const int dataSize = pWaveform->getDataSize();
+        const double visualRate = sampleRate.value() / pWaveform->getAudioVisualRatio();
+        for (int visual = 0; visual * 2 + 1 < dataSize; ++visual) {
+            const double t0 = visual / visualRate + offsetSeconds;
+            const double t1 = (visual + 1) / visualRate + offsetSeconds;
+            const int first = qBound(0,
+                    static_cast<int>(std::floor(t0 * kRekordboxWaveformColumnsPerSecond)),
+                    columnCount - 1);
+            const int last = qBound(first,
+                    static_cast<int>(std::ceil(t1 * kRekordboxWaveformColumnsPerSecond)) - 1,
+                    columnCount - 1);
+            quint8 low = 0;
+            quint8 mid = 0;
+            quint8 high = 0;
+            quint8 all = 0;
+            if (visualRate > kRekordboxWaveformColumnsPerSecond) {
+                // The Rekordbox columns are coarser than the Mixxx waveform:
+                // interpolate between neighbouring columns instead of
+                // repeating each one (smoother, same information).
+                const double centre = (t0 + t1) / 2 * kRekordboxWaveformColumnsPerSecond - 0.5;
+                const int c0 = qBound(0, static_cast<int>(std::floor(centre)), columnCount - 1);
+                const int c1 = qMin(c0 + 1, columnCount - 1);
+                const double frac = qBound(0.0, centre - c0, 1.0);
+                const auto lerp = [&](const QVector<quint8>& band) {
+                    return static_cast<quint8>(std::lround(band[c0] * (1.0 - frac) + band[c1] * frac));
+                };
+                low = lerp(columnsUsed.low);
+                mid = lerp(columnsUsed.mid);
+                high = lerp(columnsUsed.high);
+                all = lerp(columnsUsed.all);
+            } else {
+                for (int column = first; column <= last; ++column) {
+                    low = qMax(low, columnsUsed.low[column]);
+                    mid = qMax(mid, columnsUsed.mid[column]);
+                    high = qMax(high, columnsUsed.high[column]);
+                    all = qMax(all, columnsUsed.all[column]);
+                }
+            }
+            for (int channel = 0; channel < ChannelCount; ++channel) {
+                WaveformData& datum = pData[visual * ChannelCount + channel];
+                datum.filtered.low = low;
+                datum.filtered.mid = mid;
+                datum.filtered.high = high;
+                datum.filtered.all = all;
+            }
+        }
+        pWaveform->setCompletion(dataSize);
+        pWaveform->setVersion(WaveformFactory::currentWaveformVersion());
+        pWaveform->setDescription(WaveformFactory::currentWaveformDescription());
+    };
+
+    auto pWaveform = WaveformPointer(new Waveform(
+            sampleRate, frameLength, kMainVisualSampleRate, -1, 0));
+    auto pSummary = WaveformPointer(new Waveform(
+            sampleRate, frameLength, kMainVisualSampleRate, kSummaryVisualSamples, 0));
+    fill(pWaveform.data());
+    fill(pSummary.data());
+    track->setWaveform(pWaveform);
+    track->setWaveformSummary(pSummary);
+}
+
 void readAnalyze(TrackPointer track,
         mixxx::audio::SampleRate sampleRate,
         int timingOffset,
@@ -902,9 +1167,25 @@ void readAnalyze(TrackPointer track,
 
     QList<memory_cue_loop_t> memoryCuesAndLoops;
     int lastHotCueIndex = 0;
+    RekordboxWaveformColumns colorColumns;
+    RekordboxWaveformColumns monoColumns;
 
     for (const auto& section : *anlz.sections()) {
         switch (section->fourcc()) {
+        case rekordbox_anlz_t::SECTION_TAGS_WAVE_COLOR_SCROLL: {
+            if (ignoreCues || (track->getWaveform() && track->getWaveformSummary())) {
+                break; // beat grid call, or the waveform is already there
+            }
+            auto* tag = static_cast<rekordbox_anlz_t::wave_color_scroll_tag_t*>(section->body());
+            colorColumns = decodeColorScrollWaveform(tag->entries(), tag->len_entry_bytes());
+        } break;
+        case rekordbox_anlz_t::SECTION_TAGS_WAVE_SCROLL: {
+            if (ignoreCues || (track->getWaveform() && track->getWaveformSummary())) {
+                break;
+            }
+            auto* tag = static_cast<rekordbox_anlz_t::wave_scroll_tag_t*>(section->body());
+            monoColumns = decodeMonoScrollWaveform(tag->entries());
+        } break;
         case rekordbox_anlz_t::SECTION_TAGS_BEAT_GRID: {
             if (!ignoreCues) {
                 break;
@@ -915,6 +1196,7 @@ void readAnalyze(TrackPointer track,
                             section->body());
 
             QVector<mixxx::audio::FramePos> beats;
+            QVector<int> beatTimesMs;
 
             for (const auto& beat : *beatGridTag->beats()) {
                 int time = static_cast<int>(beat->time()) - timingOffset;
@@ -922,13 +1204,63 @@ void readAnalyze(TrackPointer track,
                 if (time < 1) {
                     time = 1;
                 }
+                beatTimesMs << time;
                 beats << mixxx::audio::FramePos(sampleRateKhz * static_cast<double>(time));
             }
 
-            const auto pBeats = mixxx::Beats::fromBeatPositions(
-                    sampleRate,
-                    beats,
-                    mixxx::rekordboxconstants::beatsSubversion);
+            // Rekordbox stores beat times in whole milliseconds. Building the
+            // grid from them gives a slightly wrong tempo (e.g. 160.2 instead
+            // of 160.0). If all beats lie on a regular grid within the
+            // rounding error of the stated tempo, use a constant tempo grid.
+            mixxx::BeatsPointer pBeats;
+            if (!beatGridTag->beats()->empty() && beatTimesMs.size() >= 2) {
+                const double tempoBpm =
+                        beatGridTag->beats()->front()->tempo() / 100.0;
+                // Offset of every beat against an ideal grid of the stated
+                // tempo. For a regular grid all offsets are (nearly) equal;
+                // the first beat of a track is not always exact, so the grid
+                // is centred between the smallest and largest offset.
+                double maxDeviationMs = 0.0;
+                double gridStartMs = beatTimesMs.front();
+                if (tempoBpm > 0.0) {
+                    const double beatLengthMs = 60000.0 / tempoBpm;
+                    double minOffset = 1e18;
+                    double maxOffset = -1e18;
+                    for (int i = 0; i < beatTimesMs.size(); ++i) {
+                        const double offset = beatTimesMs.at(i) - i * beatLengthMs;
+                        minOffset = std::min(minOffset, offset);
+                        maxOffset = std::max(maxOffset, offset);
+                    }
+                    gridStartMs = (minOffset + maxOffset) / 2.0;
+                    maxDeviationMs = (maxOffset - minOffset) / 2.0;
+                }
+                // Real tempo changes deviate by far more than this.
+                constexpr double kMaxRoundingDeviationMs = 10.0;
+                const bool constantTempo = tempoBpm > 0.0 &&
+                        maxDeviationMs <= kMaxRoundingDeviationMs;
+#ifdef __ANDROID__
+                __android_log_print(ANDROID_LOG_INFO,
+                        "mixxx-rekordbox",
+                        "beat grid: %d beats, tempo %.2f, max deviation %.2f ms -> %s",
+                        static_cast<int>(beatTimesMs.size()),
+                        tempoBpm,
+                        maxDeviationMs,
+                        constantTempo ? "constant tempo" : "variable");
+#endif
+                if (constantTempo) {
+                    pBeats = mixxx::Beats::fromConstTempo(
+                            sampleRate,
+                            mixxx::audio::FramePos(sampleRateKhz * gridStartMs),
+                            mixxx::Bpm(tempoBpm),
+                            mixxx::rekordboxconstants::beatsSubversion);
+                }
+            }
+            if (!pBeats) {
+                pBeats = mixxx::Beats::fromBeatPositions(
+                        sampleRate,
+                        beats,
+                        mixxx::rekordboxconstants::beatsSubversion);
+            }
             track->trySetBeats(pBeats);
         } break;
         case rekordbox_anlz_t::SECTION_TAGS_CUES: {
@@ -1067,39 +1399,40 @@ void readAnalyze(TrackPointer track,
         }
     }
 
+    if (!ignoreCues) {
+        // Prefer the colour waveform, fall back to the mono one. Without any
+        // detail waveform (old exports) Mixxx analyzes the audio as before.
+        const RekordboxWaveformColumns& columns =
+                colorColumns.size() > 0 ? colorColumns : monoColumns;
+        if (columns.size() > 0) {
+            applyRekordboxWaveform(track, sampleRate, timingOffset, columns);
+        }
+    }
+
     if (memoryCuesAndLoops.size() > 0) {
         std::sort(memoryCuesAndLoops.begin(),
                 memoryCuesAndLoops.end(),
                 [](const memory_cue_loop_t& a, const memory_cue_loop_t& b)
                         -> bool { return a.startPosition < b.startPosition; });
 
-        bool mainCueFound = false;
-
-        // Add memory cues and loops
-        for (int memoryCueOrLoopIndex = 0;
-                memoryCueOrLoopIndex < memoryCuesAndLoops.size();
-                memoryCueOrLoopIndex++) {
-            memory_cue_loop_t memoryCueOrLoop = memoryCuesAndLoops[memoryCueOrLoopIndex];
-
-            if (!mainCueFound && !memoryCueOrLoop.endPosition.isValid()) {
-                // Set first chronological memory cue as Mixxx MainCue
-                track->setMainCuePosition(memoryCueOrLoop.startPosition);
-                CuePointer pMainCue = track->findCueByType(mixxx::CueType::MainCue);
-                pMainCue->setLabel(memoryCueOrLoop.comment);
-                pMainCue->setColor(*memoryCueOrLoop.color);
-                mainCueFound = true;
-            } else {
-                // Mixxx v2.4 will feature multiple loops, so these saved here will be usable
-                // For 2.3, Mixxx treats them as hotcues and the first one will be loaded as the single loop Mixxx supports
-                lastHotCueIndex++;
-                setHotCue(
-                        track,
-                        memoryCueOrLoop.startPosition,
-                        memoryCueOrLoop.endPosition,
-                        lastHotCueIndex,
-                        memoryCueOrLoop.comment,
-                        memoryCueOrLoop.color);
+        // Android edition: memory cues are not hotcues and not the main cue.
+        // The hotcues A..H (index 0..7) stay the ones set in Rekordbox; memory
+        // cues and memory loops are stored behind them (index 16 and up, red)
+        // so that they never show up on the pads and can be drawn on their own.
+        constexpr int kFirstMemoryCueIndex = 16;
+        constexpr int kLastMemoryCueIndex = 35;
+        int memoryCueIndex = kFirstMemoryCueIndex;
+        for (const memory_cue_loop_t& memoryCueOrLoop : std::as_const(memoryCuesAndLoops)) {
+            if (memoryCueIndex > kLastMemoryCueIndex) {
+                break;
             }
+            setHotCue(
+                    track,
+                    memoryCueOrLoop.startPosition,
+                    memoryCueOrLoop.endPosition,
+                    memoryCueIndex++,
+                    memoryCueOrLoop.comment,
+                    mixxx::RgbColor::optional_t(mixxx::RgbColor(0xe03030)));
         }
     }
 }
@@ -1213,18 +1546,17 @@ void RekordboxPlaylistModel::initSortColumnMapping() {
     }
 }
 
-TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
-    qDebug() << "RekordboxTrackModel::getTrack";
-
-    TrackPointer track = BaseExternalPlaylistModel::getTrack(index);
-    QString location = getFieldVariant(
-            index, ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)
-                               .toString();
-
-    if (!QFile(location).exists()) {
-        return track;
-    }
-
+// Reads the Rekordbox analysis files of a track (waveform, beat grid, cues) and
+// puts the data on the track object. The track object is the one that the
+// library hands out; location is its file.
+static void applyRekordboxTrackData(const TrackPointer& track,
+        const QString& location,
+        const QString& anlzPath,
+        const QString& keyText,
+        const QVariant& colorValue) {
+#ifdef __ANDROID__
+    mixxx::AndroidTrackCache::instance().noteAccess(location);
+#endif
     // The following code accounts for timing offsets required to
     // correctly align timing information (cue points, loops, beatgrids)
     // exported from Rekordbox. This is caused by different MP3
@@ -1276,9 +1608,6 @@ TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
 
     mixxx::audio::SampleRate sampleRate = track->getSampleRate();
 
-    QString anlzPath =
-            getFieldVariant(index, ColumnCache::COLUMN_REKORDBOX_ANALYZE_PATH)
-                    .toString();
     QString anlzPathExt = anlzPath.left(anlzPath.length() - 3) + "EXT";
 
     if (QFile(anlzPathExt).exists()) {
@@ -1299,12 +1628,29 @@ TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
     // Decision: We normalize the KeyText here to not write garbage to the
     // file metadata and it is unlikely to loose extra info.
     track->setKeys(KeyFactory::makeBasicKeysNormalized(
-            getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_KEY).toString(),
+            keyText,
             mixxx::track::io::key::USER));
 
-    track->setColor(mixxx::RgbColor::fromQVariant(
-            getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_COLOR)));
+    track->setColor(mixxx::RgbColor::fromQVariant(colorValue));
+}
 
+TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
+    qDebug() << "RekordboxTrackModel::getTrack";
+
+    TrackPointer track = BaseExternalPlaylistModel::getTrack(index);
+    QString location = getFieldVariant(
+            index, ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)
+                               .toString();
+
+    if (!QFile(location).exists()) {
+        return track;
+    }
+
+    applyRekordboxTrackData(track,
+            location,
+            getFieldVariant(index, ColumnCache::COLUMN_REKORDBOX_ANALYZE_PATH).toString(),
+            getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_KEY).toString(),
+            getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_COLOR));
     return track;
 }
 
@@ -1319,6 +1665,60 @@ bool RekordboxPlaylistModel::isColumnInternal(int column) {
     return column == fieldIndex(ColumnCache::COLUMN_REKORDBOX_ANALYZE_PATH) ||
             BaseExternalPlaylistModel::isColumnInternal(column);
 }
+
+#ifdef __ANDROID__
+namespace {
+TrackCollection* g_pRekordboxCollection = nullptr;
+} // namespace
+
+// Android edition: tracks are loaded by file location (FLX4 browse knob), from
+// whichever list is shown. Make sure that their Rekordbox data (waveform, beat
+// grid, cues) is read in any case.
+void RekordboxFeature::importDataForTrack(const TrackPointer& pTrack) {
+    if (!pTrack || !g_pRekordboxCollection) {
+        return;
+    }
+    if (pTrack->getWaveform() && pTrack->getWaveformSummary()) {
+        return; // already imported
+    }
+    mixxx::AndroidTrackCache::instance().noteAccess(pTrack->getLocation());
+    static const QRegularExpression volumePrefix(
+            QStringLiteral("^/(?:mnt/media_rw|storage)/[^/]+"));
+    const QString location = pTrack->getLocation();
+    if (!location.contains(volumePrefix) || location.startsWith(QStringLiteral("/storage/emulated"))) {
+        return;
+    }
+    QString relative = location;
+    relative.remove(volumePrefix);
+    QSqlQuery query(g_pRekordboxCollection->database());
+    query.prepare(QStringLiteral("SELECT analyze_path, key, color FROM ") + kRekordboxLibraryTable +
+            QStringLiteral(" WHERE substr(location, -length(:rel)) = :rel LIMIT 1"));
+    query.bindValue(QStringLiteral(":rel"), relative);
+    if (!query.exec() || !query.next()) {
+        return;
+    }
+    applyRekordboxTrackData(pTrack,
+            location,
+            query.value(0).toString(),
+            query.value(1).toString(),
+            query.value(2));
+
+    // "TRACK" number of the player display: the position of the track in the
+    // list of the stick (the first playlist that contains it).
+    QSqlQuery positionQuery(g_pRekordboxCollection->database());
+    positionQuery.prepare(QStringLiteral("SELECT pt.position FROM ") +
+            kRekordboxPlaylistTracksTable + QStringLiteral(" pt JOIN ") + kRekordboxLibraryTable +
+            QStringLiteral(" l ON l.id = pt.track_id WHERE substr(l.location, -length(:rel)) = :rel "
+                           "ORDER BY pt.playlist_id LIMIT 1"));
+    positionQuery.bindValue(QStringLiteral(":rel"), relative);
+    if (positionQuery.exec() && positionQuery.next()) {
+        const int position = positionQuery.value(0).toInt();
+        if (position > 0) {
+            pTrack->setTrackNumber(QStringLiteral("%1").arg(position, 2, 10, QLatin1Char('0')));
+        }
+    }
+}
+#endif
 
 RekordboxFeature::RekordboxFeature(
         Library* pLibrary,
@@ -1365,6 +1765,9 @@ RekordboxFeature::RekordboxFeature(
             this, pLibrary->trackCollectionManager(), m_trackSource);
 
     m_title = tr("Rekordbox");
+#ifdef __ANDROID__
+    g_pRekordboxCollection = m_pTrackCollection;
+#endif
 
     QSqlDatabase database = m_pTrackCollection->database();
     ScopedTransaction transaction(database);
@@ -1389,7 +1792,144 @@ RekordboxFeature::RekordboxFeature(
             &RekordboxFeature::onTracksFound);
     // initialize the model
     m_pSidebarModel->setRootItem(TreeItem::newRoot(this));
+
+#ifdef __ANDROID__
+    // Android edition: a stick is only read. As soon as it is pulled, its
+    // tracks disappear from the library as if it had never been there, and
+    // a newly inserted stick is picked up without opening the Rekordbox entry.
+    auto* pVolumeTimer = new QTimer(this);
+    connect(pVolumeTimer, &QTimer::timeout, this, &RekordboxFeature::checkRemovableVolumes);
+    pVolumeTimer->start(2000);
+    QTimer::singleShot(0, this, &RekordboxFeature::checkRemovableVolumes);
+#endif
 }
+
+#ifdef __ANDROID__
+void RekordboxFeature::checkRemovableVolumes() {
+    QSet<QString> mounted;
+    for (const QStorageInfo& volume : QStorageInfo::mountedVolumes()) {
+        const QString root = volume.rootPath();
+        if (root.startsWith(QStringLiteral("/mnt/media_rw/")) && volume.isValid() && volume.isReady()) {
+            mounted.insert(QFileInfo(root).fileName());
+        }
+    }
+    if (m_volumesChecked && mounted == m_mountedVolumes) {
+        return;
+    }
+    m_mountedVolumes = mounted;
+    m_volumesChecked = true;
+
+    // Tracks of volumes that are not mounted (any more): delete them from the
+    // library, including their cues, beats and waveforms.
+    static const QRegularExpression volumePath(
+            QStringLiteral("^/(?:mnt/media_rw|storage)/([^/]+)/"));
+    QSqlDatabase database = m_pTrackCollection->database();
+    QSqlQuery query(database);
+    if (!query.exec(QStringLiteral(
+                "SELECT library.id, track_locations.location FROM library "
+                "JOIN track_locations ON library.location = track_locations.id"))) {
+        LOG_FAILED_QUERY(query);
+        return;
+    }
+    QList<TrackRef> goneTracks;
+    while (query.next()) {
+        const QRegularExpressionMatch match = volumePath.match(query.value(1).toString());
+        if (!match.hasMatch()) {
+            continue;
+        }
+        const QString volumeId = match.captured(1);
+        if (volumeId == QStringLiteral("emulated") || volumeId == QStringLiteral("self") ||
+                mounted.contains(volumeId)) {
+            continue;
+        }
+        goneTracks.append(TrackRef::fromFilePath(query.value(1).toString(), TrackId(query.value(0))));
+    }
+    if (!goneTracks.isEmpty()) {
+        static_cast<Library*>(parent())->trackCollectionManager()->purgeTracks(goneTracks);
+    }
+    // Update the Rekordbox sidebar (removed or new stick).
+    if (!m_devicesFuture.isRunning()) {
+        m_devicesFuture = QtConcurrent::run(findRekordboxDevices);
+        m_devicesFutureWatcher.setFuture(m_devicesFuture);
+    }
+}
+#endif
+
+#ifdef __ANDROID__
+void RekordboxFeature::parseNextDevice() {
+    if (m_silentParse || m_tracksFuture.isRunning()) {
+        return;
+    }
+    TreeItem* root = m_pSidebarModel->getRootItem();
+    for (int i = 0; i < root->childRows(); ++i) {
+        TreeItem* pDevice = root->child(i);
+        QList<QVariant> data = pDevice->getData().toList();
+        if (data.size() > 1 && data[1].toString() == IS_RECORDBOX_DEVICE) {
+            m_silentParse = true;
+            m_tracksFuture = QtConcurrent::run(parseDeviceDB,
+                    static_cast<Library*>(parent())->dbConnectionPool(),
+                    pDevice);
+            m_tracksFutureWatcher.setFuture(m_tracksFuture);
+            data[1] = QVariant(IS_NOT_RECORDBOX_DEVICE);
+            pDevice->setData(QVariant(data));
+            return;
+        }
+    }
+}
+
+// One list with the tracks of all sticks that are plugged in.
+void RekordboxFeature::rebuildAllSticksList() {
+    const QString allName = QStringLiteral("ALL STICKS");
+    QSqlDatabase database = m_pTrackCollection->database();
+    ScopedTransaction transaction(database);
+
+    int allId = kInvalidPlaylistId;
+    QSqlQuery find(database);
+    find.prepare("SELECT id FROM " + kRekordboxPlaylistsTable + " WHERE name=:name");
+    find.bindValue(":name", allName);
+    if (find.exec() && find.next()) {
+        allId = find.value(0).toInt();
+    } else {
+        QSqlQuery insert(database);
+        insert.prepare("INSERT INTO " + kRekordboxPlaylistsTable + " (name) VALUES (:name)");
+        insert.bindValue(":name", allName);
+        if (!insert.exec()) {
+            LOG_FAILED_QUERY(insert);
+            return;
+        }
+        allId = insert.lastInsertId().toInt();
+    }
+    QSqlQuery clear(database);
+    clear.prepare("DELETE FROM " + kRekordboxPlaylistTracksTable + " WHERE playlist_id=:id");
+    clear.bindValue(":id", allId);
+    if (!clear.exec()) {
+        LOG_FAILED_QUERY(clear);
+    }
+    QStringList stillThere;
+    for (const QString& devicePlaylist : std::as_const(m_devicePlaylists)) {
+        QSqlQuery deviceId(database);
+        deviceId.prepare("SELECT id FROM " + kRekordboxPlaylistsTable + " WHERE name=:name");
+        deviceId.bindValue(":name", devicePlaylist);
+        if (!deviceId.exec() || !deviceId.next()) {
+            continue; // stick pulled
+        }
+        stillThere.append(devicePlaylist);
+        QSqlQuery copy(database);
+        copy.prepare("INSERT INTO " + kRekordboxPlaylistTracksTable +
+                " (playlist_id, track_id, position) "
+                "SELECT :all, track_id, position FROM " +
+                kRekordboxPlaylistTracksTable + " WHERE playlist_id=:device");
+        copy.bindValue(":all", allId);
+        copy.bindValue(":device", deviceId.value(0).toInt());
+        if (!copy.exec()) {
+            LOG_FAILED_QUERY(copy);
+        }
+    }
+    transaction.commit();
+    m_devicePlaylists = stillThere;
+    m_devicePlaylist = stillThere.isEmpty() ? QString() : allName;
+}
+#endif
 
 RekordboxFeature::~RekordboxFeature() {
     m_devicesFuture.waitForFinished();
@@ -1508,6 +2048,14 @@ void RekordboxFeature::activate() {
     emit enableCoverArtDisplay(true);
     emit switchToView("REKORDBOXHOME");
     emit disableSearch();
+#ifdef __ANDROID__
+    // BROWSE screen (QML): show the tracks of the stick read so far.
+    m_shown = true;
+    if (!m_devicePlaylist.isEmpty()) {
+        m_pRekordboxPlaylistModel->setPlaylist(m_devicePlaylist);
+        emit showTrackModel(m_pRekordboxPlaylistModel);
+    }
+#endif
 }
 
 void RekordboxFeature::activateChild(const QModelIndex& index) {
@@ -1621,11 +2169,25 @@ void RekordboxFeature::onRekordboxDevicesFound() {
         if (!childrenToAdd.empty()) {
             m_pSidebarModel->insertTreeItemRows(std::move(childrenToAdd), 0);
         }
+#ifdef __ANDROID__
+        // Read the database of every new stick right away (in the background,
+        // one after the other), so that the tracks are there without opening
+        // anything.
+        parseNextDevice();
+#endif
     }
 
     // calls a slot in the sidebarmodel such that 'isLoading' is removed from the feature title.
     m_title = tr("Rekordbox");
     emit featureLoadingFinished(this);
+#ifdef __ANDROID__
+    // A stick may have been pulled: refresh the combined list.
+    rebuildAllSticksList();
+    if (m_shown && !m_devicePlaylist.isEmpty()) {
+        m_pRekordboxPlaylistModel->setPlaylist(m_devicePlaylist);
+        emit showTrackModel(m_pRekordboxPlaylistModel);
+    }
+#endif
 }
 
 void RekordboxFeature::onTracksFound() {
@@ -1640,6 +2202,27 @@ void RekordboxFeature::onTracksFound() {
         return;
     }
 
+#ifdef __ANDROID__
+    if (m_silentParse) {
+        // Read in the background after a stick was found: do not switch views,
+        // but remember the stick's list for the QML BROWSE screen.
+        m_silentParse = false;
+        if (!devicePlaylist.isEmpty() && !m_devicePlaylists.contains(devicePlaylist)) {
+            m_devicePlaylists.append(devicePlaylist);
+        }
+        rebuildAllSticksList();
+        if (m_shown) {
+            m_pRekordboxPlaylistModel->setPlaylist(m_devicePlaylist);
+            emit showTrackModel(m_pRekordboxPlaylistModel);
+        }
+        parseNextDevice();
+        return;
+    }
+    if (!devicePlaylist.isEmpty() && !m_devicePlaylists.contains(devicePlaylist)) {
+        m_devicePlaylists.append(devicePlaylist);
+    }
+    rebuildAllSticksList();
+#endif
     qDebug() << "Show Rekordbox Device Playlist: " << devicePlaylist;
 
     m_pRekordboxPlaylistModel->setPlaylist(devicePlaylist);

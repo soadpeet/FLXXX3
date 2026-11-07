@@ -9,6 +9,7 @@ Item {
     required property string group
     required property string key
     property string color: "white"
+    property real lineWidth: 1
 
     Shape {
         id: shape
@@ -23,7 +24,7 @@ Item {
             startX: marker.x
             startY: 0
             strokeColor: root.color
-            strokeWidth: 1
+            strokeWidth: root.lineWidth
 
             PathLine {
                 id: marker

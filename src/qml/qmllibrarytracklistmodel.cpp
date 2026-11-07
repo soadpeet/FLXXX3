@@ -1,5 +1,8 @@
 #include "qml/qmllibrarytracklistmodel.h"
 
+#include <QCollator>
+#include <algorithm>
+
 #include <qnamespace.h>
 
 #include <QObject>
@@ -175,6 +178,32 @@ QUrl QmlLibraryTrackListModel::getUrl(int row) const {
         return {};
     }
     return pTrackModel->getTrackUrl(sourceModel()->index(row, 0));
+}
+
+QVariantList QmlLibraryTrackListModel::distinctValues(int column) const {
+    QHash<QString, int> counts;
+    const int rows = rowCount();
+    for (int row = 0; row < rows; ++row) {
+        const QString value = data(index(row, column), Qt::DisplayRole).toString().trimmed();
+        if (!value.isEmpty()) {
+            ++counts[value];
+        }
+    }
+    QStringList values = counts.keys();
+    QCollator collator;
+    collator.setNumericMode(true);
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(values.begin(), values.end(), [&collator](const QString& a, const QString& b) {
+        return collator.compare(a, b) < 0;
+    });
+    QVariantList result;
+    for (const QString& value : std::as_const(values)) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("value"), value);
+        entry.insert(QStringLiteral("count"), counts.value(value));
+        result << entry;
+    }
+    return result;
 }
 
 QmlTrackProxy* QmlLibraryTrackListModel::getTrack(int row) const {

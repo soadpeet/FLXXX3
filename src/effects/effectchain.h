@@ -110,6 +110,8 @@ class EffectChain : public QObject {
     EffectChainPresetManagerPointer m_pChainPresetManager;
     EffectsMessengerPointer m_pMessenger;
     std::unique_ptr<ControlObject> m_pControlChainMix;
+    // Bands the effects work on (bit 0 low, 1 mid, 2 high; default all).
+    std::unique_ptr<ControlObject> m_pControlChainBands;
     std::unique_ptr<ControlObject> m_pControlChainSuperParameter;
     std::unique_ptr<ControlObject> m_pControlNumChainPresets;
     QList<EffectSlotPointer> m_effectSlots;

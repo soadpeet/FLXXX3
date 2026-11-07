@@ -4,6 +4,7 @@ import QtQuick 2.12
 import QtQuick.Controls
 import QtQuick.Window 2.12
 import "Theme"
+import "AndroidDJ" as AndroidDJ
 
 ApplicationWindow {
     id: root
@@ -51,8 +52,19 @@ ApplicationWindow {
                 Qt.quit()
             }
         }
-        sourceComponent: Component {
+        // Android uses the single-view touch UI (res/qml/AndroidDJ).
+        sourceComponent: root.isMobile ? androidMainWindow : desktopMainWindow
+        Component {
+            id: desktopMainWindow
+
             MainWindow {
+                applicationWindow: root
+            }
+        }
+        Component {
+            id: androidMainWindow
+
+            AndroidDJ.MainWindow {
                 applicationWindow: root
             }
         }
@@ -60,7 +72,7 @@ ApplicationWindow {
     Rectangle {
         id: splash
         visible: opacity > 0
-        color: Theme.backgroundColor
+        color: Qt.platform.os === "android" ? "#0b0f14" : Theme.backgroundColor
         anchors.fill: parent
 
         property bool ready: false
@@ -87,8 +99,36 @@ ApplicationWindow {
                 }
             }
         ]
+        // Android edition: the name instead of the Mixxx logo.
+        Row {
+            anchors.centerIn: parent
+            visible: Qt.platform.os === "android"
+
+            Text {
+                color: "#ffffff"
+                font.bold: true
+                font.letterSpacing: 4
+                font.pixelSize: Math.round(root.height * 0.14)
+                text: "FL"
+            }
+            Text {
+                color: "#27a8e0"
+                font.bold: true
+                font.letterSpacing: 4
+                font.pixelSize: Math.round(root.height * 0.14)
+                text: "XXX"
+            }
+            Text {
+                color: "#ffffff"
+                font.bold: true
+                font.letterSpacing: 4
+                font.pixelSize: Math.round(root.height * 0.14)
+                text: "3"
+            }
+        }
         Image {
             id: logo
+            visible: Qt.platform.os !== "android"
             anchors.horizontalCenter: parent.horizontalCenter
             source: "qrc:/images/mixxx-icon-logo-symbolic.svg"
             // height: 64
@@ -105,6 +145,7 @@ ApplicationWindow {
         }
         Text {
             id: text
+            visible: Qt.platform.os !== "android"
             opacity: 0
             y: logo.y + logo.height*2
             anchors.horizontalCenter: parent.horizontalCenter

@@ -14,21 +14,79 @@ Item {
     id: root
 
     property var sidebar: librarySources.sidebar()
+    // Key notation of the UTILITY menu (set by the main window).
+    property bool keyCamelot: true
+    // False while the library is closed (set by the main window).
+    property bool scrollEnabled: true
+
+    // Android edition (BROWSE screen like the XDJ-RX3): name of the shown source
+    // (stick or tablet), set by the main window.
+    property string sourceTitle: ""
+    readonly property bool touchUi: Qt.platform.os === "android"
 
     function applySearch() {
-        if (root.sidebar && root.sidebar.tracklist) {
-            root.sidebar.tracklist.search(searchField.text);
+        if (!root.touchUi && root.sidebar && root.sidebar.tracklist) {
+            root.sidebar.tracklist.search(desktopLoader.item ? desktopLoader.item.searchText : "");
         }
     }
     function focusSearch() {
+        if (root.touchUi || !desktopLoader.item) {
+            return;
+        }
         root.applySearch();
-        searchField.forceActiveFocus(Qt.ShortcutFocusReason);
-        searchField.selectAll();
+        desktopLoader.item.focusSearchField();
+    }
+    // Back to the first level of the BROWSE screen (category TRACK).
+    function resetBrowse() {
+        if (browseLoader.item) {
+            browseLoader.item.selectCategory("TRACK");
+        }
+    }
+
+    // Android: the desktop Browser (which activates row 0 "All..." when it is
+    // created) does not exist. The sticks (row 1, Rekordbox) are the main
+    // source, so activate them here; the tablet folders only on demand.
+    Component.onCompleted: {
+        if (root.touchUi && root.sidebar) {
+            root.sidebar.activate(root.sidebar.index(1, 0));
+        }
     }
 
     LibraryComponent.SourceTree {
         id: librarySources
     }
+    Loader {
+        id: desktopLoader
+
+        active: !root.touchUi
+        anchors.fill: parent
+        sourceComponent: desktopComponent
+    }
+    Loader {
+        id: browseLoader
+
+        active: root.touchUi
+        anchors.fill: parent
+        sourceComponent: browseComponent
+    }
+    Component {
+        id: browseComponent
+
+        LibraryComponent.BrowseScreen {
+            library: root
+        }
+    }
+    Component {
+        id: desktopComponent
+
+        Item {
+            property alias searchText: searchField.text
+
+            function focusSearchField() {
+                searchField.forceActiveFocus(Qt.ShortcutFocusReason);
+                searchField.selectAll();
+            }
+
     TextField {
         id: searchField
 
@@ -85,8 +143,9 @@ Item {
             id: sideBarSplitView
 
             SplitView.maximumWidth: 550
-            SplitView.minimumWidth: 150
-            SplitView.preferredWidth: root.width * 0.15
+            SplitView.minimumWidth: Qt.platform.os === "android" ? 125 : 150
+            // Narrow source list on the Android touch UI: more room for titles.
+            SplitView.preferredWidth: root.width * (Qt.platform.os === "android" ? 0.14 : 0.15)
             orientation: Qt.Vertical
 
             handle: Rectangle {
@@ -129,6 +188,8 @@ Item {
                 model: root.sidebar
             }
             Skin.PreviewDeck {
+                // Placeholder only; not shown in the Android touch UI.
+                visible: Qt.platform.os !== "android"
                 SplitView.maximumHeight: 200
                 SplitView.minimumHeight: 100
                 SplitView.preferredHeight: 100
@@ -141,5 +202,7 @@ Item {
             clip: true
             model: root.sidebar.tracklist
         }
+    }
+    }
     }
 }

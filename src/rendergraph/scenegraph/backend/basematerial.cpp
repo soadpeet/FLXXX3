@@ -5,11 +5,12 @@ using namespace rendergraph;
 
 bool BaseMaterial::updateUniformsByteArray(QByteArray* buf) {
     auto pThis = static_cast<Material*>(this);
-    if (pThis->clearUniformsCacheDirty()) {
-        memcpy(buf->data(), pThis->uniformsCache().data(), pThis->uniformsCache().size());
-        return true;
-    }
-    return false;
+    // Android edition: always copy. The byte array that Qt passes in is shared
+    // by all materials of this type; skipping the copy for a material that is
+    // not dirty left the colour of another node in it (flickering loop area).
+    pThis->clearUniformsCacheDirty();
+    memcpy(buf->data(), pThis->uniformsCache().data(), pThis->uniformsCache().size());
+    return true;
 }
 
 int BaseMaterial::compare(const QSGMaterial* other) const {

@@ -138,7 +138,12 @@ class EngineBuffer : public EngineObject {
 
     // Queues a new seek position. Use SEEK_EXACT or SEEK_STANDARD as seekType
     void queueNewPlaypos(mixxx::audio::FramePos newpos, enum SeekRequest seekType);
+    /// Explicit request to align the phase with the other playing deck
+    /// (sync button, enabling sync, ...).
     void requestSyncPhase();
+    /// Request caused by quantize (play start, repeat). On Android this only
+    /// aligns to the own beatgrid unless the deck is synchronized.
+    void requestQuantizedPhase();
     void requestEnableSync(bool enabled);
     void requestSyncMode(SyncMode mode);
 
@@ -479,6 +484,7 @@ class EngineBuffer : public EngineObject {
     bool m_bScalerOverride;
 
     QAtomicInt m_iSeekPhaseQueued;
+    QAtomicInt m_iSeekPhaseExplicit;
     QAtomicInt m_iEnableSyncQueued;
     QAtomicInt m_iSyncModeQueued;
     ControlValueAtomic<QueuedSeek> m_queuedSeek;

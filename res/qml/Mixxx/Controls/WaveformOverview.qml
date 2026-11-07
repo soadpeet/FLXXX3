@@ -9,6 +9,7 @@ Mixxx.WaveformOverview {
     property color introOutroMarkerColor: "blue"
     property bool interactive: true
     property color loopMarkerColor: "green"
+    // Android edition: thick white play position marker.
     property string playPositionMarkerColor: "white"
     property color analyzerStatusColor: "orangered"
     property bool showAnalyzerStatus: false
@@ -74,10 +75,21 @@ Mixxx.WaveformOverview {
         anchors.fill: parent
         visible: trackLoadedControl.value
 
+        // Android edition: the part behind the play position (already played)
+        // is darkened, the rest keeps the colours of the scrolling waveform.
+        Rectangle {
+            color: "#000000"
+            height: parent.height * 0.82
+            opacity: 0.5
+            visible: Qt.platform.os === "android"
+            width: parent.width * Math.min(1, Math.max(0, playPositionControl.value))
+            x: 0
+            y: 0
+        }
         MixxxControls.WaveformOverviewMarkerLayer {
             anchors.fill: parent
             cueColor: root.cueMarkerColor
-            cueText: "C"
+            cueText: Qt.platform.os === "android" ? "" : "C"
             group: root.group
             introOutroColor: root.introOutroMarkerColor
             introStartText: "IN"
@@ -96,6 +108,7 @@ Mixxx.WaveformOverview {
             color: root.playPositionMarkerColor
             group: root.group
             key: "playposition"
+            lineWidth: Qt.platform.os === "android" ? 3 : 1
         }
     }
     MouseArea {

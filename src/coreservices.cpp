@@ -76,9 +76,9 @@
 
 namespace {
 const mixxx::Logger kLogger("CoreServices");
-constexpr int kMicrophoneCount = 4;
-constexpr int kAuxiliaryCount = 4;
-constexpr int kSamplerCount = 4;
+[[maybe_unused]] constexpr int kMicrophoneCount = 4;
+[[maybe_unused]] constexpr int kAuxiliaryCount = 4;
+[[maybe_unused]] constexpr int kSamplerCount = 4;
 
 #define CLEAR_AND_CHECK_DELETED(x) clearHelper(x, #x);
 
@@ -340,8 +340,19 @@ CoreServices::CoreServices(const CmdlineArgs& args, QApplication* pApp)
     if (m_cmdlineArgs.getStats()) {
         StatsManager::createInstance();
     }
+    QString localeString = m_cmdlineArgs.getLocale();
+#ifdef __ANDROID__
+    // The Android edition's interface is English. A locale set explicitly in
+    // the preferences or on the command line still wins.
+    if (localeString.isEmpty() &&
+            m_pSettingsManager->settings()
+                    ->getValue(ConfigKey("[Config]", "Locale"), QString())
+                    .isEmpty()) {
+        localeString = QStringLiteral("en");
+    }
+#endif
     mixxx::Translations::initializeTranslations(
-            m_pSettingsManager->settings(), pApp, m_cmdlineArgs.getLocale());
+            m_pSettingsManager->settings(), pApp, localeString);
     initializeKeyboard();
 }
 
@@ -529,6 +540,8 @@ void CoreServices::initialize() {
     // TODO: connect input not configured error dialog slots
     PlayerInfo::create();
 
+#ifndef __ANDROID__
+    // The Android edition has no microphone, auxiliary inputs or samplers.
     for (int i = 0; i < kMicrophoneCount; ++i) {
         m_pPlayerManager->addMicrophone();
     }
@@ -536,12 +549,15 @@ void CoreServices::initialize() {
     for (int i = 0; i < kAuxiliaryCount; ++i) {
         m_pPlayerManager->addAuxiliary();
     }
+#endif
 
     m_pPlayerManager->addConfiguredDecks();
 
+#ifndef __ANDROID__
     for (int i = 0; i < kSamplerCount; ++i) {
         m_pPlayerManager->addSampler();
     }
+#endif
 
     m_pPlayerManager->addPreviewDeck();
 
@@ -643,11 +659,9 @@ void CoreServices::initialize() {
         } else {
             qDebug() << "Got ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION";
         }
-        fd = "/storage/emulated/0/Music/";
-        QDir dir = fd;
-        if (!dir.exists()) {
-            dir.mkpath(".");
-        }
+        // Android edition: no default music folder. Own folders are added
+        // in the SOURCE screen.
+        fd.clear();
 #else
         // TODO(XXX) this needs to be smarter, we can't distinguish between an empty
         // path return value (not sure if this is normally possible, but it is
@@ -667,6 +681,28 @@ void CoreServices::initialize() {
             musicDirAdded = true;
         }
     }
+
+#ifdef __ANDROID__
+    // Android edition: the default music folder of older versions is removed
+    // once (the library starts empty; own folders are added in SOURCE).
+    {
+        const ConfigKey removedKey(QStringLiteral("[AndroidDJ]"),
+                QStringLiteral("defaultMusicDirRemoved"));
+        if (!pConfig->getValue<bool>(removedKey, false)) {
+            const auto rootDirs = m_pTrackCollectionManager->internalCollection()->loadRootDirs();
+            for (const auto& rootDir : rootDirs) {
+                if (QDir::cleanPath(rootDir.location()) ==
+                        QStringLiteral("/storage/emulated/0/Music")) {
+                    if (m_pTrackCollectionManager->removeDirectory(rootDir) ==
+                            DirectoryDAO::RemoveResult::Ok) {
+                        m_pTrackCollectionManager->purgeAllTracks(QDir(rootDir.location()));
+                    }
+                }
+            }
+            pConfig->setValue(removedKey, true);
+        }
+    }
+#endif
 
     emit initializationProgressUpdate(60, tr("controllers"));
     // Initialize controller sub-system,

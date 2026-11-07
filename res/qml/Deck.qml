@@ -46,7 +46,8 @@ Item {
     }
 
     Drag.active: dragArea.drag.active
-    Drag.dragType: Drag.Automatic
+    // QDrag crashes on Android when started from a touch event (QDrag::dragCursor).
+    Drag.dragType: Qt.platform.os === "android" ? Drag.None : Drag.Automatic
     Drag.mimeData: {
         let data = {
             "mixxx/player": group

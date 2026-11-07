@@ -54,6 +54,8 @@ BuiltInBackend::BuiltInBackend() {
     // Fancy effects
     registerEffect<FlangerEffect>();
     registerEffect<EchoEffect>();
+    registerEffect<DelayEffect>();
+    registerEffect<PingPongEffect>();
     registerEffect<AutoPanEffect>();
 #ifndef __MACAPPSTORE__
     registerEffect<ReverbEffect>();

@@ -184,7 +184,8 @@ PioneerDDJFLX4.beta = PioneerDDJFLX4.alpha/32;
 PioneerDDJFLX4.fastSeekScale = 150;
 PioneerDDJFLX4.bendScale = 0.8;
 
-PioneerDDJFLX4.tempoRanges = [0.06, 0.10, 0.16, 0.25];
+// Android edition: steps like the Pioneer players (+-6 %, 10 %, 16 %, WIDE = +-100 %).
+PioneerDDJFLX4.tempoRanges = [0.06, 0.10, 0.16, 1.0];
 
 PioneerDDJFLX4.shiftButtonDown = [false, false];
 
@@ -252,6 +253,9 @@ PioneerDDJFLX4.toggleLight = function(midiIn, active) {
 
 PioneerDDJFLX4.init = function() {
     engine.setValue("[EffectRack1_EffectUnit1]", "show_focus", 1);
+    // Android edition: Beat FX works like the Pioneer players, one effect at a
+    // time (slot 1).
+    engine.setValue("[EffectRack1_EffectUnit1]", "focused_effect", 1);
 
     engine.makeConnection("[Channel1]", "vu_meter", PioneerDDJFLX4.vuMeterUpdate);
     engine.makeConnection("[Channel2]", "vu_meter", PioneerDDJFLX4.vuMeterUpdate);
@@ -264,7 +268,6 @@ PioneerDDJFLX4.init = function() {
     engine.softTakeover("[EffectRack1_EffectUnit1_Effect1]", "meta", true);
     engine.softTakeover("[EffectRack1_EffectUnit1_Effect2]", "meta", true);
     engine.softTakeover("[EffectRack1_EffectUnit1_Effect3]", "meta", true);
-    engine.softTakeover("[EffectRack1_EffectUnit1]", "mix", true);
 
     const samplerCount = 16;
     if (engine.getValue("[App]", "num_samplers") < samplerCount) {
@@ -291,6 +294,23 @@ PioneerDDJFLX4.init = function() {
         engine.makeConnection("[EffectRack1_EffectUnit1_Effect" + i +"]", "enabled", PioneerDDJFLX4.toggleFxLight);
     }
     engine.makeConnection("[EffectRack1_EffectUnit1]", "focused_effect", PioneerDDJFLX4.toggleFxLight);
+    PioneerDDJFLX4.toggleFxLight();
+    // The effect is loaded (and enabled) by the screen shortly after the start:
+    // force OFF a few times, then follow the effect.
+    PioneerDDJFLX4.fxInitTimer = engine.beginTimer(2000, function() {
+        PioneerDDJFLX4.fxInitCount = (PioneerDDJFLX4.fxInitCount || 0) + 1;
+        PioneerDDJFLX4.fxOn = false;
+        PioneerDDJFLX4.applyFxState();
+        if (PioneerDDJFLX4.fxInitCount >= 4) {
+            engine.stopTimer(PioneerDDJFLX4.fxInitTimer);
+            PioneerDDJFLX4.fxSyncFromEffect = true;
+        }
+    });
+
+    engine.makeConnection("[Channel1]", "sync_enabled", PioneerDDJFLX4.updateSyncLights);
+    engine.makeConnection("[Channel2]", "sync_enabled", PioneerDDJFLX4.updateSyncLights);
+    engine.makeConnection("[AndroidDJ]", "master_deck", PioneerDDJFLX4.updateSyncLights);
+    PioneerDDJFLX4.updateSyncLights();
 
     // Register callbacks for each deck, when a file is loaded and the number of stems is available
     engine.makeConnection("[Channel1]", "stem_count", PioneerDDJFLX4.stemCountChanged);
@@ -319,15 +339,29 @@ PioneerDDJFLX4.init = function() {
 };
 
 //
+// BROWSE knob
+//
+
+// Android edition: with SHIFT held the knob only zooms. Moving the library as
+// well would select tracks (and read their data from the stick) on every step.
+PioneerDDJFLX4.browseRotate = function(_channel, _control, value, _status, _group) {
+    if (PioneerDDJFLX4.shiftButtonDown[0] || PioneerDDJFLX4.shiftButtonDown[1]) {
+        return;
+    }
+    const delta = value >= 0x40 ? value - 0x80 : value;
+    engine.setValue("[Library]", "MoveVertical", delta);
+};
+
+//
 // Waveform zoom
 //
 
-PioneerDDJFLX4.waveformZoom = function(midichan, control, value, status, group) {
-    if (value === 0x7f) {
-        script.triggerControl(group, "waveform_zoom_up", 100);
-    } else {
-        script.triggerControl(group, "waveform_zoom_down", 100);
-    }
+// Android edition: SHIFT + BROWSE knob scrolls the track list in big steps
+// (10 tracks per click). The knob alone zooms the waveforms while the library
+// is closed and scrolls the list while it is open (see the main window).
+PioneerDDJFLX4.browseRotateShift = function(_channel, _control, value, _status, _group) {
+    const delta = value >= 0x40 ? value - 0x80 : value;
+    engine.setValue("[Library]", "MoveVertical", delta * 10);
 };
 
 //
@@ -352,11 +386,45 @@ PioneerDDJFLX4.vuMeterUpdate = function(value, group) {
 // Effects
 //
 
-PioneerDDJFLX4.toggleFxLight = function(_value, _group, _control) {
-    const enabled = engine.getValue(PioneerDDJFLX4.focusedFxGroup(), "enabled");
+// Android edition: the BEAT FX ON/OFF button is lit while the effect is off and
+// blinks while the effect is on.
 
-    PioneerDDJFLX4.toggleLight(PioneerDDJFLX4.lights.beatFx, enabled);
-    PioneerDDJFLX4.toggleLight(PioneerDDJFLX4.lights.shiftBeatFx, enabled);
+// Own ON/OFF state of Beat FX: the effect system switches a freshly loaded
+// effect on by itself, so for the first seconds the state is forced to OFF and
+// only afterwards follows the effect (changes from the touch screen).
+PioneerDDJFLX4.fxOn = false;
+PioneerDDJFLX4.fxSyncFromEffect = false;
+
+PioneerDDJFLX4.toggleFxLight = function(value, group, _control) {
+    if (PioneerDDJFLX4.fxSyncFromEffect && typeof group === "string" &&
+            group === PioneerDDJFLX4.focusedFxGroup()) {
+        PioneerDDJFLX4.fxOn = value > 0;
+    }
+    PioneerDDJFLX4.updateFxLight();
+};
+
+// The LED of the button (found out by testing): the value 0x7F makes it blink
+// (by itself), 0x00 makes it stay lit. Effect off = lit, effect on = blinking.
+// The value is sent once when the state changes.
+PioneerDDJFLX4.updateFxLight = function() {
+    const value = PioneerDDJFLX4.fxOn ? 0x7F : 0x00;
+    if (PioneerDDJFLX4.fxLastValue === value) {
+        return;
+    }
+    PioneerDDJFLX4.fxLastValue = value;
+    midi.sendShortMsg(0x94, 0x47, value);
+    midi.sendShortMsg(0x94, 0x43, value);
+};
+PioneerDDJFLX4.fxLastValue = -1;
+
+// Sets the effect to the own state.
+PioneerDDJFLX4.applyFxState = function() {
+    for (let i = 1; i <= 3; i++) {
+        engine.setValue("[EffectRack1_EffectUnit1_Effect" + i + "]", "enabled",
+                (i === engine.getValue("[EffectRack1_EffectUnit1]", "focused_effect") &&
+                    PioneerDDJFLX4.fxOn) ? 1 : 0);
+    }
+    PioneerDDJFLX4.toggleFxLight();
 };
 
 PioneerDDJFLX4.focusedFxGroup = function() {
@@ -390,35 +458,72 @@ PioneerDDJFLX4.changeFocusedEffectBy = function(numberOfSteps) {
     engine.setValue("[EffectRack1_EffectUnit1]", "focused_effect", focusedEffect);
 };
 
+// Android edition: a newly loaded effect is switched on by the effect system;
+// ON/OFF of the player stays as it was.
+PioneerDDJFLX4.changeEffectKeepState = function(control, value) {
+    engine.setValue(PioneerDDJFLX4.focusedFxGroup(), control, value);
+    PioneerDDJFLX4.applyFxState();
+};
+
 PioneerDDJFLX4.beatFxSelectPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
 
-    engine.setValue(PioneerDDJFLX4.focusedFxGroup(), "next_effect", value);
+    PioneerDDJFLX4.changeEffectKeepState("next_effect", value);
 };
 
 PioneerDDJFLX4.beatFxSelectShiftPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
 
-    engine.setValue(PioneerDDJFLX4.focusedFxGroup(), "prev_effect", value);
+    PioneerDDJFLX4.changeEffectKeepState("prev_effect", value);
+};
+
+// Android edition: the BEAT < > buttons step through the effect time in beats
+// (1/16 - 8 beats, like the Pioneer players) for the delay effects (list
+// positions 1-3, 5, 6: Delay, Echo, Ping Pong, Flanger, Phaser), whose first
+// parameter is the time in beats (0 - 8). Reverb steps in 10 % steps.
+PioneerDDJFLX4.beatFxBeatValues = [0.0625, 0.125, 0.25, 0.5, 0.75, 1, 2, 4, 8];
+
+PioneerDDJFLX4.stepBeatFxTime = function(direction) {
+    const group = "[EffectRack1_EffectUnit1_Effect1]";
+    const loaded = engine.getValue(group, "loaded_effect");
+    // List positions: 1 Delay, 2 Echo, 3 Ping Pong, 4 Reverb, 5 Flanger,
+    // 6 Phaser, 7 Filter.
+    if (loaded < 1 || loaded === 7) { return; } // the filter has no beat parameter
+
+    if (loaded === 4) { // reverb: percent
+        const percent = Math.round(engine.getParameter(group, "parameter1") * 10) + direction;
+        engine.setParameter(group, "parameter1", Math.max(0, Math.min(10, percent)) / 10);
+        return;
+    }
+    const beats = PioneerDDJFLX4.beatFxBeatValues;
+    const current = engine.getParameter(group, "parameter1") * 8;
+    let nearest = 0;
+    for (let i = 1; i < beats.length; i++) {
+        if (Math.abs(beats[i] - current) < Math.abs(beats[nearest] - current)) {
+            nearest = i;
+        }
+    }
+    const next = Math.max(0, Math.min(beats.length - 1, nearest + direction));
+    engine.setParameter(group, "parameter1", beats[next] / 8);
 };
 
 PioneerDDJFLX4.beatFxLeftPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
 
-    PioneerDDJFLX4.changeFocusedEffectBy(-1);
+    PioneerDDJFLX4.stepBeatFxTime(-1);
 };
 
 PioneerDDJFLX4.beatFxRightPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
 
-    PioneerDDJFLX4.changeFocusedEffectBy(1);
+    PioneerDDJFLX4.stepBeatFxTime(1);
 };
 
 PioneerDDJFLX4.beatFxOnOffPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
 
-    const toggleEnabled = !engine.getValue(PioneerDDJFLX4.focusedFxGroup(), "enabled");
-    engine.setValue(PioneerDDJFLX4.focusedFxGroup(), "enabled", toggleEnabled);
+    PioneerDDJFLX4.fxOn = !PioneerDDJFLX4.fxOn;
+    PioneerDDJFLX4.applyFxState();
 };
 
 PioneerDDJFLX4.beatFxOnOffShiftPressed = function(_channel, _control, value) {
@@ -427,11 +532,8 @@ PioneerDDJFLX4.beatFxOnOffShiftPressed = function(_channel, _control, value) {
     engine.setParameter("[EffectRack1_EffectUnit1]", "mix", 0);
     engine.softTakeoverIgnoreNextValue("[EffectRack1_EffectUnit1]", "mix");
 
-    for (let i = 1; i <= 3; i++) {
-        engine.setValue("[EffectRack1_EffectUnit1_Effect" + i + "]", "enabled", 0);
-    }
-    PioneerDDJFLX4.toggleLight(PioneerDDJFLX4.lights.beatFx, false);
-    PioneerDDJFLX4.toggleLight(PioneerDDJFLX4.lights.shiftBeatFx, false);
+    PioneerDDJFLX4.fxOn = false;
+    PioneerDDJFLX4.applyFxState();
 };
 
 PioneerDDJFLX4.beatFxChannel1 = function(_channel, control, value, _status, group) {
@@ -454,8 +556,51 @@ PioneerDDJFLX4.beatFxChannel2 = function(_channel, control, value, _status, grou
 // Loop IN/OUT ADJUST
 //
 
+// Android edition: RELOOP/EXIT leaves an active loop; without a loop it makes a
+// new 4 beat loop at the current position (no return to the old loop).
+PioneerDDJFLX4.loopExitOrFourBeat = function(_channel, _control, value, _status, group) {
+    if (value === 0) { return; }
+
+    if (engine.getValue(group, "loop_enabled") > 0) {
+        engine.setValue(group, "loop_enabled", 0);
+    } else {
+        engine.setValue(group, "beatloop_size", 4);
+        engine.setValue(group, "beatloop_activate", 1);
+        engine.setValue(group, "beatloop_activate", 0);
+    }
+};
+
+// Android edition: LOOP IN / OUT.
+//  - Inside an active loop the buttons do nothing.
+//  - IN sets only a new start point.
+//  - OUT sets the end point at the current position and makes the loop.
+PioneerDDJFLX4.loopButtonForwarded = {};
+
+PioneerDDJFLX4.loopButton = function(group, key, value) {
+    const id = group + key;
+    if (value > 0) {
+        if (engine.getValue(group, "loop_enabled") > 0) {
+            PioneerDDJFLX4.loopButtonForwarded[id] = false;
+            return;
+        }
+        PioneerDDJFLX4.loopButtonForwarded[id] = true;
+        engine.setValue(group, key, 1);
+    } else if (PioneerDDJFLX4.loopButtonForwarded[id]) {
+        PioneerDDJFLX4.loopButtonForwarded[id] = false;
+        engine.setValue(group, key, 0);
+    }
+};
+
+PioneerDDJFLX4.loopInPressed = function(_channel, _control, value, _status, group) {
+    PioneerDDJFLX4.loopButton(group, "loop_in", value);
+};
+
+PioneerDDJFLX4.loopOutPressed = function(_channel, _control, value, _status, group) {
+    PioneerDDJFLX4.loopButton(group, "loop_out", value);
+};
+
 PioneerDDJFLX4.toggleLoopAdjustIn = function(channel, _control, value, _status, group) {
-    if (value === 0 || engine.getValue(group, "loop_enabled" === 0)) {
+    if (value === 0 || engine.getValue(group, "loop_enabled") === 0) {
         return;
     }
     PioneerDDJFLX4.loopAdjustIn[channel] = !PioneerDDJFLX4.loopAdjustIn[channel];
@@ -463,7 +608,7 @@ PioneerDDJFLX4.toggleLoopAdjustIn = function(channel, _control, value, _status, 
 };
 
 PioneerDDJFLX4.toggleLoopAdjustOut = function(channel, _control, value, _status, group) {
-    if (value === 0 || engine.getValue(group, "loop_enabled" === 0)) {
+    if (value === 0 || engine.getValue(group, "loop_enabled") === 0) {
         return;
     }
     PioneerDDJFLX4.loopAdjustOut[channel] = !PioneerDDJFLX4.loopAdjustOut[channel];
@@ -528,6 +673,14 @@ PioneerDDJFLX4.loopToggle = function(value, group, control) {
 
     PioneerDDJFLX4.setReloopLight(status, value ? 0x7F : 0x00);
 
+    // Android edition: a new loop sets the main CUE point at its start.
+    if (value) {
+        const loopStart = engine.getValue(group, "loop_start_position");
+        if (loopStart >= 0) {
+            engine.setValue(group, "cue_point", loopStart);
+        }
+    }
+
     if (value) {
         PioneerDDJFLX4.startLoopLightsBlink(channel, control, status, group);
     } else {
@@ -561,16 +714,36 @@ PioneerDDJFLX4.cueLoopCallRight = function(_channel, _control, value, _status, g
 //
 
 PioneerDDJFLX4.syncPressed = function(channel, control, value, status, group) {
-    if (engine.getValue(group, "sync_enabled") && value > 0) {
-        engine.setValue(group, "sync_enabled", 0);
-    } else {
-        engine.setValue(group, "beatsync", value);
+    // Android edition: a short press of BEAT SYNC makes this deck the MASTER
+    // (tempo reference shown in orange on the screen).
+    if (value > 0) {
+        engine.setValue("[AndroidDJ]", "master_deck", group === "[Channel1]" ? 1 : 2);
     }
 };
 
 PioneerDDJFLX4.syncLongPressed = function(channel, control, value, status, group) {
-    if (value) {
-        engine.setValue(group, "sync_enabled", 1);
+    // Android edition: holding BEAT SYNC for a second switches the sync mode of
+    // this deck on or off. Sync is off by default. The MASTER deck is the tempo
+    // reference and cannot follow itself.
+    if (value > 0) {
+        const deck = group === "[Channel1]" ? 1 : 2;
+        if (engine.getValue("[AndroidDJ]", "master_deck") === deck) {
+            return;
+        }
+        engine.setValue(group, "sync_enabled", engine.getValue(group, "sync_enabled") ? 0 : 1);
+    }
+};
+
+// The BEAT SYNC button is lit while the deck follows the master. The master
+// deck is the leader of the engine as soon as another deck follows it, but its
+// button stays dark.
+PioneerDDJFLX4.updateSyncLights = function() {
+    const master = engine.getValue("[AndroidDJ]", "master_deck");
+    for (let deck = 1; deck <= 2; deck++) {
+        const lit = engine.getValue("[Channel" + deck + "]", "sync_enabled") > 0 && master !== deck;
+        const status = 0x90 + deck - 1;
+        midi.sendShortMsg(status, 0x58, lit ? 0x7F : 0);
+        midi.sendShortMsg(status, 0x60, lit ? 0x7F : 0);
     }
 };
 
@@ -666,6 +839,14 @@ PioneerDDJFLX4.tempoSliderMSB = function(channel, control, value, status, group)
 
 PioneerDDJFLX4.tempoSliderLSB = function(channel, control, value, status, group) {
     const fullValue = (PioneerDDJFLX4.highResMSB[group].tempoSlider << 7) + value;
+
+    // Android edition: a deck that follows the master (SYNC on) takes its tempo
+    // from the master. Its tempo fader must not change the master's tempo.
+    const deck = group === "[Channel1]" ? 1 : 2;
+    if (engine.getValue(group, "sync_enabled") > 0 &&
+            engine.getValue("[AndroidDJ]", "master_deck") !== deck) {
+        return;
+    }
 
     engine.setValue(
         group,

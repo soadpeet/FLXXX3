@@ -967,18 +967,25 @@ Category {
                 root.reset();
             }
         }
+        // Error text sits on its own line above the buttons: it used to share
+        // the colour of the Reset button and ran over it on narrow screens.
+        Text {
+            id: errorMessage
+
+            anchors.bottom: parent.top
+            anchors.bottomMargin: 8
+            anchors.left: parent.left
+            anchors.right: parent.right
+            color: "#FF6B6B"
+            font.pixelSize: 14
+            horizontalAlignment: Text.AlignRight
+            text: ""
+            wrapMode: Text.WordWrap
+        }
         Row {
             anchors.right: parent.right
             spacing: 10
 
-            Text {
-                id: errorMessage
-
-                Layout.alignment: Qt.AlignVCenter
-                Layout.rightMargin: 16
-                color: "#7D3B3B"
-                text: ""
-            }
             SettingComponents.FormButton {
                 activeColor: "#999999"
                 backgroundColor: "#3F3F3F"

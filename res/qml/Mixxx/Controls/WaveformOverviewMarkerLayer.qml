@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
+import QtQuick.Shapes 1.12
 
 Item {
     id: root
@@ -31,6 +32,9 @@ Item {
     property int markerWidth: 1
     property int labelTopMargin: 2
     property int labelHorizontalMargin: 2
+    // Android edition (RX3 style): size of the cue symbols, in pixels.
+    readonly property bool rx3Style: Qt.platform.os === "android"
+    readonly property real symbolSize: Math.max(9, Math.round(root.height * 0.17))
 
     function mapX(position) {
         if (trackSamplesProxy.value <= 0 || position < 0) {
@@ -136,6 +140,24 @@ Item {
                 width: root.markerWidth
                 height: parent.height
                 color: hotcueMarker.markerColor
+                visible: !root.rx3Style
+            }
+            // Square in the colour of the hotcue with its letter.
+            Rectangle {
+                color: hotcueMarker.markerColor
+                height: root.symbolSize
+                visible: root.rx3Style
+                width: root.symbolSize
+                x: root.clampedX(hotcueMarker.markerX - root.symbolSize / 2, width)
+                y: 0
+
+                Text {
+                    anchors.centerIn: parent
+                    color: "#000000"
+                    font.bold: true
+                    font.pixelSize: Math.round(root.symbolSize * 0.8)
+                    text: String.fromCharCode(64 + hotcueMarker.hotcueNumber)
+                }
             }
 
             Text {
@@ -149,7 +171,7 @@ Item {
                 font.pixelSize: root.labelPixelSize
                 font.bold: root.labelBold
                 verticalAlignment: Text.AlignVCenter
-                visible: root.showHotcueLabels
+                visible: root.showHotcueLabels && !root.rx3Style
             }
 
             Mixxx.ControlProxy {
@@ -171,6 +193,54 @@ Item {
 
                 group: root.group
                 key: "hotcue_" + hotcueMarker.hotcueNumber + "_color"
+            }
+        }
+    }
+
+    // Memory cues (hotcue slots 17 and up, see the Rekordbox import): red
+    // triangles above the waveform pointing at their position.
+    Repeater {
+        model: root.rx3Style ? 20 : 0
+
+        delegate: Item {
+            id: memoryCue
+
+            required property int index
+            readonly property int slot: index + 17
+            readonly property real markerX: root.mapX(memoryPosition.value)
+
+            anchors.fill: parent
+            visible: memoryStatus.value > 0 && memoryPosition.value >= 0
+            z: 1
+
+            Shape {
+                height: root.symbolSize
+                width: root.symbolSize
+                x: memoryCue.markerX - root.symbolSize / 2
+                y: 0
+
+                ShapePath {
+                    fillColor: "#e03030"
+                    strokeColor: "transparent"
+
+                    startX: 0
+                    startY: 0
+                    PathLine { x: root.symbolSize; y: 0 }
+                    PathLine { x: root.symbolSize / 2; y: root.symbolSize }
+                    PathLine { x: 0; y: 0 }
+                }
+            }
+            Mixxx.ControlProxy {
+                id: memoryStatus
+
+                group: root.group
+                key: "hotcue_" + memoryCue.slot + "_status"
+            }
+            Mixxx.ControlProxy {
+                id: memoryPosition
+
+                group: root.group
+                key: "hotcue_" + memoryCue.slot + "_position"
             }
         }
     }
@@ -238,7 +308,26 @@ Item {
         width: root.markerWidth
         height: parent.height
         color: root.cueColor
-        visible: cuePointProxy.value >= 0
+        visible: cuePointProxy.value >= 0 && !root.rx3Style
+    }
+    // Main cue (RX3 style): small white triangle under the waveform.
+    Shape {
+        height: root.symbolSize
+        visible: root.rx3Style && cuePointProxy.value >= 0
+        width: root.symbolSize
+        x: root.cueX - root.symbolSize / 2
+        y: root.height * 0.8
+
+        ShapePath {
+            fillColor: "#ffffff"
+            strokeColor: "transparent"
+
+            startX: 0
+            startY: root.symbolSize
+            PathLine { x: root.symbolSize; y: root.symbolSize }
+            PathLine { x: root.symbolSize / 2; y: 0 }
+            PathLine { x: 0; y: root.symbolSize }
+        }
     }
 
     Text {
@@ -249,7 +338,7 @@ Item {
         font.family: root.fontFamily
         font.pixelSize: root.labelPixelSize
         font.bold: root.labelBold
-        visible: root.showCueLabel && cuePointProxy.value >= 0
+        visible: root.showCueLabel && cuePointProxy.value >= 0 && !root.rx3Style
     }
 
     Rectangle {

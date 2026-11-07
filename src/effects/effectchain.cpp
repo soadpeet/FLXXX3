@@ -69,6 +69,13 @@ EffectChain::EffectChain(const QString& group,
             this,
             &EffectChain::sendParameterUpdate);
 
+    m_pControlChainBands = std::make_unique<ControlObject>(ConfigKey(m_group, "bands"));
+    m_pControlChainBands->set(7.0);
+    connect(m_pControlChainBands.get(),
+            &ControlObject::valueChanged,
+            this,
+            &EffectChain::sendParameterUpdate);
+
     m_pControlChainSuperParameter = std::make_unique<ControlPotmeter>(
             ConfigKey(m_group, "super1"), 0.0, 1.0);
     // QObject::connect cannot connect to slots with optional parameters using function
@@ -264,6 +271,8 @@ void EffectChain::sendParameterUpdate() {
     pRequest->SetEffectChainParameters.enabled = m_pControlChainEnabled->toBool();
     pRequest->SetEffectChainParameters.mix_mode = mixMode();
     pRequest->SetEffectChainParameters.mix = m_pControlChainMix->get();
+    pRequest->SetEffectChainParameters.band_mask =
+            static_cast<int>(m_pControlChainBands->get()) & 7;
     m_pMessenger->writeRequest(pRequest);
 }
 

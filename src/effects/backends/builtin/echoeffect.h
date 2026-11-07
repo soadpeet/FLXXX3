@@ -11,7 +11,8 @@ class EchoGroupState : public EffectState {
   public:
     // 3 seconds max. This supports the full range of 2 beats for tempos down to
     // 40 BPM.
-    static constexpr int kMaxDelaySeconds = 3;
+    // Android edition: room for 8 beats down to 60 BPM.
+    static constexpr int kMaxDelaySeconds = 8;
 
     EchoGroupState(const mixxx::EngineParameters& engineParameters)
             : EffectState(engineParameters) {
@@ -76,3 +77,31 @@ class EchoEffect : public EffectProcessorImpl<EchoGroupState> {
 
     DISALLOW_COPY_AND_ASSIGN(EchoEffect);
 };
+
+/// Android edition: "Delay" is an Echo with a single repeat (feedback 0).
+class DelayEffect : public EchoEffect {
+  public:
+    DelayEffect() = default;
+    ~DelayEffect() override = default;
+
+    static QString getId();
+    static EffectManifestPointer getManifest();
+
+  private:
+    DISALLOW_COPY_AND_ASSIGN(DelayEffect);
+};
+
+/// Android edition: "Ping Pong" is an Echo whose repeats bounce between left
+/// and right.
+class PingPongEffect : public EchoEffect {
+  public:
+    PingPongEffect() = default;
+    ~PingPongEffect() override = default;
+
+    static QString getId();
+    static EffectManifestPointer getManifest();
+
+  private:
+    DISALLOW_COPY_AND_ASSIGN(PingPongEffect);
+};
+

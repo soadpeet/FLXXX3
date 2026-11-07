@@ -1,5 +1,7 @@
 #include "waveform/renderers/allshader/waveformrendermarkrange.h"
 
+#include <QDateTime>
+
 #include "rendergraph/geometry.h"
 #include "rendergraph/geometrynode.h"
 #include "rendergraph/material/unicolormaterial.h"
@@ -71,7 +73,12 @@ void WaveformRenderMarkRange::update() {
         }
 
         QColor color = markRange.enabled() ? markRange.m_activeColor : markRange.m_disabledColor;
+#ifdef __ANDROID__
+        // Active loop: orange (like Rekordbox); left loop: see-through white.
+        color.setAlphaF(markRange.enabled() ? 0.5f : 0.3f);
+#else
         color.setAlphaF(0.3f);
+#endif
 
         // Append a new node if none left, or reuse an existing one.
         if (!pChild) {

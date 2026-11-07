@@ -362,6 +362,12 @@ class Track : public QObject {
         // lock thread-unsafe copy constructors of QList
         return !m_stemInfo.isEmpty();
     }
+#else
+    // Without STEM support (-DSTEM=OFF) no track has stems. Needed by the
+    // waveform renderers, which query it unconditionally.
+    bool hasStem() const {
+        return false;
+    }
 #endif
 
     enum class ImportStatus {

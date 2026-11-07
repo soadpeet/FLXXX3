@@ -98,8 +98,11 @@ Library::Library(
             Qt::DirectConnection /* signal-to-signal */);
 #endif
 
+#ifndef __ANDROID__
+    // The Android edition has no Auto DJ.
     m_pAutoDJFeature = make_parented<AutoDJFeature>(this, m_pConfig, pPlayerManager);
     addFeature(m_pAutoDJFeature);
+#endif
 
     m_pPlaylistFeature = make_parented<PlaylistFeature>(this, UserSettingsPointer(m_pConfig));
     addFeature(m_pPlaylistFeature);
@@ -116,6 +119,8 @@ Library::Library(
             Qt::DirectConnection);
 #endif
 
+#ifndef __ANDROID__
+    // The Android edition has no crates.
     m_pCrateFeature = make_parented<CrateFeature>(this, m_pConfig);
     addFeature(m_pCrateFeature);
 #ifdef __ENGINEPRIME__
@@ -130,6 +135,7 @@ Library::Library(
             &Library::exportCrate, // signal-to-signal
             Qt::DirectConnection);
 #endif
+#endif // !__ANDROID__
 
     m_pBrowseFeature = make_parented<BrowseFeature>(
             this, m_pConfig, pRecordingManager);
@@ -156,10 +162,12 @@ Library::Library(
             &PlaylistFeature::analyzeTracks,
             m_pAnalysisFeature,
             &AnalysisFeature::analyzeTracks);
+#ifndef __ANDROID__
     connect(m_pCrateFeature,
             &CrateFeature::analyzeTracks,
             m_pAnalysisFeature,
             &AnalysisFeature::analyzeTracks);
+#endif
     connect(this,
             &Library::analyzeTracks,
             m_pAnalysisFeature,
@@ -180,6 +188,7 @@ Library::Library(
             this,
             &Library::onTrackAnalyzerProgress);
 
+#ifndef __ANDROID__
     // iTunes and Rhythmbox should be last until we no longer have an obnoxious
     // messagebox popup when you select them. (This forces you to reach for your
     // mouse or keyboard if you're using MIDI control and you scroll through them...)
@@ -205,6 +214,7 @@ Library::Library(
                     ConfigKey(kConfigGroup, "ShowTraktorLibrary"), true)) {
         addFeature(new TraktorFeature(this, m_pConfig));
     }
+#endif // !__ANDROID__
 
     // TODO(XXX) Rekordbox feature added persistently as the only way to enable it to
     // dynamically appear/disappear when correctly prepared removable devices
@@ -215,10 +225,12 @@ Library::Library(
         addFeature(new RekordboxFeature(this, m_pConfig));
     }
 
+#ifndef __ANDROID__
     if (m_pConfig->getValue(
                 ConfigKey(kConfigGroup, "ShowSeratoLibrary"), true)) {
         addFeature(new SeratoFeature(this, m_pConfig));
     }
+#endif
 
     for (const auto& externalTrackCollection : m_pTrackCollectionManager->externalCollections()) {
         auto* feature = externalTrackCollection->newLibraryFeature(this, m_pConfig);
@@ -613,6 +625,9 @@ void Library::slotCreatePlaylist() {
 }
 
 void Library::slotCreateCrate() {
+    if (!m_pCrateFeature) {
+        return;
+    }
     m_pCrateFeature->slotCreateCrate();
 }
 
@@ -783,6 +798,9 @@ void Library::searchTracksInCollection(const QString& query) {
 }
 
 void Library::showAutoDJ() {
+    if (!m_pAutoDJFeature) {
+        return;
+    }
     m_pAutoDJFeature->activate();
     emit switchToView(kAutoDJViewName);
     // Select it but don't scroll there

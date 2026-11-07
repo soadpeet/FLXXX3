@@ -176,6 +176,23 @@ class CachingReaderWorker : public EngineWorker {
     // The current audio source of the track loaded
     mixxx::AudioSourcePointer m_pAudioSource;
 
+#ifdef __ANDROID__
+  public:
+    /// Called from the AndroidTrackCache copy thread when the cached copy of
+    /// the loaded track is complete. Thread-safe.
+    void requestCacheSwap();
+
+  private:
+    /// Replaces the audio source (file on removable media) by the cached copy
+    /// with identical content, so that no file on the stick stays open.
+    void trySwapToCachedSource();
+
+    QAtomicInt m_cacheSwapPending;
+    TrackPointer m_pCurrentTrack;
+    mixxx::AudioSource::OpenParams m_openParams;
+    QString m_cacheOriginalPath;
+#endif
+
     mixxx::audio::FramePos m_firstSoundFrameToVerify;
 
     // Temporary buffer for reading samples from all channels

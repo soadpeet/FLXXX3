@@ -40,8 +40,9 @@ EffectManifestPointer FlangerEffect::getManifest() {
             "Speed of the LFO (low frequency oscillator)\n"
             "32 - 1/4 beats rounded to 1/2 beat per LFO cycle if tempo is detected\n"
             "1/32 - 4 Hz if no tempo is detected"));
-    speed->setValueScaler(EffectManifestParameter::ValueScaler::LogarithmicInverse);
-    speed->setRange(kMinLfoBeats, 8, kMaxLfoBeats);
+    // Android edition: the speed is the period in beats, linear 0 - 8 (default 1).
+    speed->setValueScaler(EffectManifestParameter::ValueScaler::Linear);
+    speed->setRange(0.0, 1.0, 8.0);
 
     EffectManifestParameterPointer width = pManifest->addParameter();
     width->setId("width");

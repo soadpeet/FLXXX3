@@ -1,4 +1,7 @@
 #include "mixer/basetrackplayer.h"
+#ifdef __ANDROID__
+#include "library/rekordbox/rekordboxfeature.h"
+#endif
 
 #include <QMessageBox>
 #include <QMetaMethod>
@@ -554,6 +557,20 @@ void BaseTrackPlayerImpl::slotLoadTrack(TrackPointer pNewTrack,
         bool bPlay) {
 #endif
     //qDebug() << "BaseTrackPlayerImpl::slotLoadTrack" << getGroup() << pNewTrack.get();
+#ifdef __ANDROID__
+    // Android edition (LOAD LOCK, on by default): no track can be loaded into
+    // a deck that is playing - neither with the touch screen nor with the
+    // controller. Switch it off in the UTILITY menu (UNLOCK).
+    if (pNewTrack && getGroup().startsWith(QStringLiteral("[Channel")) &&
+            m_pConfig->getValue(ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("loadLock")),
+                    QStringLiteral("1")) == QStringLiteral("1")) {
+        const auto* pPlay = ControlObject::getControl(ConfigKey(getGroup(), QStringLiteral("play")));
+        if (pPlay && pPlay->toBool()) {
+            qWarning() << "LOAD LOCK: deck" << getGroup() << "is playing, not loading";
+            return;
+        }
+    }
+#endif
     // Before loading the track, ensure we have access. This uses lazy
     // evaluation to make sure track isn't NULL before we dereference it.
     if (pNewTrack) {
@@ -563,6 +580,11 @@ void BaseTrackPlayerImpl::slotLoadTrack(TrackPointer pNewTrack,
             return;
         }
     }
+
+#ifdef __ANDROID__
+    // Rekordbox data (waveform, beat grid, cues) of tracks from a stick.
+    RekordboxFeature::importDataForTrack(pNewTrack);
+#endif
 
     auto pOldTrack = unloadTrack();
 

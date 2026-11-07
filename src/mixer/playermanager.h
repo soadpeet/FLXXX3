@@ -296,6 +296,11 @@ class PlayerManager : public PlayerManagerInterface {
     std::unique_ptr<ControlObject> m_pCONumPreviewDecks;
     std::unique_ptr<ControlObject> m_pCONumMicrophones;
     std::unique_ptr<ControlObject> m_pCONumAuxiliaries;
+#ifdef __ANDROID__
+    // Android edition: which deck is the MASTER (0 = none, 1 or 2); shared by
+    // the touch interface and the controller script.
+    std::unique_ptr<ControlObject> m_pMasterDeck;
+#endif
     parented_ptr<ControlProxy> m_pAutoDjEnabled;
 
     TrackAnalysisScheduler::Pointer m_pTrackAnalysisScheduler;

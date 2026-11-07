@@ -1,5 +1,9 @@
 #include "sources/soundsourceproxy.h"
 
+#ifdef __ANDROID__
+#include "util/androidtrackcache.h"
+#endif
+
 #include <QMimeDatabase>
 #include <QMimeType>
 #include <QRegularExpression>
@@ -947,11 +951,36 @@ bool SoundSourceProxy::openSoundSource(
     return false;
 }
 
+#ifdef __ANDROID__
+void SoundSourceProxy::useCachedFileIfAvailable() {
+    if (!m_pTrack || !m_pSoundSource) {
+        return;
+    }
+    const QString location = m_pTrack->getLocation();
+    if (!mixxx::AndroidTrackCache::isRemovablePath(location)) {
+        return;
+    }
+    mixxx::AndroidTrackCache::instance().noteAccess(location);
+    const QString cachedPath = mixxx::AndroidTrackCache::instance().cachedPath(location);
+    if (cachedPath.isEmpty()) {
+        return;
+    }
+    // Same extension as the original, so the provider registrations stay valid.
+    m_pSoundSource.reset();
+    m_pProvider.reset();
+    m_url = QUrl::fromLocalFile(cachedPath);
+    findProviderAndInitSoundSource();
+}
+#endif
+
 mixxx::AudioSourcePointer SoundSourceProxy::openAudioSource(
         const mixxx::AudioSource::OpenParams& params) {
     VERIFY_OR_DEBUG_ASSERT(m_pTrack) {
         return nullptr;
     }
+#ifdef __ANDROID__
+    useCachedFileIfAvailable();
+#endif
     if (!openSoundSource(params)) {
         return nullptr;
     }

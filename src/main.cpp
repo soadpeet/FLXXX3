@@ -80,6 +80,12 @@ int runMixxx(MixxxApplication* pApp, const CmdlineArgs& args) {
         // https://github.com/mixxxdj/mixxx/pull/14514#issuecomment-2770811094
         // for further details
         qputenv("QT_QUICK_TABLEVIEW_COMPAT_VERSION", "6.4");
+#ifdef __ANDROID__
+        // Android edition: some letters in the lists were drawn garbled (glyph
+        // cache of the distance field text). Plain native text rendering
+        // avoids that cache.
+        qputenv("QML_DISABLE_DISTANCEFIELD", "1");
+#endif
         mixxx::qml::QmlApplication qmlApplication(pApp, pCoreServices, mainQmlFilePath);
         if (!qmlApplication.isReady()) {
             exitCode = kFatalErrorOnStartupExitCode;

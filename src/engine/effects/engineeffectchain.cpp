@@ -1,5 +1,7 @@
 #include "engine/effects/engineeffectchain.h"
 
+#include <cmath>
+
 #include "engine/effects/engineeffect.h"
 #include "util/defs.h"
 #include "util/sample.h"
@@ -11,6 +13,8 @@ EngineEffectChain::EngineEffectChain(const QString& group,
           m_enableState(true),
           m_mixMode(EffectChainMixMode::DrySlashWet),
           m_dMix(0),
+          m_bandSelected(kMaxEngineSamples),
+          m_bandRest(kMaxEngineSamples),
           m_buffer1(kMaxEngineSamples),
           m_buffer2(kMaxEngineSamples) {
     // Try to prevent memory allocation.
@@ -80,6 +84,7 @@ bool EngineEffectChain::updateParameters(const EffectsRequest& message) {
     // TODO(rryan): Parameter interpolation.
     m_mixMode = message.SetEffectChainParameters.mix_mode;
     m_dMix = static_cast<CSAMPLE>(message.SetEffectChainParameters.mix);
+    m_bandMask = message.SetEffectChainParameters.band_mask & 7;
     m_enableState = message.SetEffectParameters.enabled;
     return true;
 }
@@ -177,6 +182,36 @@ bool EngineEffectChain::disableForInputChannel(ChannelHandle inputHandle) {
     return true;
 }
 
+namespace {
+// 2nd order Butterworth low pass.
+struct BiquadCoefficients {
+    float b0, b1, b2, a1, a2;
+};
+
+BiquadCoefficients lowPassCoefficients(double cutoffHz, double sampleRate) {
+    const double w0 = 2.0 * M_PI * cutoffHz / sampleRate;
+    const double cosW0 = std::cos(w0);
+    const double alpha = std::sin(w0) / (2.0 * 0.70710678);
+    const double a0 = 1.0 + alpha;
+    BiquadCoefficients c;
+    c.b0 = static_cast<float>(((1.0 - cosW0) / 2.0) / a0);
+    c.b1 = static_cast<float>((1.0 - cosW0) / a0);
+    c.b2 = c.b0;
+    c.a1 = static_cast<float>((-2.0 * cosW0) / a0);
+    c.a2 = static_cast<float>((1.0 - alpha) / a0);
+    return c;
+}
+
+inline float runBiquad(const BiquadCoefficients& c, float x, float& x1, float& x2, float& y1, float& y2) {
+    const float y = c.b0 * x + c.b1 * x1 + c.b2 * x2 - c.a1 * y1 - c.a2 * y2;
+    x2 = x1;
+    x1 = x;
+    y2 = y1;
+    y1 = y;
+    return y;
+}
+} // namespace
+
 bool EngineEffectChain::process(const ChannelHandle& inputHandle,
         const ChannelHandle& outputHandle,
         CSAMPLE* pIn,
@@ -223,6 +258,36 @@ bool EngineEffectChain::process(const ChannelHandle& inputHandle,
     CSAMPLE lastCallbackMixKnob = channelStatus.oldMixKnob;
 
     bool processingOccured = false;
+    // Android edition: with a part of the bands selected, only that part goes
+    // through the effects. The rest is added to the result unchanged.
+    const CSAMPLE* pOriginalIn = pIn;
+    bool bandSplit = false;
+    if (effectiveChainEnableState != EffectEnableState::Disabled && m_bandMask != 7 &&
+            m_bandMask != 0) {
+        bandSplit = true;
+        BandState& state = m_bandStates[inputHandle][outputHandle];
+        const BiquadCoefficients lowC = lowPassCoefficients(250.0, sampleRate.value());
+        const BiquadCoefficients highC = lowPassCoefficients(2500.0, sampleRate.value());
+        const bool useLow = (m_bandMask & 1) != 0;
+        const bool useMid = (m_bandMask & 2) != 0;
+        const bool useHigh = (m_bandMask & 4) != 0;
+        CSAMPLE* pSel = m_bandSelected.data();
+        CSAMPLE* pRest = m_bandRest.data();
+        for (std::size_t i = 0; i + 1 < numSamples + 1 && i < numSamples; i += 2) {
+            for (int ch = 0; ch < 2; ++ch) {
+                const float x = pOriginalIn[i + ch];
+                const float lo = runBiquad(lowC, x, state.low[ch].x1, state.low[ch].x2,
+                        state.low[ch].y1, state.low[ch].y2);
+                const float lh = runBiquad(highC, x, state.high[ch].x1, state.high[ch].x2,
+                        state.high[ch].y1, state.high[ch].y2);
+                const float selected = (useLow ? lo : 0.f) + (useMid ? lh - lo : 0.f) +
+                        (useHigh ? x - lh : 0.f);
+                pSel[i + ch] = selected;
+                pRest[i + ch] = x - selected;
+            }
+        }
+        pIn = pSel;
+    }
     if (effectiveChainEnableState != EffectEnableState::Disabled) {
         // Ramping code inside the effects need to access the original samples
         // after writing to the output buffer. This requires not to use the same buffer
@@ -312,6 +377,10 @@ bool EngineEffectChain::process(const ChannelHandle& inputHandle,
                         static_cast<int>(numSamples));
             }
         }
+    }
+
+    if (bandSplit && processingOccured) {
+        SampleUtil::add(pOut, m_bandRest.data(), static_cast<int>(numSamples));
     }
 
     channelStatus.oldMixKnob = currentMixKnob;

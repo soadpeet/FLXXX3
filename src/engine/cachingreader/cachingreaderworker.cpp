@@ -13,6 +13,14 @@
 #include "util/logger.h"
 #include "util/span.h"
 
+#ifdef __ANDROID__
+#include <android/log.h>
+
+#include <QPointer>
+
+#include "util/androidtrackcache.h"
+#endif
+
 namespace {
 
 mixxx::Logger kLogger("CachingReaderWorker");
@@ -148,6 +156,10 @@ void CachingReaderWorker::run() {
                 // here, the engine is already stopped
                 unloadTrack();
             }
+#ifdef __ANDROID__
+        } else if (m_cacheSwapPending.fetchAndStoreAcquire(0)) {
+            trySwapToCachedSource();
+#endif
         } else if (m_pChunkReadRequestFIFO->read(&request, 1) == 1) {
             // Read the requested chunk and send the result
             const ReaderStatusUpdate update = processReadRequest(request);
@@ -176,6 +188,11 @@ void CachingReaderWorker::closeAudioSource() {
         m_pAudioSource->close();
         m_pAudioSource.reset();
     }
+#ifdef __ANDROID__
+    m_pCurrentTrack.reset();
+    m_cacheOriginalPath.clear();
+    m_cacheSwapPending.storeRelease(0);
+#endif
 
     // This function has to be called with the engine stopped only
     // to avoid collecting new requests for the old track
@@ -302,7 +319,76 @@ void CachingReaderWorker::loadTrack(const TrackPointer& pTrack) {
             m_pAudioSource->getSignalInfo().getSampleRate(),
             m_pAudioSource->getSignalInfo().getChannelCount(),
             mixxx::audio::FramePos(m_pAudioSource->frameLength()));
+
+#ifdef __ANDROID__
+    // Playback started from the file on the stick. Copy it to the app cache in
+    // the background and switch to the copy when done, so that no file on the
+    // removable volume stays open (Android kills such processes when the volume
+    // disappears).
+    m_pCurrentTrack = pTrack;
+    m_openParams = config;
+    m_cacheOriginalPath.clear();
+    const QString location = pTrack->getLocation();
+    mixxx::AndroidTrackCache::instance().noteAccess(location);
+    if (mixxx::AndroidTrackCache::isRemovablePath(location) &&
+            mixxx::AndroidTrackCache::instance().cachedPath(location).isEmpty()) {
+        m_cacheOriginalPath = location;
+        QPointer<CachingReaderWorker> self(this);
+        mixxx::AndroidTrackCache::instance().requestCopy(location, [self]() {
+            if (self) {
+                self->requestCacheSwap();
+            }
+        });
+    } else if (mixxx::AndroidTrackCache::isRemovablePath(location)) {
+        // Already opened from the cached copy by SoundSourceProxy.
+        __android_log_print(ANDROID_LOG_INFO,
+                "mixxx-cache",
+                "playing from cache: %s",
+                location.toUtf8().constData());
+    }
+#endif
 }
+
+#ifdef __ANDROID__
+void CachingReaderWorker::requestCacheSwap() {
+    m_cacheSwapPending.storeRelease(1);
+    workReady();
+}
+
+void CachingReaderWorker::trySwapToCachedSource() {
+    if (!m_pAudioSource || !m_pCurrentTrack || m_cacheOriginalPath.isEmpty() ||
+            m_pCurrentTrack->getLocation() != m_cacheOriginalPath) {
+        return; // Track was unloaded or replaced in the meantime.
+    }
+    // SoundSourceProxy now resolves to the cached copy.
+    mixxx::AudioSourcePointer pCachedSource =
+            SoundSourceProxy(m_pCurrentTrack).openAudioSource(m_openParams);
+    if (!pCachedSource) {
+        __android_log_print(ANDROID_LOG_WARN,
+                "mixxx-cache",
+                "could not open cached copy of %s",
+                m_cacheOriginalPath.toUtf8().constData());
+        return;
+    }
+    if (pCachedSource->getSignalInfo() != m_pAudioSource->getSignalInfo() ||
+            pCachedSource->frameIndexRange() != m_pAudioSource->frameIndexRange()) {
+        __android_log_print(ANDROID_LOG_WARN,
+                "mixxx-cache",
+                "cached copy differs in format/length, keeping the original: %s",
+                m_cacheOriginalPath.toUtf8().constData());
+        pCachedSource->close();
+        return;
+    }
+    // Closes the file handle on the stick.
+    m_pAudioSource->close();
+    m_pAudioSource = std::move(pCachedSource);
+    __android_log_print(ANDROID_LOG_INFO,
+            "mixxx-cache",
+            "switched to cached copy, stick file released: %s",
+            m_cacheOriginalPath.toUtf8().constData());
+    m_cacheOriginalPath.clear();
+}
+#endif
 
 void CachingReaderWorker::quitWait() {
     m_stop = 1;

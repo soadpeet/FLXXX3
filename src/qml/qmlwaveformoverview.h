@@ -92,6 +92,7 @@ class QmlWaveformOverview : public QQuickPaintedItem {
   private slots:
     void slotWaveformUpdated();
 
+
   signals:
     void groupChanged();
     void trackChanged();
@@ -106,6 +107,13 @@ class QmlWaveformOverview : public QQuickPaintedItem {
     void colorLowChanged(const QColor& color);
 
   private:
+#ifdef __ANDROID__
+    // Android edition: same look as the scrolling waveform (BLUE / RGB / 3BAND).
+    void drawScheme(QPainter* pPainter,
+            ConstWaveformPointer pWaveform,
+            int completion,
+            int scheme) const;
+#endif
     void drawFiltered(QPainter* pPainter,
             Channels channels,
             ConstWaveformPointer pWaveform,

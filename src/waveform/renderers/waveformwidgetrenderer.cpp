@@ -13,8 +13,15 @@
 #include "waveform/vsyncthread.h"
 #include "waveform/waveform.h"
 
+#ifdef __ANDROID__
+// Android edition: a wider range for the pinch zoom (a larger value shows
+// more of the track).
+const double WaveformWidgetRenderer::s_waveformMinZoom = 0.3;
+const double WaveformWidgetRenderer::s_waveformMaxZoom = 30.0;
+#else
 const double WaveformWidgetRenderer::s_waveformMinZoom = 1.0;
 const double WaveformWidgetRenderer::s_waveformMaxZoom = 10.0;
+#endif
 const double WaveformWidgetRenderer::s_waveformDefaultZoom = 3.0;
 const double WaveformWidgetRenderer::s_defaultPlayMarkerPosition = 0.5;
 

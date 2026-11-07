@@ -926,7 +926,10 @@ mixxx::audio::FramePos BpmControl::getNearestPositionInPhase(
 }
 
 mixxx::audio::FramePos BpmControl::getBeatMatchPosition(
-        mixxx::audio::FramePos thisPosition, bool respectLoops, bool playing) {
+        mixxx::audio::FramePos thisPosition,
+        bool respectLoops,
+        bool playing,
+        bool matchOtherDeck) {
     // Without a beatgrid, we don't know the phase offset.
     if (!m_pBeats) {
         return thisPosition;
@@ -938,7 +941,7 @@ mixxx::audio::FramePos BpmControl::getBeatMatchPosition(
         return thisPosition;
     }
 
-    EngineBuffer* pOtherEngineBuffer = pickSyncTarget();
+    EngineBuffer* pOtherEngineBuffer = matchOtherDeck ? pickSyncTarget() : nullptr;
     if (kLogger.traceEnabled()) {
         if (pOtherEngineBuffer) {
             kLogger.trace() << "getBeatMatchPosition sync target"

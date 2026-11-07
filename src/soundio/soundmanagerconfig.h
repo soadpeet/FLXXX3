@@ -110,6 +110,12 @@ class SoundManagerConfig {
     bool hasMicInputs();
     bool hasExternalRecordBroadcast();
     void loadDefaults(SoundManager* soundManager, unsigned int flags);
+#ifdef __ANDROID__
+    /// Routes Main to channels 1-2 and Headphones to channels 3-4 of a DDJ-FLX4
+    /// if one is connected with at least 4 output channels. Returns false and
+    /// leaves the configuration untouched if no such device is present.
+    bool applyAndroidPreferredRouting(SoundManager* soundManager);
+#endif
 
   private:
     QFileInfo m_configFile;

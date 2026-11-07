@@ -147,7 +147,8 @@ Rectangle {
                                     id: labelItem
 
                                     anchors.left: parent.left
-                                    anchors.leftMargin: depth == 0 && row == 0 ? 10 : 34
+                                    // Android: no indicator column for entries without children.
+                                    anchors.leftMargin: (depth == 0 && row == 0) || (Qt.platform.os === "android" && !hasChildren) ? 10 : 34
                                     anchors.verticalCenter: parent.verticalCenter
                                     clip: true
                                     color: Theme.textColor

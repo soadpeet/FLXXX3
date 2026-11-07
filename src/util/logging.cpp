@@ -313,9 +313,14 @@ void handleMessage(
         // write debug messages into the log file, but skip controller I/O
         // to avoid flooding the log file.
         // Skip expensive string comparisons if WriteFlag::File is already set.
+#ifndef __ANDROID__
+        // Android edition: debug messages are not written to the log file (the
+        // file I/O of the many debug messages cost ~15 % of the GUI thread on
+        // the tablet).
         if (!writeFlags.testFlag(WriteFlag::File) && !isControllerLoggingCategory(categoryName)) {
             writeFlags |= WriteFlag::File;
         }
+#endif
         break;
     case QtInfoMsg:
         levelName = "Info";
@@ -326,7 +331,14 @@ void handleMessage(
             writeFlags |= WriteFlag::Flush;
         }
         // Write unconditionally into log file
+#ifdef __ANDROID__
+        // Android edition: only when the info level is enabled.
+        if (Logging::enabled(LogLevel::Info)) {
+            writeFlags |= WriteFlag::File;
+        }
+#else
         writeFlags |= WriteFlag::File;
+#endif
         break;
     case QtWarningMsg:
         levelName = "Warning";

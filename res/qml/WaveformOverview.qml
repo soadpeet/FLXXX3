@@ -123,12 +123,21 @@ Item {
             minuteMarkers: Mixxx.Config.waveformOverviewMinuteMarkers
             normalized: Mixxx.Config.waveformOverviewNormalized
             renderer: Mixxx.Config.waveformOverviewType === 0 ? Mixxx.WaveformOverview.Renderer.Filtered : Mixxx.Config.waveformOverviewType === 1 ? Mixxx.WaveformOverview.Renderer.HSV : Mixxx.WaveformOverview.Renderer.RGB
-            stereo: Mixxx.Config.waveformOverviewStereo
+            // Android edition: one upper half instead of mirrored left/right.
+            stereo: Qt.platform.os === "android" ? false : Mixxx.Config.waveformOverviewStereo
             colorHigh: Theme.white
             colorMid: Theme.blue
             colorLow: Theme.green
             group: root.group
+            // Android edition: no moving by touch while the track plays.
+            interactive: Qt.platform.os !== "android" || overviewPlayControl.value <= 0
         }
+    }
+    Mixxx.ControlProxy {
+        id: overviewPlayControl
+
+        group: root.group
+        key: "play"
     }
 
     Rectangle {

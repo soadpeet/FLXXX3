@@ -55,6 +55,21 @@ class EngineEffectChain final : public EffectsRequestHandler {
         EffectEnableState enableState;
     };
 
+    // Android edition: crossover that splits the input into low / mid / high so
+    // that the effects only work on the selected bands (two 2nd order low pass
+    // filters per channel; the bands add up to the input exactly).
+    struct BiquadState {
+        float x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    };
+    struct BandState {
+        BiquadState low[2];  // 2 channels (left, right), low pass at the low / mid border
+        BiquadState high[2]; // low pass at the mid / high border
+    };
+    ChannelHandleMap<ChannelHandleMap<BandState>> m_bandStates;
+    int m_bandMask = 7;
+    mixxx::SampleBuffer m_bandSelected;
+    mixxx::SampleBuffer m_bandRest;
+
     QString debugString() const {
         return QString("EngineEffectChain(%1)").arg(m_group);
     }

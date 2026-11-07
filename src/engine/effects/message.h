@@ -89,6 +89,8 @@ struct EffectsRequest {
             bool enabled;
             EffectChainMixMode::Type mix_mode;
             double mix;
+            // Android edition: bands the effects work on (1 low, 2 mid, 4 high).
+            int band_mask;
         } SetEffectChainParameters;
         struct {
             bool enabled;
