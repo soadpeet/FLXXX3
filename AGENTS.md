@@ -20,6 +20,17 @@ themselves. An agent may prepare and stage changes locally, but `git commit`, `g
 creation must be deliberate human actions. Before this, a test of the code change by a human,
 using a real DJ setup, is required.
 
+### Local exception: commits in this checkout (Android edition)
+
+In this local checkout the owner allows the AI agent to run `git commit` and `git push`, but
+only **after the owner has confirmed that specific commit or push** in the conversation (for a
+commit the files and the commit message are shown first, for a push the remote and the branch;
+then the agent waits for the answer). At sensible points (a group of changes was tested and
+confirmed, before the work is left, when many changes have piled up) the agent asks by itself
+whether to commit and whether to push. The agent never commits or pushes on its own, never opens
+or updates pull requests and never creates issues. Commit messages written by the agent carry
+the AI disclaimer described below.
+
 ### No Automated Responses to PR Review Comments
 
 AI agents **must not** post replies to review comments, questions, or change requests left on
