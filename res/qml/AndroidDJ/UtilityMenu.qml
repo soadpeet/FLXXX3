@@ -48,6 +48,12 @@ Rectangle {
         orientation2.value = crossfaderOn ? 2 : 1;
     }
     Component.onCompleted: {
+        // TRACK END WARNING is OFF by default (Mixxx starts with 30 s): set it once, after that
+        // the choice of the user stays.
+        if (Mixxx.Config.androidSetting("endWarnInit", "") !== "1") {
+            Mixxx.Config.waveformEndOfTrackWarningTime = 0;
+            Mixxx.Config.setAndroidSetting("endWarnInit", "1");
+        }
         const curve = parseInt(Mixxx.Config.androidSetting("faderCurve", "1"));
         faderCurve.value = isNaN(curve) ? 1 : curve;
         root.crossfaderOn = Mixxx.Config.androidSetting("crossfader", "0") === "1";
@@ -192,6 +198,24 @@ Rectangle {
                         quantize2.value = index === 0 ? 1 : 0;
                     }
                 }
+            }
+        }
+        // Warning before the end of the track (the waveform blinks red behind the waves, the
+        // closer the end the stronger).
+        Column {
+            spacing: 3
+
+            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "TRACK END WARNING (WAVEFORM BLINKS)" }
+            DJ.Segmented {
+                readonly property var values: [0, 10, 20, 30, 60]
+
+                currentIndex: values.indexOf(Mixxx.Config.waveformEndOfTrackWarningTime)
+                fontSize: root.u * 0.95
+                height: root.u * 2.5
+                labels: ["OFF", "10 s", "20 s", "30 s", "60 s"]
+                width: root.u * 26
+
+                onActivated: index => Mixxx.Config.waveformEndOfTrackWarningTime = values[index]
             }
         }
         Column {

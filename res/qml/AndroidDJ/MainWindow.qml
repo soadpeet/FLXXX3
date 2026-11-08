@@ -449,7 +449,8 @@ Item {
         border.color: jogTap.pressed ? "#1f8fe0" : "#4a4a4a"
         color: jogTap.pressed ? "#3a3a3a" : "#202020"
         height: root.waveformHeight
-        opacity: 0.92
+        // solid: the waveform behind must not shine through
+        opacity: 1.0
         width: Math.max(28, Math.round(root.width * 0.034))
         z: 20
 
@@ -490,7 +491,8 @@ Item {
         border.color: brightnessTap.pressed ? "#1f8fe0" : "#4a4a4a"
         color: brightnessTap.pressed ? "#3a3a3a" : "#202020"
         height: root.waveformHeight
-        opacity: 0.92
+        // solid: the waveform behind must not shine through
+        opacity: 1.0
         width: Math.max(28, Math.round(root.width * 0.034))
         z: 20
 
