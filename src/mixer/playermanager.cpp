@@ -139,6 +139,59 @@ PlayerManager::PlayerManager(UserSettingsPointer pConfig,
             false,
             false,
             0.0);
+    // JOGWHEEL settings (menu on the screen, used by the FLX4 script):
+    // backspin_on (1; set in the UTILITY menu), backspin_length (0 short, 1 normal,
+    // 2 long) and for both decks together vinyl_stop_sec (time that a touched deck
+    // needs to stop) and vinyl_start_sec (time to speed up again when it is
+    // released); 0 seconds = off.
+    // The BACK SPIN depends on how hard the jog was turned: backspin_sens (factor on the
+    // measured speed, in times of the normal speed of the wheel), backspin_min_rate and
+    // backspin_max_rate (limits of the start speed, in times of the normal speed). The script
+    // writes the last measured speed to backspin_last_speed and the start speed that it used
+    // to backspin_last_rate (shown in ADVANCED SETTINGS to adjust the values).
+    struct JogControl {
+        const char* key;
+        double defaultValue;
+    };
+    for (const JogControl& jog : {JogControl{"backspin_on", 1.0},
+                 JogControl{"backspin_length", 1.0},
+                 JogControl{"vinyl_stop_sec", 0.0},
+                 JogControl{"vinyl_start_sec", 0.0},
+                 JogControl{"backspin_sens", 1.0},
+                 JogControl{"backspin_min_rate", 2.0},
+                 JogControl{"backspin_max_rate", 12.0},
+                 JogControl{"backspin_last_speed", 0.0},
+                 JogControl{"backspin_last_rate", 0.0},
+                 JogControl{"jog_dbg", 0.0}}) {
+        m_jogControls.push_back(std::make_unique<ControlObject>(
+                ConfigKey(QStringLiteral("[AndroidDJ]"), QString::fromLatin1(jog.key)),
+                false,
+                false,
+                false,
+                jog.defaultValue));
+    }
+    // Screen brightness (BRIGHTNESS window / UTILITY): 0 NIGHT, 1 NORMAL, 2 OUTDOOR.
+    m_jogControls.push_back(std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("brightness")),
+            false,
+            false,
+            false,
+            1.0));
+    // Channel fader curve (UTILITY): 0 slow start, 1 linear (default), 2 fast start.
+    // Applied by the FLX4 script to the channel faders.
+    m_jogControls.push_back(std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("fader_curve")),
+            false,
+            false,
+            false,
+            1.0));
+    // EQ mode of the mixer: 0 = ISO (default), 1 = EQ (see Bessel8LVMixEQEffect).
+    m_pEqMode = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("eq_mode")),
+            false,
+            false,
+            false,
+            0.0);
 #endif
 
     // This is parented to the PlayerManager so does not need to be deleted

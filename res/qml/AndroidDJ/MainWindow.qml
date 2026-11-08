@@ -1,4 +1,5 @@
 import "../" as Skin
+import "../AdvSettings"
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import QtQuick.Controls
@@ -22,6 +23,13 @@ Item {
     property string browserMode: "BROWSE"
     // Utility ("SHORTCUT") screen open.
     property bool utilityOpen: false
+    property bool advancedOpen: false
+    // Waveform zoom after the start (ADVANCED SETTINGS); changing it applies it at once.
+    readonly property real zoomStartValue: AdvSettings.values.zoomStart
+    onZoomStartValueChanged: {
+        pinchZoom1.value = zoomStartValue;
+        pinchZoom2.value = zoomStartValue;
+    }
     // Time display of both decks: remaining (true) or elapsed (false).
     property bool showRemain: true
     // Row below the waveforms: hotcues (false) or Beat FX presets (true).
@@ -171,7 +179,42 @@ Item {
                 root.masterTrackLoaded(2);
         }
     }
+    // The output level that reaches the controller is fixed at 0 dB (master gain 1).
+    Mixxx.ControlProxy { id: masterGainProxy; group: "[Master]"; key: "gain" }
+    Mixxx.ControlProxy { id: eqModeProxy; group: "[AndroidDJ]"; key: "eq_mode" }
+    // Screen brightness: 0 NIGHT (dim), 1 NORMAL (system setting), 2 OUTDOOR (brightest).
+    Mixxx.ControlProxy { id: brightnessProxy; group: "[AndroidDJ]"; key: "brightness" }
+    function applyBrightness() {
+        const level = Math.round(brightnessProxy.value);
+        Mixxx.AndroidStatus.setScreenBrightness(level === 0 ? 0.03 : (level === 2 ? 1.0 : -1.0));
+    }
+    Connections {
+        function onValueChanged() {
+            Mixxx.Config.setAndroidSetting("brightness", String(Math.round(brightnessProxy.value)));
+            root.applyBrightness();
+        }
+
+        target: brightnessProxy
+    }
     Component.onCompleted: {
+        masterGainProxy.value = 1.0;
+        // Waveform zoom: only when ADVANCED SETTINGS changed it from the factory value (otherwise the
+        // zoom of the last session stays).
+        if (AdvSettings.values.zoomStart !== AdvSettings.definition("zoomStart").def) {
+            pinchZoom1.value = AdvSettings.values.zoomStart;
+            pinchZoom2.value = AdvSettings.values.zoomStart;
+        }
+        const savedBrightness = parseInt(Mixxx.Config.androidSetting("brightness", "1"));
+        brightnessProxy.value = isNaN(savedBrightness) ? 1 : savedBrightness;
+        root.applyBrightness();
+        Mixxx.AndroidStatus.lockScreen();
+        // Mixer: ISO (kill at the end stop) is the default, EQ is saved.
+        eqModeProxy.value = Mixxx.Config.androidSetting("eqMode", "0") === "1" ? 1 : 0;
+        // 3BAND is the default look: once, a look saved earlier (e.g. RGB) is replaced.
+        if (Mixxx.Config.androidSetting("waveformDefault3band", "0") !== "1") {
+            Mixxx.Config.waveformType = Mixxx.WaveformDisplay.Type.Filtered;
+            Mixxx.Config.setAndroidSetting("waveformDefault3band", "1");
+        }
         root.showRemain = Mixxx.Config.androidSetting("showRemain", "1") === "1";
         root.keyCamelot = Mixxx.Config.androidSetting("keyCamelot", "1") === "1";
         root.quantizeBeat = Mixxx.Config.androidSetting("quantizeBeat", "1/4");
@@ -203,6 +246,7 @@ Item {
         }
     }
     function topButton(name) {
+        root.advancedOpen = false;
         if (name === "UTILITY") {
             browserIdle.stop();
             root.browserOpen = false;
@@ -217,32 +261,31 @@ Item {
         }
         root.browserMode = name;
         root.openBrowser();
+        const lib = browser.item ? browser.item.library : null;
+        if (lib) {
+            lib.mode = name;
+        }
         if (name === "PLAYLIST") {
             root.activateSource(1);
-        } else if (name === "SEARCH") {
-            const lib = browser.item ? browser.item.library : null;
-            if (lib) {
-                lib.focusSearch();
-            }
         }
     }
     function openBrowser() {
         root.utilityOpen = false;
         root.browserOpen = true;
-        browserIdle.interval = 180000;
+        browserIdle.interval = Math.round(AdvSettings.values.menuIdleSec * 1000);
         browserIdle.restart();
     }
     // Turning the knob only keeps an already open library open.
     function keepBrowserOpen() {
         if (root.browserOpen) {
-            browserIdle.interval = 180000;
+            browserIdle.interval = Math.round(AdvSettings.values.menuIdleSec * 1000);
             browserIdle.restart();
         }
     }
     // After LOAD the library only stays a moment (feedback), then the loaded
     // deck is visible. A longer delay was perceived as "loading takes long".
     function closeBrowserSoon() {
-        browserIdle.interval = 250;
+        browserIdle.interval = AdvSettings.values.afterLoadMs;
         browserIdle.restart();
     }
 
@@ -297,6 +340,10 @@ Item {
                 } else {
                     root.browserMode = "BROWSE";
                     root.openBrowser();
+                    const lib = browser.item ? browser.item.library : null;
+                    if (lib) {
+                        lib.mode = "BROWSE";
+                    }
                 }
             }
         }
@@ -333,6 +380,7 @@ Item {
         activeButton: root.utilityOpen ? "UTILITY" : (root.browserOpen ? root.browserMode : "")
 
         onButtonClicked: name => root.topButton(name)
+        onCloseRequested: quitDialog.open()
     }
     // Waveforms of both decks stacked on the left, FX panel on the right.
     Item {
@@ -342,7 +390,7 @@ Item {
 
         anchors {
             left: parent.left
-            right: fxPanel.left
+            right: parent.right
             top: topBar.bottom
         }
 
@@ -376,13 +424,107 @@ Item {
                 if (!active)
                     return;
                 // Smaller zoom value = more detail (like the zoom buttons).
-                const zoom = Math.max(0.3, Math.min(30, startZoom / activeScale));
+                const zoom = Math.max(AdvSettings.values.zoomMin, Math.min(AdvSettings.values.zoomMax, startZoom / activeScale));
                 pinchZoom1.value = zoom;
                 pinchZoom2.value = zoom;
             }
         }
         Mixxx.ControlProxy { id: pinchZoom1; group: "[Channel1]"; key: "waveform_zoom" }
         Mixxx.ControlProxy { id: pinchZoom2; group: "[Channel2]"; key: "waveform_zoom" }
+    }
+    // Color FX: the name of the selected one stands vertically at the left edge
+    // of the upper waveform; tapping it opens the list.
+    DJ.ColorFxButton {
+        height: root.waveformHeight
+        width: Math.max(28, Math.round(root.width * 0.034))
+        z: 20
+
+        anchors {
+            left: parent.left
+            top: waveArea.top
+        }
+    }
+    // JOGWHEEL: below the Color FX button, on the lower waveform.
+    Rectangle {
+        border.color: jogTap.pressed ? "#1f8fe0" : "#4a4a4a"
+        color: jogTap.pressed ? "#3a3a3a" : "#202020"
+        height: root.waveformHeight
+        opacity: 0.92
+        width: Math.max(28, Math.round(root.width * 0.034))
+        z: 20
+
+        anchors {
+            left: parent.left
+            top: waveArea.top
+            topMargin: root.waveformHeight
+        }
+
+        Text {
+            anchors.centerIn: parent
+            color: "#c0c0c0"
+            elide: Text.ElideRight
+            font.bold: true
+            font.pixelSize: Math.round(parent.width * 0.5)
+            horizontalAlignment: Text.AlignHCenter
+            rotation: -90
+            text: "JOGWHEEL"
+            width: parent.height - 8
+        }
+        TapHandler {
+            id: jogTap
+
+            onTapped: jogwheelMenu.openWindow()
+        }
+    }
+    // The window lies over the JOGWHEEL button (left edge of the lower waveform).
+    DJ.JogwheelMenu {
+        id: jogwheelMenu
+
+        height: Math.round(root.waveformHeight * 1.1)
+        width: Math.round(Math.min(root.width * 0.46, 540))
+        x: 0
+        y: waveArea.y + root.waveformHeight
+    }
+    // BRIGHTNESS: below the Beat FX button, on the lower waveform (right edge).
+    Rectangle {
+        border.color: brightnessTap.pressed ? "#1f8fe0" : "#4a4a4a"
+        color: brightnessTap.pressed ? "#3a3a3a" : "#202020"
+        height: root.waveformHeight
+        opacity: 0.92
+        width: Math.max(28, Math.round(root.width * 0.034))
+        z: 20
+
+        anchors {
+            right: parent.right
+            top: waveArea.top
+            topMargin: root.waveformHeight
+        }
+
+        Text {
+            anchors.centerIn: parent
+            color: "#c0c0c0"
+            elide: Text.ElideRight
+            font.bold: true
+            font.pixelSize: Math.round(parent.width * 0.5)
+            horizontalAlignment: Text.AlignHCenter
+            rotation: -90
+            text: "BRIGHTNESS"
+            width: parent.height - 8
+        }
+        TapHandler {
+            id: brightnessTap
+
+            onTapped: brightnessMenu.openWindow()
+        }
+    }
+    // The window lies over the BRIGHTNESS button.
+    DJ.BrightnessMenu {
+        id: brightnessMenu
+
+        height: root.waveformHeight
+        width: Math.round(Math.min(root.width * 0.36, 420))
+        x: root.width - width
+        y: waveArea.y + root.waveformHeight
     }
     DJ.FxPresetBand {
         height: root.hotcueHeight
@@ -395,19 +537,21 @@ Item {
             topMargin: 2
         }
     }
-    DJ.FxPanel {
-        id: fxPanel
-
+    // Beat FX: the name of the selected one stands vertically at the right edge
+    // of the upper waveform; the window with the settings lies over the button.
+    DJ.BeatFxButton {
+        height: root.waveformHeight
+        panelHeight: root.waveformHeight * 2
+        panelWidth: Math.round(root.width * 0.2)
         presetMode: root.fxPresetMode
+        width: Math.max(28, Math.round(root.width * 0.034))
+        z: 20
 
         onPresetModeRequested: mode => root.fxPresetMode = mode
 
-        height: waveArea.height
-        width: Math.round(root.width * 0.2)
-
         anchors {
             right: parent.right
-            top: topBar.bottom
+            top: waveArea.top
         }
     }
     // Hotcues of both decks in one row each (A..H side by side).
@@ -502,11 +646,28 @@ Item {
         quantizeBeat: root.quantizeBeat
         showRemain: root.showRemain
         visible: root.utilityOpen
+        // Above the side buttons (z 20) of the waveforms.
+        z: 30
 
         onAutoCueSelected: on => root.autoCue = on
         onKeyCamelotSelected: camelot => root.keyCamelot = camelot
         onQuantizeBeatSelected: beat => root.quantizeBeat = beat
         onShowRemainSelected: remain => root.showRemain = remain
+        onAdvancedRequested: root.advancedOpen = true
+
+        anchors {
+            bottom: parent.bottom
+            left: parent.left
+            right: parent.right
+            top: topBar.bottom
+        }
+    }
+    // ADVANCED SETTINGS (from UTILITY): over the utility menu.
+    DJ.AdvancedSettings {
+        visible: root.advancedOpen
+        z: 35
+
+        onCloseRequested: root.advancedOpen = false
 
         anchors {
             bottom: parent.bottom
@@ -519,6 +680,8 @@ Item {
     // SOURCE screen: devices and own music folders.
     DJ.SourceScreen {
         visible: root.browserOpen && root.browserMode === "SOURCE"
+        // Above the side buttons (z 20) of the waveforms.
+        z: 30
 
         anchors {
             bottom: parent.bottom
@@ -533,6 +696,7 @@ Item {
             root.activateSource(kind === "USB" ? 1 : 0);
             const lib = browser.item ? browser.item.library : null;
             if (lib) {
+                lib.mode = "BROWSE";
                 lib.sourceTitle = title;
                 lib.resetBrowse();
             }
@@ -547,6 +711,8 @@ Item {
         active: true
         asynchronous: true
         visible: root.browserOpen && root.browserMode !== "SOURCE"
+        // Above the side buttons (z 20) of the waveforms.
+        z: 30
 
         // Like the XDJ-RX3 browse screen: fills everything below the top bar.
         anchors {
@@ -561,6 +727,13 @@ Item {
 
             color: "#101010"
 
+            // Blocks touches for the main window below (BEAT FX etc.).
+            MouseArea {
+                acceptedButtons: Qt.AllButtons
+                anchors.fill: parent
+                preventStealing: true
+                onWheel: wheel => wheel.accepted = true
+            }
             Skin.Library {
                 id: lib
 
@@ -645,5 +818,117 @@ Item {
         MouseArea {
             anchors.fill: parent
         }
+    }
+    // The Android BACK key does not close the app at once: it asks first (the
+    // same question as the X at the top right).
+    focus: true
+    Keys.onBackPressed: event => {
+        event.accepted = true;
+        quitDialog.open();
+    }
+    // NIGHT: warm orange tint over everything (touches pass through).
+    Rectangle {
+        anchors.fill: parent
+        z: 10000
+        color: "#ff6a00"
+        opacity: Math.round(brightnessProxy.value) === 0 ? 0.10 : 0
+        visible: opacity > 0
+    }
+    Popup {
+        id: quitDialog
+
+        anchors.centerIn: parent
+        closePolicy: Popup.CloseOnEscape
+        modal: true
+        padding: 20
+        z: 20000
+
+        background: Rectangle {
+            border.color: "#5a5a5a"
+            color: "#141414"
+        }
+
+        Column {
+            spacing: 16
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                color: "#e0e0e0"
+                font.bold: true
+                font.pixelSize: Math.round(root.height * 0.05)
+                text: "CLOSE FLXXX3?"
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                color: "#9a9a9a"
+                font.pixelSize: Math.round(root.height * 0.035)
+                text: "Playback stops."
+            }
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 16
+
+                Repeater {
+                    model: ["CANCEL", "CLOSE"]
+
+                    Rectangle {
+                        required property string modelData
+
+                        border.color: modelData === "CLOSE" ? "#ff6a6a" : "#5a5a5a"
+                        color: btnTap.pressed ? "#3a3a3a" : "#202020"
+                        height: Math.round(root.height * 0.1)
+                        width: Math.round(root.height * 0.3)
+
+                        Text {
+                            anchors.centerIn: parent
+                            color: parent.modelData === "CLOSE" ? "#ff6a6a" : "#e0e0e0"
+                            font.bold: true
+                            font.pixelSize: Math.round(root.height * 0.04)
+                            text: parent.modelData
+                        }
+                        TapHandler {
+                            id: btnTap
+
+                            onTapped: {
+                                quitDialog.close();
+                                if (parent.modelData === "CLOSE")
+                                    Mixxx.AndroidStatus.quitApp();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // TEMP-DIAG6 (Color FX dropouts): levels and effect state, 4 lines per second.
+    Mixxx.ControlProxy { id: dgMasterL; group: "[Main]"; key: "vu_meter_left" }
+    Mixxx.ControlProxy { id: dgMasterR; group: "[Main]"; key: "vu_meter_right" }
+    Mixxx.ControlProxy { id: dgCh1; group: "[Channel1]"; key: "vu_meter" }
+    Mixxx.ControlProxy { id: dgCh2; group: "[Channel2]"; key: "vu_meter" }
+    Mixxx.ControlProxy { id: dgFx1On; group: "[QuickEffectRack1_[Channel1]]"; key: "enabled" }
+    Mixxx.ControlProxy { id: dgFx1Super; group: "[QuickEffectRack1_[Channel1]]"; key: "super1" }
+    Mixxx.ControlProxy { id: dgFx2Super; group: "[QuickEffectRack1_[Channel2]]"; key: "super1" }
+    Mixxx.ControlProxy { id: dgPlay1; group: "[Channel1]"; key: "play" }
+    Mixxx.ControlProxy { id: dgPlay2; group: "[Channel2]"; key: "play" }
+    Mixxx.ControlProxy { id: dgVol1; group: "[Channel1]"; key: "volume" }
+    Mixxx.ControlProxy { id: dgGain1; group: "[Channel1]"; key: "pregain" }
+    Mixxx.ControlProxy { id: dgMute1; group: "[Channel1]"; key: "mute" }
+    Mixxx.ControlProxy { id: dgRate1; group: "[Channel1]"; key: "rate_ratio" }
+    Mixxx.ControlProxy { id: dgEqLo1; group: "[EqualizerRack1_[Channel1]_Effect1]"; key: "parameter1" }
+    Mixxx.ControlProxy { id: dgEqMi1; group: "[EqualizerRack1_[Channel1]_Effect1]"; key: "parameter2" }
+    Mixxx.ControlProxy { id: dgEqHi1; group: "[EqualizerRack1_[Channel1]_Effect1]"; key: "parameter3" }
+    Mixxx.ControlProxy { id: dgPos1; group: "[Channel1]"; key: "playposition" }
+    Timer {
+        interval: 250
+        repeat: true
+        running: true
+        onTriggered: Mixxx.AndroidStatus.log("DIAG6 main " + dgMasterL.value.toFixed(2) + "/" + dgMasterR.value.toFixed(2)
+                + " ch1 " + dgCh1.value.toFixed(2) + " ch2 " + dgCh2.value.toFixed(2)
+                + " play " + dgPlay1.value + dgPlay2.value + " fx1on " + dgFx1On.value
+                + " s1 " + dgFx1Super.value.toFixed(3) + " s2 " + dgFx2Super.value.toFixed(3)
+                + " vol " + dgVol1.value.toFixed(2) + " gain " + dgGain1.value.toFixed(2) + " mute " + dgMute1.value
+                + " rate " + dgRate1.value.toFixed(3) + " eq " + dgEqLo1.value.toFixed(2) + "/" + dgEqMi1.value.toFixed(2) + "/" + dgEqHi1.value.toFixed(2)
+                + " pos " + dgPos1.value.toFixed(4))
     }
 }

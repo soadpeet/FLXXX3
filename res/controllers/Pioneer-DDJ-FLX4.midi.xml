@@ -653,43 +653,43 @@
             </control>
 
             <control>
-                <description>CHANNELFADER - slider</description>
+                <description>CHANNELFADER - slider (curve of the UTILITY menu)</description>
                 <group>[Channel1]</group>
-                <key>volume</key>
+                <key>PioneerDDJFLX4.channelFaderLSB</key>
                 <status>0xB0</status>
                 <midino>0x33</midino>
                 <options>
-                    <fourteen-bit-lsb/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
-                <description>CHANNELFADER - slider</description>
+                <description>CHANNELFADER - slider (curve of the UTILITY menu)</description>
                 <group>[Channel1]</group>
-                <key>volume</key>
+                <key>PioneerDDJFLX4.channelFaderMSB</key>
                 <status>0xB0</status>
                 <midino>0x13</midino>
                 <options>
-                    <fourteen-bit-msb/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
-                <description>CHANNELFADER - slider</description>
+                <description>CHANNELFADER - slider (curve of the UTILITY menu)</description>
                 <group>[Channel2]</group>
-                <key>volume</key>
+                <key>PioneerDDJFLX4.channelFaderLSB</key>
                 <status>0xB1</status>
                 <midino>0x33</midino>
                 <options>
-                    <fourteen-bit-lsb/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
-                <description>CHANNELFADER - slider</description>
+                <description>CHANNELFADER - slider (curve of the UTILITY menu)</description>
                 <group>[Channel2]</group>
-                <key>volume</key>
+                <key>PioneerDDJFLX4.channelFaderMSB</key>
                 <status>0xB1</status>
                 <midino>0x13</midino>
                 <options>
-                    <fourteen-bit-msb/>
+                    <script-binding/>
                 </options>
             </control>
 
@@ -1063,26 +1063,39 @@
                     <Script-Binding/>
                 </options>
             </control>
+            <!-- Color FX (Android edition): SMART CFX switches it on / off, SMART FADER
+                 selects the next (down the list), SHIFT + SMART FADER the previous one -->
             <control>
-                <description>BEAT FX ON/OFF +SHIFT - press - Disable all enabled Beat FX Slots (when on CHAN1/1+2)</description>
-                <group>[EffectRack1_EffectUnit1]</group>
-                <key>PioneerDDJFLX4.beatFxOnOffShiftPressed</key>
-                <status>0x94</status>
-                <midino>0x43</midino>
+                <description>SMART CFX - press - Color FX on / off</description>
+                <group>[AndroidDJ]</group>
+                <key>PioneerDDJFLX4.smartCfxPressed</key>
+                <status>0x96</status>
+                <midino>0x00</midino>
                 <options>
                     <Script-Binding/>
                 </options>
             </control>
             <control>
-                <description>BEAT FX ON/OFF +SHIFT - press - Disable all enabled Beat FX Slots (when on CHAN12)</description>
-                <group>[EffectRack1_EffectUnit1]</group>
-                <key>PioneerDDJFLX4.beatFxOnOffShiftPressed</key>
-                <status>0x95</status>
-                <midino>0x43</midino>
+                <description>SMART FADER - press - next Color FX</description>
+                <group>[AndroidDJ]</group>
+                <key>PioneerDDJFLX4.smartFaderPressed</key>
+                <status>0x96</status>
+                <midino>0x01</midino>
                 <options>
                     <Script-Binding/>
                 </options>
             </control>
+            <control>
+                <description>SMART FADER +SHIFT - press - previous Color FX</description>
+                <group>[AndroidDJ]</group>
+                <key>PioneerDDJFLX4.smartFaderShiftPressed</key>
+                <status>0x96</status>
+                <midino>0x09</midino>
+                <options>
+                    <Script-Binding/>
+                </options>
+            </control>
+
             <!-- BEAT FX SECTION END-->
             <!-- EFFECT Section END -->
 

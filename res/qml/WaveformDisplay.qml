@@ -240,6 +240,12 @@ Item {
         key: "play"
     }
     Mixxx.ControlProxy {
+        id: touchVolumeControl
+
+        group: root.group
+        key: "volume"
+    }
+    Mixxx.ControlProxy {
         id: scratchPositionEnableControl
 
         group: root.group
@@ -275,6 +281,28 @@ Item {
             }
         }
     }
+    // TEMP-DIAG: events that could make the waveform twitch while the track stands.
+    Mixxx.ControlProxy { id: diagPos; group: root.group; key: "playposition" }
+    Connections {
+        function onValueChanged() { Mixxx.AndroidStatus.log(root.group + " zoom " + zoomControl.value); }
+        target: zoomControl
+    }
+    Connections {
+        function onValueChanged() { Mixxx.AndroidStatus.log(root.group + " scratchEnable " + scratchPositionEnableControl.value); }
+        target: scratchPositionEnableControl
+    }
+    Connections {
+        function onValueChanged() { Mixxx.AndroidStatus.log(root.group + " rate " + rateRatioControl.value); }
+        target: rateRatioControl
+    }
+    Connections {
+        function onValueChanged() { Mixxx.AndroidStatus.log(root.group + " pos " + diagPos.value + " play " + touchPlayControl.value); }
+        target: diagPos
+    }
+    Connections {
+        function onActiveChanged() { Mixxx.AndroidStatus.log(root.group + " touchDrag " + touchDrag.active); }
+        target: touchDrag
+    }
     // Android edition: move the track with one finger (scratch). The scratch
     // mode is always left when the finger lifts or a second finger arrives
     // (then the pinch zoom takes over).
@@ -283,7 +311,8 @@ Item {
 
         acceptedDevices: PointerDevice.TouchScreen
         // Locked while the track plays (no moving by touch).
-        enabled: Qt.platform.os === "android" && touchPlayControl.value <= 0
+        // Locked only while the track plays AND the channel fader is up (20 % or more).
+        enabled: Qt.platform.os === "android" && !(touchPlayControl.value > 0 && touchVolumeControl.value >= 0.2)
         maximumPointCount: 1
         target: null
 

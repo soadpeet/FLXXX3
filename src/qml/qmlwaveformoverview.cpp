@@ -1,5 +1,7 @@
 #include "qml/qmlwaveformoverview.h"
 
+#include <cmath>
+
 #include <algorithm>
 
 #include "control/controlproxy.h"
@@ -230,13 +232,18 @@ void QmlWaveformOverview::paint(QPainter* pPainter) {
 #ifdef __ANDROID__
         // Android edition: the lower part of the overview is kept free for the
         // minute markers below the waveform.
-        const double waveHeight = height() * 0.8;
+        const double waveHeight = m_minuteMarkers ? height() * 0.8 : height();
+        // The cue symbols (size as in WaveformOverviewMarkerLayer.qml) sit half
+        // above the waveform: the loudest columns end half a symbol below the top.
+        const double symbolSize = m_minuteMarkers ? std::max(9.0, std::round(height() * 0.17)) : 0.0;
+        const double drawHeight = std::max(1.0, waveHeight - symbolSize / 2.0);
 #else
         const double waveHeight = height();
+        const double drawHeight = waveHeight;
 #endif
         pPainter->translate(0.0, waveHeight);
         pPainter->scale(width() / desiredWidth,
-                -waveHeight / (2.0 * kDesiredChannelHeight) * amplitudeScale);
+                -drawHeight / (2.0 * kDesiredChannelHeight) * amplitudeScale);
     } else {
         switch (static_cast<int>(m_channels)) {
         case static_cast<int>(ChannelFlag::LeftChannel):
@@ -499,7 +506,7 @@ void QmlWaveformOverview::drawScheme(QPainter* pPainter,
         int scheme) const {
     // low / mid / high colours, identical to the scrolling waveform
     static const QColor kColors[3][3] = {
-            {QColor(0x2560ff), QColor(0x6cc3ff), QColor(0xffffff)},
+            {QColor(0x2a78c8), QColor(0x7cbcf0), QColor(0xd8ecff)},
             {QColor(0xff2d2d), QColor(0x2fe05a), QColor(0x2f7bff)},
             {QColor(0x1e5bff), QColor(0xa8672a), QColor(0xf6e8d2)},
     };
@@ -532,21 +539,38 @@ void QmlWaveformOverview::drawScheme(QPainter* pPainter,
         pPainter->drawLine(QPointF(offsetX, lowHeight + midHeight), QPointF(offsetX, all));
         return;
     }
-    // BLUE / RGB: one colour per column, mixed from the three bands.
+    // BLUE / RGB: one colour per column, mixed from the three bands with
+    // contrast (strong colours like in Rekordbox) and drawn as a gradient:
+    // bright at the baseline, darker towards the tip (three segments).
     double red = 0;
     double green = 0;
     double blue = 0;
     for (int b = 0; b < 3; ++b) {
-        red += band[b] * palette[b].redF();
-        green += band[b] * palette[b].greenF();
-        blue += band[b] * palette[b].blueF();
+        const double w = std::pow(band[b] / strongest, 2.5);
+        red += w * palette[b].redF();
+        green += w * palette[b].greenF();
+        blue += w * palette[b].blueF();
     }
     const double maxComponent = std::max({red, green, blue});
     if (maxComponent <= 0.0) {
         return;
     }
-    pPainter->setPen(QColor::fromRgbF(red / maxComponent, green / maxComponent, blue / maxComponent));
-    pPainter->drawLine(QPointF(offsetX, 0), QPointF(offsetX, all));
+    red /= maxComponent;
+    green /= maxComponent;
+    blue /= maxComponent;
+    static const double kShade[3] = {1.0, 0.72, 0.45};
+    static const double kSplit[4] = {0.0, 0.4, 0.75, 1.0};
+    for (int segment = 0; segment < 3; ++segment) {
+        const double f = kShade[segment];
+        pPainter->setPen(QColor::fromRgbF(red * f, green * f, blue * f));
+        pPainter->drawLine(QPointF(offsetX, all * kSplit[segment]),
+                QPointF(offsetX, all * kSplit[segment + 1]));
+    }
+    if (scheme == 0) {
+        // BLUE: light rim on the tip of the column
+        pPainter->setPen(QColor(0x9c, 0xc8, 0xf0));
+        pPainter->drawLine(QPointF(offsetX, all * 0.94), QPointF(offsetX, all));
+    }
 }
 #endif
 

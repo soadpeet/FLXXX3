@@ -13,6 +13,7 @@
 
 #include "library/basetracktablemodel.h"
 #include "library/columncache.h"
+#include "library/starrating.h"
 #include "moc_qmllibrarytracklistmodel.cpp"
 #include "qml/asyncimageprovider.h"
 #include "qml/qmllibrarytracklistcolumn.h"
@@ -112,7 +113,7 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
         if (pTrackTableModel != nullptr) {
             location = QIdentityProxyModel::data(
                     proxyIndex.siblingAtColumn(pTrackTableModel->fieldIndex(
-                            ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)),
+                            QStringLiteral("location"))),
                     Qt::DisplayRole)
                                .toString();
         } else if (pTrackModel != nullptr) {
@@ -140,13 +141,20 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
         // Use proxyIndex.column()
         return QIdentityProxyModel::data(proxyIndex, role);
     }
-    return QIdentityProxyModel::data(
+    QVariant value = QIdentityProxyModel::data(
             proxyIndex.siblingAtColumn(pTrackTableModel != nullptr
                             ? pTrackTableModel->fieldIndex(
                                       static_cast<ColumnCache::Column>(
                                               pColumn->columnIdx()))
                             : pColumn->columnIdx()),
             role);
+#ifdef __ANDROID__
+    // The rating column delivers a StarRating object; QML needs the plain star count.
+    if (role == Qt::DisplayRole && value.canConvert<StarRating>()) {
+        return value.value<StarRating>().starCount();
+    }
+#endif
+    return value;
 }
 
 int QmlLibraryTrackListModel::columnCount(const QModelIndex& parent) const {
@@ -216,6 +224,87 @@ QmlTrackProxy* QmlLibraryTrackListModel::getTrack(int row) const {
     return make_qml_owned<QmlTrackProxy>(pTrackModel->getTrack(sourceModel()->index(row, 0)));
 }
 
+QVariantMap QmlLibraryTrackListModel::trackInfo(int row) const {
+    QVariantMap info;
+    auto* const pTrackModel = dynamic_cast<TrackModel*>(sourceModel());
+    if (pTrackModel == nullptr) {
+        return info;
+    }
+    const TrackPointer pTrack = pTrackModel->getTrack(sourceModel()->index(row, 0));
+    if (!pTrack) {
+        return info;
+    }
+    info.insert(QStringLiteral("url"), QUrl::fromLocalFile(pTrack->getLocation()).toString());
+    info.insert(QStringLiteral("title"), pTrack->getTitle());
+    info.insert(QStringLiteral("artist"), pTrack->getArtist());
+    info.insert(QStringLiteral("album"), pTrack->getAlbum());
+    info.insert(QStringLiteral("genre"), pTrack->getGenre());
+    info.insert(QStringLiteral("key"), pTrack->getKeyText());
+    info.insert(QStringLiteral("bpm"), pTrack->getBpm());
+    info.insert(QStringLiteral("duration"), pTrack->getDuration());
+    return info;
+}
+
+QVariantList QmlLibraryTrackListModel::distinctField(const QString& field) const {
+    auto* const pTrackModel = dynamic_cast<TrackModel*>(sourceModel());
+    if (pTrackModel == nullptr) {
+        return {};
+    }
+    static const QHash<QString, QString> kColumns = {
+            {QStringLiteral("genre"), QStringLiteral("genre")},
+            {QStringLiteral("artist"), QStringLiteral("artist")},
+            {QStringLiteral("album"), QStringLiteral("album")},
+            {QStringLiteral("key"), QStringLiteral("key")},
+            {QStringLiteral("bpm"), QStringLiteral("bpm")},
+            {QStringLiteral("rating"), QStringLiteral("rating")},
+            {QStringLiteral("year"), QStringLiteral("year")},
+            {QStringLiteral("folder"), QStringLiteral("location")},
+    };
+    const auto it = kColumns.constFind(field);
+    if (it == kColumns.constEnd()) {
+        return {};
+    }
+    const int column = pTrackModel->fieldIndex(it.value());
+    if (column < 0) {
+        return {};
+    }
+    QHash<QString, int> counts;
+    const int rows = sourceModel()->rowCount();
+    for (int row = 0; row < rows; ++row) {
+        // The display value of the rating column is a star object: use the raw value.
+        const int role = field == QLatin1String("rating") ? Qt::ToolTipRole : Qt::DisplayRole;
+        QString value = sourceModel()->data(sourceModel()->index(row, column), role)
+                                .toString()
+                                .trimmed();
+        if (field == QLatin1String("folder")) {
+            const int slash = value.lastIndexOf(QLatin1Char('/'));
+            value = slash > 0 ? value.left(slash) : QString();
+        } else if (field == QLatin1String("bpm")) {
+            bool ok = false;
+            const double bpm = value.toDouble(&ok);
+            value = ok && bpm > 0 ? QString::number(std::lround(bpm)) : QString();
+        }
+        if (!value.isEmpty()) {
+            ++counts[value];
+        }
+    }
+    QStringList values = counts.keys();
+    QCollator collator;
+    collator.setNumericMode(true);
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(values.begin(), values.end(), [&collator](const QString& a, const QString& b) {
+        return collator.compare(a, b) < 0;
+    });
+    QVariantList result;
+    for (const QString& value : std::as_const(values)) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("value"), value);
+        entry.insert(QStringLiteral("count"), counts.value(value));
+        result << entry;
+    }
+    return result;
+}
+
 TrackModel::Capabilities QmlLibraryTrackListModel::getCapabilities() const {
     auto* const pTrackModel = dynamic_cast<TrackModel*>(sourceModel());
 
@@ -245,7 +334,9 @@ void QmlLibraryTrackListModel::sort(int column, Qt::SortOrder order) {
             QAbstractItemModel::VerticalSortHint);
     if (pColumn->columnIdx() < 0) {
         // Use proxyIndex.column()
-        return sourceModel()->sort(column, order);
+        sourceModel()->sort(column, order);
+        emit layoutChanged(QList<QPersistentModelIndex>(), QAbstractItemModel::VerticalSortHint);
+        return;
     }
     auto* const pTrackTableModel = qobject_cast<BaseTrackTableModel*>(sourceModel());
     sourceModel()->sort(pTrackTableModel != nullptr

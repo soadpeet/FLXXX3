@@ -9,6 +9,13 @@ Rectangle {
     id: root
 
     // 0 = USB 1, 1 = USB 2, 2 = TABLET
+    // Blocks touches for the main window below (BEAT FX etc.).
+    MouseArea {
+        acceptedButtons: Qt.AllButtons
+        anchors.fill: parent
+        preventStealing: true
+        onWheel: wheel => wheel.accepted = true
+    }
     property int selected: 0
     property var info: ({ present: false })
     property var folders: []

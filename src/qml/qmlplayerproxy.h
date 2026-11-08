@@ -34,6 +34,8 @@ class QmlPlayerProxy : public QObject {
         return m_pTrackPlayer;
     }
 
+    // Android edition: data of the loaded track as a plain map (history).
+    Q_INVOKABLE QVariantMap loadedTrackInfo() const;
     Q_INVOKABLE void loadTrack(mixxx::qml::QmlTrackProxy* track, bool play = false);
     Q_INVOKABLE void loadTrackFromLocation(const QString& trackLocation, bool play = false);
     Q_INVOKABLE void loadTrackFromLocationUrl(const QUrl& trackLocationUrl, bool play = false);

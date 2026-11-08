@@ -1,15 +1,37 @@
 #include "waveform/renderers/allshader/waveformrendererfiltered.h"
 
 #include <algorithm>
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <unordered_map>
+#endif
 
 #include "rendergraph/material/rgbmaterial.h"
 #include "rendergraph/vertexupdaters/rgbvertexupdater.h"
 #include "track/track.h"
 #include "util/math.h"
 #include "waveform/renderers/waveformwidgetrenderer.h"
+#include "waveform/rekordbox3band.h"
 #include "waveform/waveform.h"
 
 using namespace rendergraph;
+
+#ifdef __ANDROID__
+// TEMP-DIAG3: a frame without geometry makes the waveform vanish for one frame.
+// Log why, but only if the previous frame of this renderer was drawn.
+static std::unordered_map<const void*, bool>& diagDrawn() {
+    static thread_local std::unordered_map<const void*, bool> m;
+    return m;
+}
+static bool diagFail(const void* self, const char* why) {
+    if (diagDrawn()[self]) {
+        __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "NO-DRAW %p: %s", self, why);
+    }
+    diagDrawn()[self] = false;
+    return false;
+}
+#endif
+
 
 namespace allshader {
 
@@ -39,28 +61,28 @@ bool WaveformRendererFiltered::preprocessInner() {
     TrackPointer pTrack = m_waveformRenderer->getTrackInfo();
 
     if (!pTrack) {
-        return false;
+        return diagFail(this, "return-false #1");
     }
 
     ConstWaveformPointer waveform = pTrack->getWaveform();
     if (waveform.isNull()) {
-        return false;
+        return diagFail(this, "return-false #2");
     }
 
     const int dataSize = waveform->getDataSize();
     if (dataSize <= 1) {
-        return false;
+        return diagFail(this, "return-false #3");
     }
 
     const WaveformData* data = waveform->data();
     if (data == nullptr) {
-        return false;
+        return diagFail(this, "return-false #4");
     }
 #ifdef __STEM__
     auto stemInfo = pTrack->getStemInfo();
     // If this track is a stem track, skip the rendering
     if (!stemInfo.isEmpty() && waveform->hasStem() && !m_ignoreStem) {
-        return false;
+        return diagFail(this, "return-false #5");
     }
 #endif
 
@@ -81,7 +103,7 @@ bool WaveformRendererFiltered::preprocessInner() {
     const double visualIncrementPerPixel =
             (lastVisualFrame - firstVisualFrame) / static_cast<double>(pixelLength);
     if (visualIncrementPerPixel == 0.0) {
-        return false;
+        return diagFail(this, "return-false #6");
     }
 
     // Per-band gain from the EQ knobs.
@@ -89,11 +111,39 @@ bool WaveformRendererFiltered::preprocessInner() {
     float bandGain[3] = {1.0, 1.0, 1.0};
     getGains(&allGain, &bandGain[0], &bandGain[1], &bandGain[2]);
 #ifdef __ANDROID__
-    allGain = trackAutoGain(waveform.data(), dataSize);
+    // Built from the 3-band waveform of Rekordbox: real band levels.
+    const bool threeBand = rekordbox3band::isMarked(waveform.data());
+    allGain = trackAutoGain(waveform.data(), dataSize, threeBand);
 #endif
 
     const float breadth = static_cast<float>(m_waveformRenderer->getBreadth());
     const float halfBreadth = breadth / 2.0f;
+#ifdef __ANDROID__
+    { // TEMP-DIAG: what changes from frame to frame (log only on a change)
+        struct Prev {
+            float allGain, low, mid, high, breadth;
+            double inc, first;
+            int length;
+        };
+        static thread_local std::unordered_map<const void*, Prev> prevMap;
+        Prev now{allGain, bandGain[0], bandGain[1], bandGain[2], breadth, visualIncrementPerPixel, firstVisualFrame, length};
+        auto it = prevMap.find(this);
+        if (it != prevMap.end()) {
+            const Prev& p = it->second;
+            if (std::abs(p.allGain - now.allGain) > 1e-4f || std::abs(p.low - now.low) > 1e-3f ||
+                    std::abs(p.mid - now.mid) > 1e-3f || std::abs(p.high - now.high) > 1e-3f ||
+                    std::abs(p.breadth - now.breadth) > 0.01f ||
+                    std::abs(p.inc - now.inc) > 1e-6 || p.length != now.length) {
+                __android_log_print(ANDROID_LOG_INFO,
+                        "mixxx-wf",
+                        "change %p: gain %.3f->%.3f bands %.3f/%.3f/%.3f -> %.3f/%.3f/%.3f breadth %.1f->%.1f inc %.4f->%.4f len %d->%d",
+                        this, p.allGain, now.allGain, p.low, p.mid, p.high, now.low, now.mid, now.high,
+                        p.breadth, now.breadth, p.inc, now.inc, p.length, now.length);
+            }
+        }
+        prevMap[this] = now;
+    }
+#endif
 
     const float heightFactor = allGain * halfBreadth / m_maxValue;
 
@@ -169,6 +219,9 @@ bool WaveformRendererFiltered::preprocessInner() {
             numVerticesPerLine * (1 + pixelLength * 3)};
 #endif
     const double maxSamplingRange = visualIncrementPerPixel / 2.0;
+#ifdef __ANDROID__
+    double diagSum = 0.0;
+#endif
 
     for (int pos = 0; pos < pixelLength; ++pos) {
         const int visualFrameStart = std::lround(xVisualFrame - maxSamplingRange);
@@ -206,7 +259,7 @@ bool WaveformRendererFiltered::preprocessInner() {
 #ifdef __ANDROID__
         // The Rekordbox waveform has the column height and the level of each
         // band (3 bit). A band is drawn with its share of the column height.
-        for (int chn = 0; chn < 2; chn++) {
+        for (int chn = 0; chn < 2 && !threeBand; chn++) {
             const float height = expandPeaks(static_cast<float>(u8maxAll[chn]));
             for (int band = 0; band < 3; band++) {
                 max[band][chn] = height * max[band][chn] / 255.f;
@@ -226,6 +279,18 @@ bool WaveformRendererFiltered::preprocessInner() {
             amplitude[band][0] = max[band][0] * bandGain[band];
             amplitude[band][1] = max[band][1] * bandGain[band];
         }
+        if (threeBand) {
+            // Like Rekordbox: nested layers, low (blue) outside, then mid (brown),
+            // high (cream) in the core. Each is drawn with its own level.
+            for (int chn = 0; chn < 2; chn++) {
+                // Layer heights measured against Rekordbox (same track and
+                // section, 2026-11-09): cream ~18 %, orange ~18 %, blue ~60 % of
+                // the column height. Cream and mid were too tall before.
+                amplitude[3][chn] = amplitude[1][chn] * 0.54f; // mid in brown
+                amplitude[2][chn] *= 0.45f;                    // high in cream
+                amplitude[1][chn] = 0.f;                       // the orange layer is not used
+            }
+        } else {
         // Proportions of the layers, from the outside in: blue (low, small
         // share), orange (mid), brown (inner part of mid) and the cream core
         // (high, inside the brown part). The values are tuned by eye.
@@ -239,6 +304,7 @@ bool WaveformRendererFiltered::preprocessInner() {
             amplitude[3][chn] = amplitude[1][chn] * 0.7f;
             amplitude[2][chn] = std::min(amplitude[2][chn], amplitude[1][chn] * 0.4f);
         }
+        }
         const int order[4] = {0, 1, 3, 2};
         for (int rank = 0; rank < 4; rank++) {
             const int layer = order[rank];
@@ -248,6 +314,9 @@ bool WaveformRendererFiltered::preprocessInner() {
                     {fpos + halfPixelSize, halfBreadth + heightFactor * amplitude[layer][1]},
                     {rgb[layer]});
         }
+#ifdef __ANDROID__
+        diagSum += amplitude[0][0] + amplitude[0][1] + amplitude[2][0] + amplitude[3][0];
+#endif
         xVisualFrame += visualIncrementPerPixel;
         continue;
 #endif
@@ -278,8 +347,33 @@ bool WaveformRendererFiltered::preprocessInner() {
                                          // the axis
 #endif
 
+
+#ifdef __ANDROID__
+    { // TEMP-DIAG2: checksum of everything drawn; changes while the position and zoom stay the same?
+        struct PrevSum {
+            double sum;
+            double first;
+            double inc;
+            int count;
+        };
+        static thread_local std::unordered_map<const void*, PrevSum> prevSums;
+        auto it2 = prevSums.find(this);
+        if (it2 != prevSums.end() && it2->second.first == firstVisualFrame &&
+                it2->second.inc == visualIncrementPerPixel &&
+                std::abs(it2->second.sum - diagSum) > 1e-3) {
+            __android_log_print(ANDROID_LOG_INFO,
+                    "mixxx-wf",
+                    "SUM %p: %.3f -> %.3f at the same position/zoom (first %.2f, inc %.5f)",
+                    this, it2->second.sum, diagSum, firstVisualFrame, visualIncrementPerPixel);
+        }
+        prevSums[this] = PrevSum{diagSum, firstVisualFrame, visualIncrementPerPixel, 0};
+    }
+#endif
     markDirtyMaterial();
 
+#ifdef __ANDROID__
+    diagDrawn()[this] = true;
+#endif
     return true;
 }
 

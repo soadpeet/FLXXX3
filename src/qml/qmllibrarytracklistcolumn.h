@@ -34,6 +34,9 @@ class QmlLibraryTrackListColumn : public QObject {
         Key = ColumnCache::COLUMN_LIBRARYTABLE_KEY,
         FileType = ColumnCache::COLUMN_LIBRARYTABLE_FILETYPE,
         Bitrate = ColumnCache::COLUMN_LIBRARYTABLE_BITRATE,
+        TrackNumber = ColumnCache::COLUMN_LIBRARYTABLE_TRACKNUMBER,
+        Position = ColumnCache::COLUMN_PLAYLISTTRACKSTABLE_POSITION,
+        Rating = ColumnCache::COLUMN_LIBRARYTABLE_RATING,
     };
     Q_ENUM(SQLColumns)
     enum class Role {

@@ -75,6 +75,15 @@ class QmlAndroidStatusProxy : public QObject {
     Q_INVOKABLE QVariantMap tabletInfo() const;
     // Sub folders of `path` (names, sorted, without hidden ones) for the folder picker.
     Q_INVOKABLE QStringList subDirectories(const QString& path) const;
+    // Brightness of the screen of this app: 0 - 1, or a negative value for the
+    // brightness of the system settings.
+    Q_INVOKABLE void setScreenBrightness(double value);
+    // Hides the system bars (no app pinning).
+    Q_INVOKABLE void lockScreen();
+    // TEMP-DIAG: writes a line to the Android log (tag mixxx-qml).
+    Q_INVOKABLE void log(const QString& text);
+    // Unpins and closes the app.
+    Q_INVOKABLE void quitApp();
 
   signals:
     void changed();

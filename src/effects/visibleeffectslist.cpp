@@ -78,10 +78,13 @@ void VisibleEffectsList::readEffectsXml(
                 QStringLiteral("org.mixxx.effects.delay"),
                 QStringLiteral("org.mixxx.effects.echo"),
                 QStringLiteral("org.mixxx.effects.pingpong"),
+                QStringLiteral("org.mixxx.effects.spiral"),
+                QStringLiteral("org.mixxx.effects.helix"),
                 QStringLiteral("org.mixxx.effects.reverb"),
                 QStringLiteral("org.mixxx.effects.flanger"),
                 QStringLiteral("org.mixxx.effects.phaser"),
-                QStringLiteral("org.mixxx.effects.filter"),
+                QStringLiteral("org.mixxx.effects.trans"),
+                QStringLiteral("org.mixxx.effects.sweepfilter"),
         };
         QList<EffectManifestPointer> fixedList;
         for (const QString& id : wanted) {

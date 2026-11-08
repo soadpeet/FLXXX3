@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AI disclaimer: written autonomously by an AI agent (Claude). -->
+<!-- AlphaTheta (Pioneer DJ) DDJ-FLX4: the app is started / gets the USB permission when it is plugged in. -->
+<resources>
+    <usb-device vendor-id="11123" product-id="69" />
+</resources>

@@ -289,4 +289,10 @@ private:
     bool m_passthroughEnabled;
     double m_pos[2];
     double m_truePosSample[2];
+#ifdef __ANDROID__
+    // Android edition: last valid play/slip position (see onPreRender).
+    double m_lastTruePos[2] = {0.0, 0.0};
+    const Track* m_pLastTruePosTrack = nullptr;
+    bool m_hasLastTruePos = false;
+#endif
 };

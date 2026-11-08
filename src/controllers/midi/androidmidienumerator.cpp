@@ -41,6 +41,15 @@ void AndroidMidiEnumerator::deleteDevices() {
     m_devices.clear();
 }
 
+QString AndroidMidiEnumerator::deviceListing() {
+    if (!m_helper.isValid()) {
+        return QString();
+    }
+    const QString listing = m_helper.callObjectMethod("listDevices", "()Ljava/lang/String;").toString();
+    QJniEnvironment().checkAndClearExceptions();
+    return listing;
+}
+
 QList<Controller*> AndroidMidiEnumerator::queryDevices() {
     deleteDevices();
     if (!m_helper.isValid()) {

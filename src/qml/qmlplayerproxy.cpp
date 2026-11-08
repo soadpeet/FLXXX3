@@ -118,6 +118,26 @@ bool QmlPlayerProxy::isLoaded() const {
     return m_pCurrentTrack != nullptr;
 }
 
+QVariantMap QmlPlayerProxy::loadedTrackInfo() const {
+    QVariantMap info;
+    if (!m_pTrackPlayer) {
+        return info;
+    }
+    const TrackPointer pTrack = m_pTrackPlayer->getLoadedTrack();
+    if (!pTrack) {
+        return info;
+    }
+    info.insert(QStringLiteral("url"), QUrl::fromLocalFile(pTrack->getLocation()).toString());
+    info.insert(QStringLiteral("title"), pTrack->getTitle());
+    info.insert(QStringLiteral("artist"), pTrack->getArtist());
+    info.insert(QStringLiteral("album"), pTrack->getAlbum());
+    info.insert(QStringLiteral("genre"), pTrack->getGenre());
+    info.insert(QStringLiteral("key"), pTrack->getKeyText());
+    info.insert(QStringLiteral("bpm"), pTrack->getBpm());
+    info.insert(QStringLiteral("duration"), pTrack->getDuration());
+    return info;
+}
+
 bool QmlPlayerProxy::isTrackLoaded() const {
     return m_trackLoaded;
 }

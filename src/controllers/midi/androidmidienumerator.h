@@ -15,6 +15,10 @@ class AndroidMidiEnumerator : public MidiEnumerator {
 
     QList<Controller*> queryDevices() override;
 
+    /// Quick look at the MIDI devices that Android lists right now (one line per
+    /// device); used to notice plugging and unplugging of the controller.
+    QString deviceListing();
+
   private:
     void deleteDevices();
 

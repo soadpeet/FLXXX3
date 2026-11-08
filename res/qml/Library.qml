@@ -23,6 +23,14 @@ Item {
     // (stick or tablet), set by the main window.
     property string sourceTitle: ""
     readonly property bool touchUi: Qt.platform.os === "android"
+    // Android edition: shown screen (BROWSE, PLAYLIST, SEARCH, TAG LIST, set by the
+    // main window) and the lists that the app keeps (tag list, history, my lists).
+    property string mode: "BROWSE"
+    readonly property var store: listStore
+
+    LibraryComponent.ListStore {
+        id: listStore
+    }
 
     function applySearch() {
         if (!root.touchUi && root.sidebar && root.sidebar.tracklist) {

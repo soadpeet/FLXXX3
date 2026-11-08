@@ -2,6 +2,9 @@
 
 #include <QPainter>
 #include <QPainterPath>
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
 
 #include "control/controlproxy.h"
 #include "track/track.h"
@@ -185,9 +188,28 @@ void WaveformWidgetRenderer::onPreRender(VSyncTimeProvider* vsyncThread) {
     }
 
     double truePos[2]{0};
+#ifdef __ANDROID__
+    // Android edition: when no valid position is available for a frame (the
+    // audio callbacks of the USB driver arrive late), the old code left the
+    // position at 0 and the waveform jumped to the start of the track for one
+    // frame. Keep the last valid position of the same track instead.
+    if (m_visualPlayPosition->getPlaySlipAtNextVSync(vsyncThread,
+                truePos + ::WaveformRendererAbstract::Play,
+                truePos + ::WaveformRendererAbstract::Slip)) {
+        m_lastTruePos[0] = truePos[0];
+        m_lastTruePos[1] = truePos[1];
+        m_pLastTruePosTrack = m_pTrack.get();
+        m_hasLastTruePos = true;
+    } else if (m_hasLastTruePos && m_pLastTruePosTrack == m_pTrack.get()) {
+        truePos[0] = m_lastTruePos[0];
+        truePos[1] = m_lastTruePos[1];
+        __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "no play position, kept the last one (%.5f)", truePos[0]);
+    }
+#else
     m_visualPlayPosition->getPlaySlipAtNextVSync(vsyncThread,
             truePos + ::WaveformRendererAbstract::Play,
             truePos + ::WaveformRendererAbstract::Slip);
+#endif
     // truePlayPos = -1 happens, when a new track is in buffer but m_visualPlayPosition was not updated
 
     if (m_audioSamplePerPixel > 0) {

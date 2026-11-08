@@ -1,5 +1,12 @@
 #include "waveform/renderers/allshader/waveformrendererrgb.h"
 
+#include <algorithm>
+#include <cmath>
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <unordered_map>
+#endif
+
 #include "rendergraph/material/rgbmaterial.h"
 #include "rendergraph/vertexupdaters/rgbvertexupdater.h"
 #include "track/track.h"
@@ -8,6 +15,23 @@
 #include "waveform/waveform.h"
 
 using namespace rendergraph;
+
+#ifdef __ANDROID__
+// TEMP-DIAG3: a frame without geometry makes the waveform vanish for one frame.
+// Log why, but only if the previous frame of this renderer was drawn.
+static std::unordered_map<const void*, bool>& diagDrawn() {
+    static thread_local std::unordered_map<const void*, bool> m;
+    return m;
+}
+static bool diagFail(const void* self, const char* why) {
+    if (diagDrawn()[self]) {
+        __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "NO-DRAW %p: %s", self, why);
+    }
+    diagDrawn()[self] = false;
+    return false;
+}
+#endif
+
 
 namespace allshader {
 
@@ -37,7 +61,7 @@ bool WaveformRendererRGB::preprocessInner() {
     TrackPointer pTrack = m_waveformRenderer->getTrackInfo();
 
     if (!pTrack || (m_isSlipRenderer && !m_waveformRenderer->isSlipActive())) {
-        return false;
+        return diagFail(this, "return-false #1");
     }
 
     auto positionType = m_isSlipRenderer ? ::WaveformRendererAbstract::Slip
@@ -45,23 +69,23 @@ bool WaveformRendererRGB::preprocessInner() {
 
     ConstWaveformPointer waveform = pTrack->getWaveform();
     if (waveform.isNull()) {
-        return false;
+        return diagFail(this, "return-false #2");
     }
 
     const int dataSize = waveform->getDataSize();
     if (dataSize <= 1) {
-        return false;
+        return diagFail(this, "return-false #3");
     }
 
     const WaveformData* data = waveform->data();
     if (data == nullptr) {
-        return false;
+        return diagFail(this, "return-false #4");
     }
 #ifdef __STEM__
     auto stemInfo = pTrack->getStemInfo();
     // If this track is a stem track, skip the rendering
     if (!stemInfo.isEmpty() && waveform->hasStem() && !m_ignoreStem) {
-        return false;
+        return diagFail(this, "return-false #5");
     }
 #endif
 
@@ -84,7 +108,7 @@ bool WaveformRendererRGB::preprocessInner() {
 
     // Fixes a sporadic crash caused by a division by zero on waveform initialization
     if (visualIncrementPerPixel == 0.0) {
-        return false;
+        return diagFail(this, "return-false #6");
     }
 
     // Per-band gain from the EQ knobs.
@@ -94,7 +118,7 @@ bool WaveformRendererRGB::preprocessInner() {
     float highGain = 1.0f;
     getGains(&allGain, &lowGain, &midGain, &highGain);
 #ifdef __ANDROID__
-    allGain = trackAutoGain(waveform.data(), dataSize);
+    allGain = trackAutoGain(waveform.data(), dataSize) * 1.25f; // same height as the Rekordbox look
 #endif
 
     const float breadth = static_cast<float>(m_waveformRenderer->getBreadth());
@@ -121,10 +145,9 @@ bool WaveformRendererRGB::preprocessInner() {
     const int numVerticesPerLine = 6; // 2 triangles
 
 #ifdef __ANDROID__
-    // Android edition: thin lines. Only every second pixel column gets a bar
-    // (one pixel wide), so the lines do not run into each other.
-    const int barCount = (pixelLength + 1) / 2;
-    const int reserved = numVerticesPerLine * (barCount + 1);
+    // Android edition: dense area like Rekordbox, drawn in two layers (darker
+    // outer part, brighter inner part), so two bars per pixel column.
+    const int reserved = numVerticesPerLine * (pixelLength * 2 + 1);
 #else
     const int reserved = numVerticesPerLine *
             // Slip renderer only render a single channel, so the vertices count doesn't change
@@ -136,6 +159,12 @@ bool WaveformRendererRGB::preprocessInner() {
     markDirtyGeometry();
 
     RGBVertexUpdater vertexUpdater{geometry().vertexDataAs<Geometry::RGBColoredPoint2D>()};
+#ifdef __ANDROID__
+    RGBVertexUpdater innerUpdater{geometry().vertexDataAs<Geometry::RGBColoredPoint2D>() +
+            numVerticesPerLine * (1 + pixelLength)};
+    // BLUE scheme (set in WaveformDisplay.qml): the high colour is white.
+    const bool blueScheme = high_r > 0.9f && high_g > 0.9f && high_b > 0.9f;
+#endif
     vertexUpdater.addRectangle({0.f,
                                        halfBreadth - 0.5f},
             {static_cast<float>(length),
@@ -144,20 +173,12 @@ bool WaveformRendererRGB::preprocessInner() {
                     static_cast<float>(m_axesColor_g),
                     static_cast<float>(m_axesColor_b)});
 
-#ifdef __ANDROID__
-    // A bar stands for two pixel columns.
-    const double maxSamplingRange = visualIncrementPerPixel;
-#else
     const double maxSamplingRange = visualIncrementPerPixel / 2.0;
+#ifdef __ANDROID__
+    double diagSum = 0.0;
 #endif
 
     for (int pos = 0; pos < pixelLength; ++pos) {
-#ifdef __ANDROID__
-        if (pos & 1) {
-            xVisualFrame += visualIncrementPerPixel;
-            continue;
-        }
-#endif
         const int visualFrameStart = std::lround(xVisualFrame - maxSamplingRange);
         const int visualFrameStop = std::lround(xVisualFrame + maxSamplingRange);
 
@@ -223,6 +244,54 @@ bool WaveformRendererRGB::preprocessInner() {
             float green = maxLow * low_g + maxMid * mid_g + maxHigh * high_g;
             float blue = maxLow * low_b + maxMid * mid_b + maxHigh * high_b;
 
+#ifdef __ANDROID__
+            {
+                // Rekordbox look: strong colours (contrast between the bands
+                // instead of a mix that ends up white) and a gradient from the
+                // bright centre to the darker tips (two layers).
+                const float strongest = math_max3(maxLow, maxMid, maxHigh);
+                float wl = 0.f, wm = 0.f, wh = 0.f;
+                if (strongest > 0.f) {
+                    wl = std::pow(maxLow / strongest, 2.5f);
+                    wm = std::pow(maxMid / strongest, 2.5f);
+                    wh = std::pow(maxHigh / strongest, 2.5f);
+                }
+                red = wl * low_r + wm * mid_r + wh * high_r;
+                green = wl * low_g + wm * mid_g + wh * high_g;
+                blue = wl * low_b + wm * mid_b + wh * high_b;
+                const float mx = math_max3(red, green, blue);
+                float innerRgb[3] = {0.f, 0.f, 0.f};
+                float outerRgb[3] = {0.f, 0.f, 0.f};
+                if (mx > 0.f) {
+                    innerRgb[0] = red / mx;
+                    innerRgb[1] = green / mx;
+                    innerRgb[2] = blue / mx;
+                    if (blueScheme) {
+                        // pale blue core, deeper blue at the tips
+                        const float t = std::min(1.f, wh);
+                        innerRgb[0] = 0.47f + 0.28f * t;
+                        innerRgb[1] = 0.58f + 0.26f * t;
+                        innerRgb[2] = 0.89f + 0.06f * t;
+                        outerRgb[0] = 0.20f + 0.20f * t;
+                        outerRgb[1] = 0.30f + 0.22f * t;
+                        outerRgb[2] = 0.75f + 0.07f * t;
+                    } else {
+                        for (int k = 0; k < 3; k++) {
+                            outerRgb[k] = innerRgb[k] * 0.62f;
+                        }
+                    }
+                }
+                const float amp = heightFactorAbs * eqGain * maxAllChn[chn];
+                diagSum += amp + outerRgb[0] + innerRgb[1];
+                vertexUpdater.addRectangle({fpos - halfPixelSize, halfBreadth - amp},
+                        {fpos + halfPixelSize, halfBreadth + amp},
+                        {outerRgb[0], outerRgb[1], outerRgb[2]});
+                innerUpdater.addRectangle({fpos - halfPixelSize, halfBreadth - amp * 0.6f},
+                        {fpos + halfPixelSize, halfBreadth + amp * 0.6f},
+                        {innerRgb[0], innerRgb[1], innerRgb[2]});
+                continue;
+            }
+#endif
             // Normalize the color components using the maximum of the three
             const float maxComponent = math_max3(red, green, blue);
             if (maxComponent == 0.f) {
@@ -266,10 +335,37 @@ bool WaveformRendererRGB::preprocessInner() {
         xVisualFrame += visualIncrementPerPixel;
     }
 
+#ifndef __ANDROID__
     DEBUG_ASSERT(reserved == vertexUpdater.index());
+#endif
 
+
+#ifdef __ANDROID__
+    { // TEMP-DIAG2: checksum of everything drawn; changes while the position and zoom stay the same?
+        struct PrevSum {
+            double sum;
+            double first;
+            double inc;
+            int count;
+        };
+        static thread_local std::unordered_map<const void*, PrevSum> prevSums;
+        auto it2 = prevSums.find(this);
+        if (it2 != prevSums.end() && it2->second.first == firstVisualFrame &&
+                it2->second.inc == visualIncrementPerPixel &&
+                std::abs(it2->second.sum - diagSum) > 1e-3) {
+            __android_log_print(ANDROID_LOG_INFO,
+                    "mixxx-wf",
+                    "SUM %p: %.3f -> %.3f at the same position/zoom (first %.2f, inc %.5f)",
+                    this, it2->second.sum, diagSum, firstVisualFrame, visualIncrementPerPixel);
+        }
+        prevSums[this] = PrevSum{diagSum, firstVisualFrame, visualIncrementPerPixel, 0};
+    }
+#endif
     markDirtyMaterial();
 
+#ifdef __ANDROID__
+    diagDrawn()[this] = true;
+#endif
     return true;
 }
 

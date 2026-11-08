@@ -190,8 +190,56 @@ void ControllerManager::slotInitialize() {
         m_enumerators.push_back(std::make_unique<HidEnumerator>());
 #endif
     } // Mutex locker released here
+#ifdef __ANDROID_MIDI__
+    {
+        auto* pHotplugTimer = new QTimer(this);
+        pHotplugTimer->setInterval(2000);
+        connect(pHotplugTimer, &QTimer::timeout, this, &ControllerManager::androidHotplugCheck);
+        pHotplugTimer->start();
+    }
+#endif
     emit initialized();
 }
+
+#ifdef __ANDROID_MIDI__
+void ControllerManager::androidHotplugCheck() {
+    DEBUG_ASSERT_THIS_QOBJECT_THREAD_AFFINITY();
+    if (!m_androidSetupDone) {
+        return; // the normal start-up setup has not run yet
+    }
+    AndroidMidiEnumerator* pEnumerator = nullptr;
+    {
+        auto locker = QMutexLocker(&m_mutex);
+        for (const auto& pCandidate : m_enumerators) {
+            pEnumerator = dynamic_cast<AndroidMidiEnumerator*>(pCandidate.get());
+            if (pEnumerator) {
+                break;
+            }
+        }
+    }
+    if (!pEnumerator) {
+        return;
+    }
+    const bool present = pEnumerator->deviceListing().contains(QStringLiteral("DDJ-FLX4"));
+    bool anyOpen = false;
+    for (Controller* pController : std::as_const(m_controllers)) {
+        if (pController->isOpen()) {
+            anyOpen = true;
+        }
+    }
+    if (present && !anyOpen) {
+        qInfo() << "Android: the DDJ-FLX4 is there, setting it up";
+        slotSetUpDevices();
+    } else if (!present && anyOpen) {
+        qInfo() << "Android: the DDJ-FLX4 was unplugged, closing it";
+        for (Controller* pController : std::as_const(m_controllers)) {
+            if (pController->isOpen()) {
+                pController->close();
+            }
+        }
+    }
+}
+#endif
 
 void ControllerManager::slotShutdown() {
     DEBUG_ASSERT_THIS_QOBJECT_THREAD_AFFINITY();
@@ -279,6 +327,9 @@ void ControllerManager::slotSetUpDevices() {
     DEBUG_ASSERT_THIS_QOBJECT_THREAD_AFFINITY();
     qDebug() << "ControllerManager: Setting up devices";
 
+#ifdef __ANDROID_MIDI__
+    m_androidSetupDone = true;
+#endif
     updateControllerList();
     const QList<Controller*> deviceList = getControllerList(false, true);
     QStringList mappingPaths(getMappingPaths(m_pConfig));

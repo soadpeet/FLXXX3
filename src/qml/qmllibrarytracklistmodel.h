@@ -75,6 +75,12 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
     // column (position in `columns`) with their number of tracks, sorted:
     // a list of {value, count}.
     Q_INVOKABLE QVariantList distinctValues(int column) const;
+    // Android edition: title, artist, bpm, key, ... and the location URL of a row
+    // as a plain map (for the tag list / history that are stored by the app).
+    Q_INVOKABLE QVariantMap trackInfo(int row) const;
+    // Distinct values of a track field ("genre", "artist", "album", "key", "bpm",
+    // "folder") with their counts, sorted naturally.
+    Q_INVOKABLE QVariantList distinctField(const QString& field) const;
     QHash<int, QByteArray> roleNames() const override;
     Q_INVOKABLE QVariant headerData(int section,
             Qt::Orientation orientation,

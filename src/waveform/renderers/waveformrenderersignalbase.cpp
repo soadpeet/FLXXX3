@@ -232,7 +232,7 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
 }
 
 #ifdef __ANDROID__
-float WaveformRendererSignalBase::trackAutoGain(const Waveform* pWaveform, int dataSize) {
+float WaveformRendererSignalBase::trackAutoGain(const Waveform* pWaveform, int dataSize, bool threeBand) {
     // The result is cached per waveform for all renderers (the renderer
     // objects themselves can be recreated).
     struct Entry {
@@ -274,9 +274,12 @@ float WaveformRendererSignalBase::trackAutoGain(const Waveform* pWaveform, int d
         }
     }
     // 0.9: leave room for the ticks at the top and bottom.
-    const float gain = maxAll > 8
-            ? std::min(4.0f, 0.855f * 255.0f / expandPeaks(static_cast<float>(maxAll)))
-            : 0.855f;
+    // 3-band data is drawn as it is (no expandPeaks) and, like in Rekordbox, the
+    // loudest columns reach a little over half of the height.
+    const float gain = threeBand
+            ? (maxAll > 8 ? std::min(8.0f, 0.56f * 255.0f / static_cast<float>(maxAll)) : 0.56f)
+            : (maxAll > 8 ? std::min(4.0f, 0.855f * 255.0f / expandPeaks(static_cast<float>(maxAll)))
+                          : 0.855f);
     if (cache.size() > 16) {
         cache.clear();
     }

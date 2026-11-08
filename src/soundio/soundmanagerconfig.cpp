@@ -1,5 +1,7 @@
 #include "soundio/soundmanagerconfig.h"
 
+
+#include <QFile>
 #include <QRegularExpression>
 #include <QtGlobal>
 
@@ -450,6 +452,20 @@ unsigned int SoundManagerConfig::getFramesPerBuffer() const {
         audioBufferSizeIndex = kDefaultAudioBufferSizeIndex;
     }
 
+#ifdef __ANDROID__
+    // Android edition: with the own USB audio driver the buffer is small (256
+    // frames at 48 kHz, ~5 ms); file ".../files/audio_usb_idx" overrides the index.
+    {
+        audioBufferSizeIndex = static_cast<unsigned int>(AudioBufferSizeIndex::Size5xms);
+        QFile idx(QStringLiteral("/sdcard/Android/data/org.mixxx/files/audio_usb_idx"));
+        if (idx.open(QIODevice::ReadOnly)) {
+            const unsigned int v = idx.readAll().trimmed().toUInt();
+            if (v >= 1 && v <= 7) {
+                audioBufferSizeIndex = v;
+            }
+        }
+    }
+#endif
     const unsigned int sampleRateKhz = static_cast<unsigned int>(m_sampleRate / 1000);
     return std::bit_ceil(sampleRateKhz) << (audioBufferSizeIndex - 1);
 }
@@ -633,11 +649,13 @@ bool SoundManagerConfig::applyAndroidPreferredRouting(SoundManager* soundManager
         clearOutputs();
         addOutput(deviceId,
                 AudioOutput(AudioPathType::Main, 0, mixxx::audio::ChannelCount::stereo(), 0));
-        addOutput(deviceId,
-                AudioOutput(AudioPathType::Headphones,
-                        2,
-                        mixxx::audio::ChannelCount::stereo(),
-                        0));
+        if (!soundManager->androidStereoOnly()) {
+            addOutput(deviceId,
+                    AudioOutput(AudioPathType::Headphones,
+                            2,
+                            mixxx::audio::ChannelCount::stereo(),
+                            0));
+        }
         qInfo() << "Android: routed Main to channels 1-2 and Headphones to"
                 << "channels 3-4 of" << deviceId.name;
         return true;

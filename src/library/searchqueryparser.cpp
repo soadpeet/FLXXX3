@@ -83,11 +83,13 @@ SearchQueryParser::SearchQueryParser(TrackCollection* pTrackCollection, QStringL
                   << "lo" << "location"
                   << "dir" << "directory"
                   << "c" << "crate"
+                  << "ktxt"
                   << "type";
     m_numericFilters << "tr" << "track"
                      << "pl" << "played"
                      << "r" << "rating"
                      << "br" << "bitrate"
+                     << "tc" << "trackcolor"
                      << "id";
     m_specialFilters << "y" << "year"
                      << "k" << "key"
@@ -120,6 +122,8 @@ SearchQueryParser::SearchQueryParser(TrackCollection* pTrackCollection, QStringL
     m_fieldToSqlColumns["track"] << "tracknumber";
     m_fieldToSqlColumns["b"] << "bpm";
     m_fieldToSqlColumns["bpm"] << "bpm";
+    m_fieldToSqlColumns["tc"] << "color";
+    m_fieldToSqlColumns["trackcolor"] << "color";
     m_fieldToSqlColumns["br"] << "bitrate";
     m_fieldToSqlColumns["bitrate"] << "bitrate";
     m_fieldToSqlColumns["c"] << "crate";
@@ -129,6 +133,9 @@ SearchQueryParser::SearchQueryParser(TrackCollection* pTrackCollection, QStringL
     m_fieldToSqlColumns["k"] << "key";
     m_fieldToSqlColumns["key"] << "key";
     m_fieldToSqlColumns["key_id"] << "key_id";
+    // Android edition: the key as the text of the key column (exact match with quotes). The
+    // Rekordbox library has no key_id column that the key filter above needs.
+    m_fieldToSqlColumns["ktxt"] << "key";
     m_fieldToSqlColumns["pl"] << "timesplayed";
     m_fieldToSqlColumns["played"] << "timesplayed";
     m_fieldToSqlColumns["lpl"] << "last_played_at";

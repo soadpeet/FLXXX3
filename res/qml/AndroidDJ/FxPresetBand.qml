@@ -16,7 +16,11 @@ Item {
         { name: "REVERB", id: "org.mixxx.effects.reverb", beats: false },
         { name: "FLANGER", id: "org.mixxx.effects.flanger", beats: true },
         { name: "PHASER", id: "org.mixxx.effects.phaser", beats: true },
-        { name: "FILTER", id: "org.mixxx.effects.filter", beats: true, noParameter: true }
+        { name: "FILTER", id: "org.mixxx.effects.sweepfilter", beats: true },
+        // New ones are appended: saved presets store the index in this list.
+        { name: "SPIRAL", id: "org.mixxx.effects.spiral", beats: true },
+        { name: "HELIX", id: "org.mixxx.effects.helix", beats: true },
+        { name: "TRANS", id: "org.mixxx.effects.trans", beats: true }
     ]
     readonly property var beatValues: [0.0625, 0.125, 0.25, 0.5, 0.75, 1, 2, 4, 8]
     readonly property var beatTexts: ["1/16", "1/8", "1/4", "1/2", "3/4", "1", "2", "4", "8"]
@@ -142,15 +146,16 @@ Item {
                         readonly property int slot: half.index * 4 + index
                         required property int index
 
-                        border.color: root.selected === slot ? "#1fb0f0" : "#4a4a4a"
-                        border.width: root.selected === slot ? 3 : 1
-                        color: root.activeSlot === slot ? "#1f6fe0" : (root.selected === slot ? "#10293f" : "#1a1a1a")
+                        // The active preset: outline and faint tint like the USB status chips.
+                        border.color: root.activeSlot === slot ? "#27a8e0" : (root.selected === slot ? "#1fb0f0" : "#4a4a4a")
+                        border.width: root.selected === slot || root.activeSlot === slot ? 2 : 1
+                        color: root.activeSlot === slot ? Qt.alpha("#27a8e0", 0.18) : (root.selected === slot ? "#10293f" : "#1a1a1a")
                         height: half.height
                         width: (half.width - half.spacing * 3) / 4
 
                         Text {
                             anchors.centerIn: parent
-                            color: "#ffffff"
+                            color: root.activeSlot === cell.slot ? "#27a8e0" : "#ffffff"
                             elide: Text.ElideRight
                             font.bold: true
                             font.pixelSize: root.fontSize

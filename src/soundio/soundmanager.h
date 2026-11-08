@@ -66,6 +66,15 @@ class SoundManager : public QObject {
     // Get a list of host APIs supported by PortAudio.
     QList<QString> getHostAPIList() const;
     SoundManagerConfig getConfig() const;
+#ifdef __ANDROID__
+    // Android edition (UTILITY > AUDIO OUTPUT): only the main output (stereo)
+    // is opened. Android then offers the low latency path, but the headphone
+    // cue of the controller is silent.
+    bool androidStereoOnly() const {
+        return m_pConfig->getValue(ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("audioStereo")),
+                       QStringLiteral("0")) == QStringLiteral("1");
+    }
+#endif
     SoundDeviceStatus setConfig(const SoundManagerConfig& config);
     // Due to a bug in in PulseAudio, we must give at least 5 seconds of cool
     // down before performing further audio related operation. This sleep

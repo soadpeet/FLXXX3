@@ -1,5 +1,7 @@
 #include "controllers/midi/androidmidicontroller.h"
 
+#include <chrono>
+
 #include <android/log.h>
 
 #include <QJniEnvironment>
@@ -7,6 +9,7 @@
 #include <QMutexLocker>
 #include <atomic>
 
+#include "control/controlobject.h"
 #include "controllers/midi/midiutils.h"
 #include "moc_androidmidicontroller.cpp"
 #include "util/duration.h"
@@ -196,6 +199,52 @@ bool AndroidMidiController::poll() {
                 buffer,
                 numBytes,
                 [this, timestamp](uint8_t status, uint8_t data1, uint8_t data2) {
+                    {
+                        // The DDJ-FLX4 sends bogus trim values (CC 04/24 of the same deck)
+                        // while the Color FX knob of that deck is in one of its end zones
+                        // (crosstalk in the device); mapped to the gain they mute the
+                        // channel. Trim messages are dropped while the Color FX knob is in
+                        // an end zone. A burst can start with the bogus trim before the
+                        // Color FX message tells where the knob is: then the gain goes
+                        // back to its value from before that burst. The trim knob itself
+                        // keeps working everywhere else.
+                        using Clock = std::chrono::steady_clock;
+                        static Clock::time_point lastPass[2];
+                        static bool inZone[2] = {false, false};
+                        static double gainBeforeBurst[2] = {1.0, 1.0};
+                        static const ConfigKey kPregain[2] = {
+                                ConfigKey(QStringLiteral("[Channel1]"), QStringLiteral("pregain")),
+                                ConfigKey(QStringLiteral("[Channel2]"), QStringLiteral("pregain"))};
+                        const auto now = Clock::now();
+                        const bool cfx1 = status == 0xB6 && (data1 == 0x17 || data1 == 0x37);
+                        const bool cfx2 = status == 0xB6 && (data1 == 0x18 || data1 == 0x38);
+                        if (cfx1 || cfx2) {
+                            const int deck = cfx1 ? 0 : 1;
+                            // The MSB tells the position (0..127); the LSB only refines it.
+                            if (data1 == 0x17 || data1 == 0x18) {
+                                const bool zone = data2 <= 22 || data2 >= 108;
+                                if (zone && !inZone[deck] &&
+                                        now - lastPass[deck] < std::chrono::milliseconds(150)) {
+                                    ControlObject::set(kPregain[deck], gainBeforeBurst[deck]);
+                                }
+                                inZone[deck] = zone;
+                            }
+                        } else if ((status == 0xB0 || status == 0xB1) &&
+                                (data1 == 0x04 || data1 == 0x24)) {
+                            const int deck = status == 0xB0 ? 0 : 1;
+                            // TEMP-DIAG8
+                            __android_log_print(ANDROID_LOG_INFO, "mixxx-cfx", "TRIM %02X %02X %02X %s",
+                                    static_cast<unsigned>(status), static_cast<unsigned>(data1),
+                                    static_cast<unsigned>(data2), inZone[deck] ? "DROPPED" : "passed");
+                            if (inZone[deck]) {
+                                return;
+                            }
+                            if (now - lastPass[deck] > std::chrono::milliseconds(150)) {
+                                gainBeforeBurst[deck] = ControlObject::get(kPregain[deck]);
+                            }
+                            lastPass[deck] = now;
+                        }
+                    }
                     receivedShortMessage(status, data1, data2, timestamp);
                 },
                 [this, timestamp](const QByteArray& sysex) {

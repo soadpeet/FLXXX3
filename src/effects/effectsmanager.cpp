@@ -1,7 +1,15 @@
 #include "effects/effectsmanager.h"
 
+#include "effects/backends/builtin/colorfxeffects.h"
+
 #include <QDir>
+#include <QElapsedTimer>
 #include <QMetaType>
+#include <QTimer>
+#include <algorithm>
+#include <cmath>
+
+#include "control/controlobject.h"
 
 #include "effects/chains/equalizereffectchain.h"
 #include "effects/chains/outputeffectchain.h"
@@ -20,6 +28,42 @@ namespace {
 const unsigned int kEffectMessagePipeFifoSize = 2048;
 const QString kEffectsXmlFile = QStringLiteral("effects.xml");
 } // anonymous namespace
+
+#ifdef __ANDROID__
+#include <android/log.h>
+
+namespace {
+// Owns the two controls of the Color FX and calls applyColorFx() (in the main
+// thread) when one of them changes.
+class AndroidColorFxHelper : public QObject {
+  public:
+    explicit AndroidColorFxHelper(EffectsManager* pManager)
+            : m_pColorFx(std::make_unique<ControlObject>(
+                      ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("color_fx")),
+                      false,
+                      false,
+                      false,
+                      5.0)),
+              m_pColorFxOn(std::make_unique<ControlObject>(
+                      ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("color_fx_on")),
+                      false,
+                      false,
+                      false,
+                      0.0)) {
+        connect(m_pColorFx.get(), &ControlObject::valueChanged, this, [pManager](double) {
+            pManager->applyColorFx();
+        });
+        connect(m_pColorFxOn.get(), &ControlObject::valueChanged, this, [pManager](double) {
+            pManager->applyColorFx();
+        });
+    }
+
+  private:
+    std::unique_ptr<ControlObject> m_pColorFx;
+    std::unique_ptr<ControlObject> m_pColorFxOn;
+};
+} // namespace
+#endif
 
 EffectsManager::EffectsManager(
         UserSettingsPointer pConfig,
@@ -47,7 +91,96 @@ EffectsManager::EffectsManager(
             new EffectChainPresetManager(pConfig, m_pBackendManager));
 
     m_pVisibleEffectsList = VisibleEffectsListPointer(new VisibleEffectsList());
+#ifdef __ANDROID__
+    m_pColorFxHelper = std::make_unique<AndroidColorFxHelper>(this);
+#endif
 }
+
+#ifdef __ANDROID__
+
+void EffectsManager::applyColorFx() {
+    static const QStringList kEffectIds = {
+            QStringLiteral("org.mixxx.effects.cfx_space"),
+            QStringLiteral("org.mixxx.effects.cfx_dubecho"),
+            QStringLiteral("org.mixxx.effects.cfx_crush"),
+            QStringLiteral("org.mixxx.effects.cfx_sweep"),
+            QStringLiteral("org.mixxx.effects.cfx_noise"),
+            QStringLiteral("org.mixxx.effects.filter"),
+    };
+    const int index = std::clamp(
+            static_cast<int>(std::lround(ControlObject::get(ConfigKey(
+                    QStringLiteral("[AndroidDJ]"), QStringLiteral("color_fx"))))),
+            0,
+            static_cast<int>(kEffectIds.size()) - 1);
+    const bool on = ControlObject::get(ConfigKey(
+                            QStringLiteral("[AndroidDJ]"), QStringLiteral("color_fx_on"))) > 0.5;
+    const EffectManifestPointer pManifest =
+            m_pBackendManager->getManifest(kEffectIds.at(index), EffectBackendType::BuiltIn);
+    // SMART CFX off: the Color FX fade out instead of being cut, like the Beat FX.
+    // The times differ per effect (see below), the filter is switched off at once.
+    static std::unique_ptr<QTimer> s_releaseTimer;
+    static QElapsedTimer s_releaseClock;
+    static bool s_releasing = false;
+    // Release time per effect: the reverb and the echo ring out, the others are short, the
+    // filter is cut at once.
+    static const int kReleaseMsByIndex[6] = {3000, 2500, 300, 500, 500, 0};
+    static int s_releaseMs = 2000;
+    const auto setChainsEnabled = [this](bool enabled) {
+        for (const auto& pChain : std::as_const(m_quickEffectChains)) {
+            ControlObject::set(
+                    ConfigKey(pChain->group(), QStringLiteral("enabled")), enabled ? 1.0 : 0.0);
+        }
+    };
+    bool enable = on;
+    if (on) {
+        if (s_releaseTimer) {
+            s_releaseTimer->stop();
+        }
+        s_releasing = false;
+        ColorFxBase::setRelease(1.0f);
+    } else if (s_releasing) {
+        enable = true; // keep running until the release is over
+    } else if (kReleaseMsByIndex[index] > 0 && !m_quickEffectChains.isEmpty() &&
+            ControlObject::get(ConfigKey(m_quickEffectChains.cbegin().value()->group(),
+                    QStringLiteral("enabled"))) > 0.5) {
+        s_releasing = true;
+        enable = true;
+        s_releaseMs = kReleaseMsByIndex[index];
+        s_releaseClock.start();
+        if (!s_releaseTimer) {
+            s_releaseTimer = std::make_unique<QTimer>();
+            s_releaseTimer->setInterval(20);
+            QObject::connect(s_releaseTimer.get(), &QTimer::timeout, [setChainsEnabled]() {
+                const double t = static_cast<double>(s_releaseClock.elapsed()) / s_releaseMs;
+                if (t >= 1.0) {
+                    s_releaseTimer->stop();
+                    s_releasing = false;
+                    setChainsEnabled(false);
+                    ColorFxBase::setRelease(1.0f);
+                } else {
+                    ColorFxBase::setRelease(static_cast<float>(1.0 - t));
+                }
+            });
+        }
+        s_releaseTimer->start();
+    }
+    for (const auto& pChain : std::as_const(m_quickEffectChains)) {
+        if (pManifest) {
+            const auto pSlot = pChain->getEffectSlot(0);
+            if (pSlot && (!pSlot->isLoaded() || pSlot->getManifest() != pManifest)) {
+                pSlot->loadEffectWithDefaults(pManifest);
+                // take over the position of the knob at once
+                pChain->setSuperParameter(
+                        ControlObject::get(ConfigKey(pChain->group(), QStringLiteral("super1"))),
+                        true);
+            }
+        }
+        __android_log_print(ANDROID_LOG_INFO, "mixxx-cfx", "applyColorFx %s: effect %d on %d",
+                pChain->group().toUtf8().constData(), index, enable ? 1 : 0);
+        ControlObject::set(ConfigKey(pChain->group(), QStringLiteral("enabled")), enable ? 1.0 : 0.0);
+    }
+}
+#endif
 
 EffectsManager::~EffectsManager() {
     m_pMessenger->initiateShutdown();

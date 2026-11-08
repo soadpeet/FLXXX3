@@ -28,6 +28,9 @@ Rectangle {
     // STATUS shows the hotcue row, BEAT FX the row of Beat FX presets.
     property bool presetMode: false
     signal presetModeRequested(bool mode)
+    // Something was changed (effect, time, level, bands, channel ...): the
+    // window of the button shows the panel.
+    signal activity()
     // Beat value of the effect (1/8 .. 2 beats, as the time parameter of the
     // delay effects) and the time that it makes. For the delay effects it
     // follows the parameter (BEAT buttons of the controller).
@@ -41,9 +44,13 @@ Rectangle {
     readonly property bool delayFamily: root.effectIdText === "org.mixxx.effects.delay" ||
             root.effectIdText === "org.mixxx.effects.echo" ||
             root.effectIdText === "org.mixxx.effects.pingpong" ||
+            root.effectIdText === "org.mixxx.effects.spiral" ||
+            root.effectIdText === "org.mixxx.effects.helix" ||
             root.effectIdText === "org.mixxx.effects.flanger" ||
-            root.effectIdText === "org.mixxx.effects.phaser"
-    readonly property bool beatEffect: root.delayFamily || root.effectIdText === "org.mixxx.effects.filter"
+            root.effectIdText === "org.mixxx.effects.phaser" ||
+            root.effectIdText === "org.mixxx.effects.trans" ||
+            root.effectIdText === "org.mixxx.effects.sweepfilter"
+    readonly property bool beatEffect: root.delayFamily
     readonly property int beatIndex: {
         if (!root.delayFamily)
             return root.storedBeatIndex;
@@ -72,7 +79,10 @@ Rectangle {
     // Channel the effect is applied to: 0 = 1, 1 = 2, 2 = MASTER.
     readonly property int fxChannel: fxChannel1.value > 0 && fxChannel2.value > 0 ? 2 : (fxChannel2.value > 0 ? 1 : 0)
     readonly property var fxChannelTexts: ["1", "2", "BOOTH"]
+    // Short text for the Beat FX button: the deck(s) the effect works on.
+    readonly property var fxChannelShortTexts: ["1", "2", "1+2"]
     function cycleChannel() {
+        root.activity();
         const next = (root.fxChannel + 1) % 3;
         fxChannel1.value = next === 0 || next === 2 ? 1 : 0;
         fxChannel2.value = next === 1 || next === 2 ? 1 : 0;
@@ -89,10 +99,13 @@ Rectangle {
         { name: "DELAY", id: "org.mixxx.effects.delay" },
         { name: "ECHO", id: "org.mixxx.effects.echo" },
         { name: "PING PONG", id: "org.mixxx.effects.pingpong" },
+        { name: "SPIRAL", id: "org.mixxx.effects.spiral" },
+        { name: "HELIX", id: "org.mixxx.effects.helix" },
         { name: "REVERB", id: "org.mixxx.effects.reverb" },
         { name: "FLANGER", id: "org.mixxx.effects.flanger" },
         { name: "PHASER", id: "org.mixxx.effects.phaser" },
-        { name: "FILTER", id: "org.mixxx.effects.filter" }
+        { name: "TRANS", id: "org.mixxx.effects.trans" },
+        { name: "FILTER", id: "org.mixxx.effects.sweepfilter" }
     ]
     property bool listOpen: false
     // Ignores the effect change of the start-up default.
@@ -100,32 +113,76 @@ Rectangle {
 
     property double listOpenedAt: 0
     function openList() {
+        root.activity();
         root.listOpen = true;
         root.listOpenedAt = Date.now();
         listTimer.interval = 1500;
         listTimer.restart();
     }
+    // The super knob (DEPTH) of the effect: the send / depth parameters of the
+    // effects are linked to it, so with the knob at 0 nothing goes into the
+    // effect and it is silent. Start at full depth.
+    function applyDefaultMeta() {
+        fxMeta.value = 1.0;
+    }
+    // The time (beats / percent) of every effect is remembered: going back to
+    // an effect restores the value that it had (until the app is closed).
+    property var beatMemory: ({})
+    // Time of the last effect change (also the one of the effect system itself).
+    property double switchedAt: 0
+    // Time of the last ON / OFF: the effects run out by themselves (the controller script
+    // moves the depth), that must not open the window.
+    property double lastToggle: 0
+    property double changeStamp: 0
+    // A change of the time is saved a moment later, and not at all if an effect
+    // was loaded around that time (a new effect reports its own default value).
+    function rememberBeat() {
+        root.changeStamp = Date.now();
+        rememberTimer.restart();
+    }
+    function saveBeat() {
+        const id = root.effectIdText;
+        if (!root.ready || id === "" || Math.abs(root.switchedAt - root.changeStamp) < 700 ||
+                Date.now() - root.switchedAt < 700)
+            return;
+        const copy = Object.assign({}, root.beatMemory);
+        copy[id] = fxParameter1.parameter;
+        root.beatMemory = copy;
+    }
+    // After an effect change: the saved time of this effect (or the default).
+    function restoreBeat() {
+        const id = root.effectIdText;
+        root.applyDefaultMeta();
+        const saved = root.beatMemory[id];
+        if (saved !== undefined) {
+            fxParameter1.parameter = saved;
+        } else if (id === "org.mixxx.effects.reverb") {
+            fxParameter1.parameter = 0.5;
+        } else {
+            fxParameter1.parameter = 1.0 / 8;
+        }
+        root.switchedAt = Date.now();
+    }
     // Moving any control (knob, button) closes the list at once.
     function closeListSoon() {
+        root.activity();
+        root.closeListOnly();
+    }
+    // LEVEL / DEPTH and ON / OFF close an open list but do not open the window.
+    function closeListOnly() {
         if (root.listOpen && Date.now() - root.listOpenedAt > 500)
             root.listOpen = false;
     }
 
     Connections {
         function onEffectIdChanged() {
+            root.switchedAt = Date.now();
             if (root.ready) {
                 root.openList();
-                // Defaults: 1 beat for the effects with a time, 50 % for reverb;
-                // the filter keeps its own cutoff.
-                const id = root.effectSlot ? root.effectSlot.effectId : "";
                 root.storedBeatIndex = 5;
-                if (id === "org.mixxx.effects.filter") {
-                    // nothing to set
-                } else if (id === "org.mixxx.effects.reverb") {
-                    fxParameter1.parameter = 0.5;
-                } else {
-                    fxParameter1.parameter = 1.0 / 8;
-                }
+                // The effect system sets the default values of the new effect a
+                // moment later: restore the saved time of this effect after that.
+                restoreTimer.restart();
             }
         }
 
@@ -133,24 +190,63 @@ Rectangle {
     }
     Connections {
         function onValueChanged() {
-            root.closeListSoon();
+            // The beat (arrow buttons) does not open the window either: only FX SELECT
+            // (another effect) and a tap on the button do.
+            root.closeListOnly();
+            root.rememberBeat();
         }
 
         target: fxParameter1
     }
     Connections {
         function onValueChanged() {
-            root.closeListSoon();
+            // The depth (super knob of the effect): does not open the window.
+            root.closeListOnly();
+        }
+
+        target: fxMeta
+    }
+    Connections {
+        function onValueChanged() {
+            // LEVEL / DEPTH: does not open the window.
+            root.closeListOnly();
         }
 
         target: fxMixControl
     }
+
     Connections {
         function onValueChanged() {
-            root.closeListSoon();
+            // ON / OFF only switches the effect: it must not open the window (activity()
+            // opens it), an open effect list is closed.
+            root.lastToggle = Date.now();
+            if (root.listOpen && Date.now() - root.listOpenedAt > 500)
+                root.listOpen = false;
         }
 
         target: fxEnabled
+    }
+    Timer {
+        id: restoreTimer
+
+        interval: 250
+
+        onTriggered: root.restoreBeat()
+    }
+    Timer {
+        id: rememberTimer
+
+        interval: 400
+
+        onTriggered: root.saveBeat()
+    }
+    Connections {
+        function onValueChanged() {
+            // Loaded effect of the slot (list position) changed.
+            root.switchedAt = Date.now();
+        }
+
+        target: fxLoadedEffect
     }
     Timer {
         id: readyTimer
@@ -162,10 +258,13 @@ Rectangle {
             root.ready = true;
             // Start with 1 beat for the delay effects (a value saved by the
             // effect from the last session is replaced).
-            if (root.delayFamily)
-                fxParameter1.parameter = 1.0 / 8;
+            if (root.delayFamily) {
+                const saved = root.beatMemory[root.effectIdText];
+                fxParameter1.parameter = saved !== undefined ? saved : 1.0 / 8;
+            }
             // Beat FX start switched off (the effect system loads it enabled).
             fxEnabled.value = 0;
+            root.applyDefaultMeta();
         }
     }
     Timer {
@@ -177,14 +276,17 @@ Rectangle {
     }
 
     Component.onCompleted: {
+        // The times of the effects are remembered during the session only; after a
+        // start every effect begins with 1 beat.
         // LOW / MID / HI are all on after every start.
         root.bandLow = true;
         root.bandMid = true;
         root.bandHigh = true;
         fxBands.value = root.bandMask;
-        // Start with the first effect of the list (Delay) in slot 1.
+        // Start with Delay in slot 1.
         const first = Mixxx.EffectsManager.getEffectSlot(1, 1);
-        if (first && !first.loaded) {
+        // (The effect of the last session is replaced: always start with Delay.)
+        if (first && (!first.loaded || first.effectId !== "org.mixxx.effects.delay")) {
             first.effectId = "org.mixxx.effects.delay";
             // Default: 1 beat (the time parameter of the delay effects is 0 - 2 beats).
             fxParameter1.parameter = 1.0 / 8;
@@ -200,6 +302,8 @@ Rectangle {
     Mixxx.ControlProxy { id: bpm2; group: "[Channel2]"; key: "bpm" }
     Mixxx.ControlProxy { id: loaded1; group: "[Channel1]"; key: "track_loaded" }
     Mixxx.ControlProxy { id: loaded2; group: "[Channel2]"; key: "track_loaded" }
+    Mixxx.ControlProxy { id: fxLoadedEffect; group: "[EffectRack1_EffectUnit1_Effect1]"; key: "loaded_effect" }
+    Mixxx.ControlProxy { id: fxMeta; group: "[EffectRack1_EffectUnit1_Effect1]"; key: "meta" }
     Mixxx.ControlProxy { id: fxBands; group: "[EffectRack1_EffectUnit1]"; key: "bands" }
     Mixxx.ControlProxy { id: fxEnabled; group: "[EffectRack1_EffectUnit1_Effect1]"; key: "enabled" }
     Mixxx.ControlProxy { id: fxMixControl; group: "[EffectRack1_EffectUnit1]"; key: "mix" }
@@ -227,21 +331,26 @@ Rectangle {
             text: "BEAT FX"
             width: parent.width
         }
-        // Effect name: tap to choose another effect.
-        // Blue while the effect is on, grey (like the band switches) while off.
+        // Effect name: tap = on / off, hold = choose another effect.
+        // On: outline, faint tint and text in blue (like the USB status chips), off: grey.
         Rectangle {
-            border.color: fxEnabled.value > 0 ? "#1f8fe0" : "#4a4a4a"
-            color: fxEnabled.value > 0 ? "#1f6fe0" : "#202020"
+            border.color: fxEnabled.value > 0 ? "#27a8e0" : "#4a4a4a"
+            color: fxEnabled.value > 0 ? Qt.alpha("#27a8e0", 0.18) : "#202020"
             height: Math.round(root.unit * 2.4)
             width: parent.width
 
+            // Tap: switch the effect on / off (nothing else opens). Hold: the list of effects.
             TapHandler {
-                onTapped: root.openList()
+                gesturePolicy: TapHandler.WithinBounds
+                longPressThreshold: 0.6
+
+                onLongPressed: root.openList()
+                onTapped: fxEnabled.value = fxEnabled.value > 0 ? 0 : 1
             }
 
             Text {
                 anchors.centerIn: parent
-                color: fxEnabled.value > 0 ? "#ffffff" : "#8a8a8a"
+                color: fxEnabled.value > 0 ? "#27a8e0" : "#8a8a8a"
                 elide: Text.ElideRight
                 font.bold: true
                 font.pixelSize: Math.round(root.unit * 1.2)
@@ -392,6 +501,7 @@ Rectangle {
                     }
                     TapHandler {
                         onTapped: {
+                            root.activity();
                             // At least one band stays on.
                             const others = (root.bandLow ? 1 : 0) + (root.bandMid ? 1 : 0) + (root.bandHigh ? 1 : 0) -
                                     (root[parent.modelData.key] ? 1 : 0);

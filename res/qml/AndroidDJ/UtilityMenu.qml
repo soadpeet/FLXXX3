@@ -16,6 +16,15 @@ Rectangle {
     property bool autoCue: false
     property string quantizeBeat: "1/4"
 
+    // Blocks touches for the main window below (BEAT FX etc.).
+    MouseArea {
+        acceptedButtons: Qt.AllButtons
+        anchors.fill: parent
+        preventStealing: true
+        onWheel: wheel => wheel.accepted = true
+    }
+
+    signal advancedRequested
     signal showRemainSelected(bool remain)
     signal keyCamelotSelected(bool camelot)
     signal autoCueSelected(bool on)
@@ -25,7 +34,56 @@ Rectangle {
 
     Mixxx.ControlProxy { id: headSplit; group: "[Master]"; key: "headSplit" }
     Mixxx.ControlProxy { id: monoMixdown; group: "[Master]"; key: "mono_mixdown" }
+    Mixxx.ControlProxy { id: eqMode; group: "[AndroidDJ]"; key: "eq_mode" }
+    Mixxx.ControlProxy { id: faderCurve; group: "[AndroidDJ]"; key: "fader_curve" }
+    Mixxx.ControlProxy { id: quantize1; group: "[Channel1]"; key: "quantize" }
+    Mixxx.ControlProxy { id: quantize2; group: "[Channel2]"; key: "quantize" }
+    Mixxx.ControlProxy { id: orientation1; group: "[Channel1]"; key: "orientation" }
+    Mixxx.ControlProxy { id: orientation2; group: "[Channel2]"; key: "orientation" }
+    // Crossfader: off by default (both channels in the middle position, the
+    // crossfader does not act), on = channel 1 left, channel 2 right.
+    property bool crossfaderOn: false
+    onCrossfaderOnChanged: {
+        orientation1.value = crossfaderOn ? 0 : 1;
+        orientation2.value = crossfaderOn ? 2 : 1;
+    }
+    Component.onCompleted: {
+        const curve = parseInt(Mixxx.Config.androidSetting("faderCurve", "1"));
+        faderCurve.value = isNaN(curve) ? 1 : curve;
+        root.crossfaderOn = Mixxx.Config.androidSetting("crossfader", "0") === "1";
+        // set once more: the value may not have changed from the default of the property
+        orientation1.value = root.crossfaderOn ? 0 : 1;
+        orientation2.value = root.crossfaderOn ? 2 : 1;
+    }
+    Mixxx.ControlProxy { id: brightnessProxy; group: "[AndroidDJ]"; key: "brightness" }
 
+    // Opens ADVANCED SETTINGS.
+    Rectangle {
+        border.color: advancedTap.pressed ? "#1f8fe0" : "#4a4a4a"
+        color: advancedTap.pressed ? "#3a3a3a" : "#202020"
+        height: root.u * 2.4
+        width: root.u * 17
+
+        anchors {
+            bottom: parent.bottom
+            bottomMargin: root.u * 0.8
+            left: parent.left
+            leftMargin: root.u
+        }
+
+        Text {
+            anchors.centerIn: parent
+            color: "#ffffff"
+            font.bold: true
+            font.pixelSize: root.u * 1.0
+            text: "ADVANCED SETTINGS"
+        }
+        TapHandler {
+            id: advancedTap
+
+            onTapped: root.advancedRequested()
+        }
+    }
     Text {
         color: "#ffffff"
         font.bold: true
@@ -121,13 +179,18 @@ Rectangle {
             Column {
                 spacing: 3
 
-                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "HOT CUE AUTO LOAD" }
+                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "QUANTIZE" }
                 DJ.Segmented {
-                    currentIndex: 1
-                    fontSize: root.u * 0.85
+                    currentIndex: quantize1.value > 0 ? 0 : 1
+                    fontSize: root.u * 0.95
                     height: root.u * 2.5
-                    labels: ["ON", "SETTING", "OFF"]
-                    width: root.u * 15
+                    labels: ["ON", "OFF"]
+                    width: root.u * 8
+
+                    onActivated: index => {
+                        quantize1.value = index === 0 ? 1 : 0;
+                        quantize2.value = index === 0 ? 1 : 0;
+                    }
                 }
             }
         }
@@ -150,82 +213,15 @@ Rectangle {
         // Left: gentle on the eyes in the dark, middle: normal, right: strong
         // contrast for direct sunlight.
         DJ.Segmented {
-            currentIndex: 1
+            currentIndex: Math.round(brightnessProxy.value)
             fontSize: root.u * 0.95
             height: root.u * 2.5
             labels: ["NIGHT", "NORMAL", "OUTDOOR"]
             width: root.u * 26
+
+            onActivated: index => brightnessProxy.value = index
         }
         Item { height: root.u * 0.4; width: 1 }
-        DJ.SectionTitle { u: root.u; text: "VINYL SPEED ADJUST (TOUCH)"; width: parent.width }
-        Row {
-            spacing: root.u * 1.5
-
-            Repeater {
-                model: 2
-
-                Row {
-                    id: brake
-
-                    required property int index
-                    // Brake time shown in seconds (display only for now).
-                    property real seconds: 1.0
-
-                    spacing: root.u * 0.8
-
-                    Column {
-                        spacing: 3
-
-                        DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "DECK " + (brake.index + 1) }
-                        DJ.Segmented {
-                            currentIndex: 1
-                            fontSize: root.u * 0.95
-                            height: root.u * 2.5
-                            labels: ["ON", "OFF"]
-                            width: root.u * 8
-                        }
-                        DJ.Segmented {
-                            currentIndex: -1
-                            fontSize: root.u * 1.2
-                            height: root.u * 2.3
-                            labels: ["<", ">"]
-                            width: root.u * 8
-
-                            onActivated: index => {
-                                brake.seconds = Math.max(0.1, Math.min(5.0, brake.seconds + (index === 0 ? -0.1 : 0.1)));
-                                currentIndex = -1;
-                            }
-                        }
-                    }
-                    Rectangle {
-                        border.color: "#4a4a4a"
-                        color: "#111111"
-                        height: root.u * 5.6
-                        width: root.u * 5.6
-
-                        anchors.bottom: parent.bottom
-
-                        Column {
-                            anchors.centerIn: parent
-
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                color: "#ffffff"
-                                font.bold: true
-                                font.pixelSize: root.u * 1.8
-                                text: brake.seconds.toFixed(1)
-                            }
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                color: "#8a8a8a"
-                                font.pixelSize: root.u * 0.9
-                                text: "sec"
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
     // Right column: folders, waveform colour, mixer.
     Column {
@@ -362,22 +358,35 @@ Rectangle {
                 spacing: 3
 
                 DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "EQ / ISO" }
+                // ISO (default): the bands are killed at the end stop. EQ: at most -26 dB.
                 DJ.Segmented {
+                    currentIndex: eqMode.value > 0.5 ? 0 : 1
                     fontSize: root.u * 0.95
                     height: root.u * 2.5
                     labels: ["EQ", "ISO"]
                     width: root.u * 11
+
+                    onActivated: index => {
+                        eqMode.value = index === 0 ? 1 : 0;
+                        Mixxx.Config.setAndroidSetting("eqMode", index === 0 ? "1" : "0");
+                    }
                 }
             }
             Column {
                 spacing: 3
 
-                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "QUANTIZE (EFFECT)" }
+                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "CROSSFADER" }
                 DJ.Segmented {
+                    currentIndex: root.crossfaderOn ? 0 : 1
                     fontSize: root.u * 0.95
                     height: root.u * 2.5
                     labels: ["ON", "OFF"]
                     width: root.u * 11
+
+                    onActivated: index => {
+                        root.crossfaderOn = index === 0;
+                        Mixxx.Config.setAndroidSetting("crossfader", index === 0 ? "1" : "0");
+                    }
                 }
             }
         }
@@ -421,7 +430,7 @@ Rectangle {
             Row {
                 id: curveRow
 
-                property int current: 1
+                readonly property int current: Math.round(faderCurve.value)
 
                 Repeater {
                     model: 3
@@ -442,7 +451,10 @@ Rectangle {
                             selected: curveRow.current === curveTile.index
                         }
                         TapHandler {
-                            onTapped: curveRow.current = curveTile.index
+                            onTapped: {
+                                faderCurve.value = curveTile.index;
+                                Mixxx.Config.setAndroidSetting("faderCurve", String(curveTile.index));
+                            }
                         }
                     }
                 }

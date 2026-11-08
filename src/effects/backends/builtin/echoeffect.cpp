@@ -241,6 +241,11 @@ void EchoEffect::processChannel(
         }
     }
 
+#ifdef __ANDROID__
+    // Android edition: the repeats are a bit louder than in the original
+    // (the effects of the Pioneer players are stronger).
+    SampleUtil::applyGain(pOutput, 1.5f, engineParameters.samplesPerBuffer());
+#endif
     // The ramping of the send parameter handles ramping when enabling, so
     // this effect must handle ramping to dry when disabling itself (instead
     // of being handled by EngineEffect::process).

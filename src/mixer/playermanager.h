@@ -6,6 +6,7 @@
 #include <QMap>
 #include <QObject>
 #include <QRecursiveMutex>
+#include <vector>
 
 #include "analyzer/trackanalysisscheduler.h"
 #include "engine/channelhandle.h"
@@ -300,6 +301,8 @@ class PlayerManager : public PlayerManagerInterface {
     // Android edition: which deck is the MASTER (0 = none, 1 or 2); shared by
     // the touch interface and the controller script.
     std::unique_ptr<ControlObject> m_pMasterDeck;
+    std::unique_ptr<ControlObject> m_pEqMode;
+    std::vector<std::unique_ptr<ControlObject>> m_jogControls;
 #endif
     parented_ptr<ControlProxy> m_pAutoDjEnabled;
 

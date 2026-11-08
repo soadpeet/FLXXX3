@@ -1,11 +1,14 @@
 #include "library/rekordbox/rekordboxfeature.h"
 
+#include "waveform/rekordbox3band.h"
+
 #include <mp3guessenc.h>
 #include <rekordbox_anlz.h>
 
 #include <QTimer>
 #include <QRegularExpression>
 #include <algorithm>
+#include <limits>
 #include <cmath>
 #include <rekordbox_pdb.h>
 
@@ -39,7 +42,12 @@
 #ifdef __ANDROID__
 #include "util/androidtrackcache.h"
 #endif
+#include <QFileInfo>
+#include <QHash>
+#include <QMutex>
+
 #include "track/keyfactory.h"
+#include "track/keyutils.h"
 #include "track/track.h"
 #include "util/color/color.h"
 #include "util/db/dbconnectionpooled.h"
@@ -127,6 +135,8 @@ bool createLibraryTable(QSqlDatabase& database, const QString& tableName) {
             "    bitrate TEXT,"
             "    bpm FLOAT,"
             "    key TEXT,"
+            "    key_id INTEGER,"
+            "    filetype TEXT,"
             "    rating INTEGER,"
             "    analyze_path TEXT UNIQUE,"
             "    device TEXT,"
@@ -451,6 +461,9 @@ void insertTrack(
     query.bindValue(":comment", comment);
     query.bindValue(":tracknumber", tracknumber);
     query.bindValue(":key", key);
+    query.bindValue(":filetype", QFileInfo(location).suffix().toLower());
+    // The key sort of the library (ColumnCache) orders by key_id.
+    query.bindValue(":key_id", static_cast<int>(KeyUtils::guessKeyFromText(key)));
     query.bindValue(":bpm", bpm);
     query.bindValue(":bitrate", bitrate);
     query.bindValue(":analyze_path", anlzPath);
@@ -535,10 +548,10 @@ QString parseDeviceDB(mixxx::DbConnectionPoolPtr dbConnectionPool, TreeItem* dev
     query.prepare("INSERT INTO " + kRekordboxLibraryTable +
             " (rb_id, artist, title, album, year,"
             "genre,comment,tracknumber,bpm, bitrate,duration, location,"
-            "rating,key,analyze_path,device,color) VALUES (:rb_id, :artist, "
+            "rating,key,key_id,filetype,analyze_path,device,color) VALUES (:rb_id, :artist, "
             ":title, :album, :year,:genre,"
             ":comment, :tracknumber,:bpm, :bitrate,:duration, :location,"
-            ":rating,:key,:analyze_path,:device,:color)");
+            ":rating,:key,:key_id,:filetype,:analyze_path,:device,:color)");
 
     int audioFilesCount = 0;
 
@@ -897,6 +910,29 @@ void clearDeviceTables(QSqlDatabase& database, TreeItem* child) {
     transaction.commit();
 }
 
+#ifdef __ANDROID__
+// Android edition: the colours of the hotcues from Rekordbox are the 16 colours of the
+// Rekordbox palette (the exported values are only close to them): use the nearest one.
+mixxx::RgbColor snapToRekordboxHotcuePalette(int red, int green, int blue) {
+    static const unsigned int kPalette[16] = {0xDE44CF, 0xB432FF, 0xAA72FF, 0x6473FF,
+            0x305AFF, 0x50B4FF, 0x00E0FF, 0x1FA392, 0x10B176, 0x28E214, 0xA5E116,
+            0xB4BE04, 0xC3AF04, 0xE0641B, 0xE62828, 0xFF127B};
+    unsigned int best = kPalette[0];
+    int bestDistance = std::numeric_limits<int>::max();
+    for (const unsigned int color : kPalette) {
+        const int dr = red - static_cast<int>((color >> 16) & 0xFF);
+        const int dg = green - static_cast<int>((color >> 8) & 0xFF);
+        const int db = blue - static_cast<int>(color & 0xFF);
+        const int distance = dr * dr + dg * dg + db * db;
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = color;
+        }
+    }
+    return mixxx::RgbColor(best);
+}
+#endif
+
 void setHotCue(TrackPointer track,
         mixxx::audio::FramePos startPosition,
         mixxx::audio::FramePos endPosition,
@@ -1031,13 +1067,75 @@ RekordboxWaveformColumns decodeMonoScrollWaveform(const std::string& entries) {
     return columns;
 }
 
+#ifdef __ANDROID__
+// PWV7 (in the .2EX file): 3 bytes per column, the levels (0..255) of the three
+// bands. The order of the bytes is read from the file ".../files/wf3_order" (a
+// string like "012": byte of low, mid, high) for testing; default low, mid, high.
+RekordboxWaveformColumns decodeThreeBandWaveform(const std::string& entries, uint32_t entryBytes) {
+    RekordboxWaveformColumns columns;
+    if (entryBytes != 3 || entries.size() < 3) {
+        return columns;
+    }
+    int order[3] = {0, 1, 2};
+    QFile orderFile(QStringLiteral("/sdcard/Android/data/org.mixxx/files/wf3_order"));
+    if (orderFile.open(QIODevice::ReadOnly)) {
+        const QByteArray text = orderFile.readAll().trimmed();
+        if (text.size() == 3) {
+            for (int i = 0; i < 3; ++i) {
+                order[i] = qBound(0, text[i] - '0', 2);
+            }
+        }
+    }
+    const int count = static_cast<int>(entries.size() / 3);
+    columns.low.reserve(count);
+    columns.mid.reserve(count);
+    columns.high.reserve(count);
+    columns.all.reserve(count);
+    for (int i = 0; i < count; ++i) {
+        const auto byteAt = [&](int k) {
+            return static_cast<quint8>(entries[3 * i + k]);
+        };
+        columns.low.push_back(byteAt(order[0]));
+        columns.mid.push_back(byteAt(order[1]));
+        columns.high.push_back(byteAt(order[2]));
+        // "all" is only used for the automatic height (loudest columns of the track).
+        columns.all.push_back(qMax(byteAt(order[0]), qMax(byteAt(order[1]), byteAt(order[2]))));
+    }
+    __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "3-band waveform: %d columns, order %d%d%d", count, order[0], order[1], order[2]);
+    return columns;
+}
+
+// Reads only the 3-band detail waveform of an ANLZ file (.2EX).
+RekordboxWaveformColumns readThreeBandColumns(const QString& anlzPath2ex) {
+    RekordboxWaveformColumns columns;
+    if (!QFile(anlzPath2ex).exists()) {
+        __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "no .2EX file: %s", anlzPath2ex.toUtf8().constData());
+        return columns;
+    }
+    std::ifstream ifs(anlzPath2ex.toStdString(), std::ifstream::binary);
+    kaitai::kstream ks(&ifs);
+    rekordbox_anlz_t anlz = rekordbox_anlz_t(&ks);
+    for (const auto& section : *anlz.sections()) {
+        if (section->fourcc() == rekordbox_anlz_t::SECTION_TAGS_WAVE_3BAND_SCROLL) {
+            auto* tag = static_cast<rekordbox_anlz_t::wave_3band_scroll_tag_t*>(section->body());
+            columns = decodeThreeBandWaveform(tag->entries(), tag->len_entry_bytes());
+        }
+    }
+    if (columns.size() == 0) {
+        __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "no PWV7 in %s", anlzPath2ex.toUtf8().constData());
+    }
+    return columns;
+}
+#endif
+
 // Builds Mixxx's waveform and overview waveform from the Rekordbox columns and
 // puts them on the track. AnalyzerWaveform::shouldAnalyze() then skips the
 // (slow, CPU-heavy) audio analysis for this track.
 void applyRekordboxWaveform(const TrackPointer& track,
         mixxx::audio::SampleRate sampleRate,
         int timingOffsetMs,
-        const RekordboxWaveformColumns& columns) {
+        const RekordboxWaveformColumns& columns,
+        const RekordboxWaveformColumns& threeBand) {
     constexpr int kMainVisualSampleRate = 441; // same as AnalyzerWaveform
     constexpr int kSummaryVisualSamples = 2 * 1920;
 
@@ -1074,17 +1172,24 @@ void applyRekordboxWaveform(const TrackPointer& track,
         }
         return out;
     };
-    RekordboxWaveformColumns smoothColumns;
-    smoothColumns.low = smoothed(columns.low);
-    smoothColumns.mid = smoothed(columns.mid);
-    smoothColumns.high = smoothed(columns.high);
-    smoothColumns.all = smoothed(columns.all);
-    const RekordboxWaveformColumns& columnsUsed = smoothColumns;
+    const auto smoothAll = [&smoothed](const RekordboxWaveformColumns& in) {
+        RekordboxWaveformColumns out;
+        out.low = smoothed(in.low);
+        out.mid = smoothed(in.mid);
+        out.high = smoothed(in.high);
+        out.all = smoothed(in.all);
+        return out;
+    };
+    const RekordboxWaveformColumns summaryColumns = smoothAll(columns);
+    const bool useThreeBand = threeBand.size() > 1;
+    // The 3-band columns have 8 bit levels: no smoothing, the hits stay sharp.
+    const RekordboxWaveformColumns& mainColumns = useThreeBand ? threeBand : summaryColumns;
 #else
-    const RekordboxWaveformColumns& columnsUsed = columns;
+    const RekordboxWaveformColumns& summaryColumns = columns;
+    const RekordboxWaveformColumns& mainColumns = columns;
 #endif
 
-    const auto fill = [&](Waveform* pWaveform) {
+    const auto fill = [&](Waveform* pWaveform, const RekordboxWaveformColumns& columnsUsed) {
         WaveformData* pData = pWaveform->data();
         const int dataSize = pWaveform->getDataSize();
         const double visualRate = sampleRate.value() / pWaveform->getAudioVisualRatio();
@@ -1141,8 +1246,13 @@ void applyRekordboxWaveform(const TrackPointer& track,
             sampleRate, frameLength, kMainVisualSampleRate, -1, 0));
     auto pSummary = WaveformPointer(new Waveform(
             sampleRate, frameLength, kMainVisualSampleRate, kSummaryVisualSamples, 0));
-    fill(pWaveform.data());
-    fill(pSummary.data());
+    fill(pWaveform.data(), mainColumns);
+    fill(pSummary.data(), summaryColumns);
+#ifdef __ANDROID__
+    if (useThreeBand) {
+        rekordbox3band::mark(pWaveform.data());
+    }
+#endif
     track->setWaveform(pWaveform);
     track->setWaveformSummary(pSummary);
 }
@@ -1151,7 +1261,8 @@ void readAnalyze(TrackPointer track,
         mixxx::audio::SampleRate sampleRate,
         int timingOffset,
         bool ignoreCues,
-        const QString& anlzPath) {
+        const QString& anlzPath,
+        const RekordboxWaveformColumns& threeBand = RekordboxWaveformColumns()) {
     if (!QFile(anlzPath).exists()) {
         return;
     }
@@ -1383,6 +1494,12 @@ void readAnalyze(TrackPointer track,
                             mixxx::audio::kInvalidFramePos,
                             hotCueIndex,
                             fromUtf16BeString(cueExtendedEntry->comment()),
+#ifdef __ANDROID__
+                            snapToRekordboxHotcuePalette(
+                                    static_cast<int>(cueExtendedEntry->color_red()),
+                                    static_cast<int>(cueExtendedEntry->color_green()),
+                                    static_cast<int>(cueExtendedEntry->color_blue())));
+#else
                             mixxx::RgbColor(qRgb(
                                     static_cast<int>(
                                             cueExtendedEntry->color_red()),
@@ -1390,6 +1507,7 @@ void readAnalyze(TrackPointer track,
                                             cueExtendedEntry->color_green()),
                                     static_cast<int>(cueExtendedEntry
                                                     ->color_blue()))));
+#endif
                 } break;
                 }
             }
@@ -1405,7 +1523,7 @@ void readAnalyze(TrackPointer track,
         const RekordboxWaveformColumns& columns =
                 colorColumns.size() > 0 ? colorColumns : monoColumns;
         if (columns.size() > 0) {
-            applyRekordboxWaveform(track, sampleRate, timingOffset, columns);
+            applyRekordboxWaveform(track, sampleRate, timingOffset, columns, threeBand);
         }
     }
 
@@ -1610,12 +1728,18 @@ static void applyRekordboxTrackData(const TrackPointer& track,
 
     QString anlzPathExt = anlzPath.left(anlzPath.length() - 3) + "EXT";
 
+    RekordboxWaveformColumns threeBand;
+#ifdef __ANDROID__
+    if (!(track->getWaveform() && track->getWaveformSummary())) {
+        threeBand = readThreeBandColumns(anlzPath.left(anlzPath.length() - 3) + "2EX");
+    }
+#endif
     if (QFile(anlzPathExt).exists()) {
         // Beatgrids appear to be only correct in legacy ANLZ file
         readAnalyze(track, sampleRate, timingOffset, true, anlzPath);
-        readAnalyze(track, sampleRate, timingOffset, false, anlzPathExt);
+        readAnalyze(track, sampleRate, timingOffset, false, anlzPathExt, threeBand);
     } else {
-        readAnalyze(track, sampleRate, timingOffset, false, anlzPath);
+        readAnalyze(track, sampleRate, timingOffset, false, anlzPath, threeBand);
     }
 
     // Assume that the key of the file the has been analyzed in Recordbox is correct
@@ -1637,10 +1761,24 @@ static void applyRekordboxTrackData(const TrackPointer& track,
 TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
     qDebug() << "RekordboxTrackModel::getTrack";
 
-    TrackPointer track = BaseExternalPlaylistModel::getTrack(index);
     QString location = getFieldVariant(
             index, ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)
                                .toString();
+#ifdef __ANDROID__
+    // Android edition: the Rekordbox data of a track (MP3 scan, ANLZ files, waveform) is read
+    // from the stick only once. The list asks for the track of every visible row again after
+    // each sort or filter; without this every row would read from the stick again.
+    static QMutex s_trackCacheMutex;
+    static QHash<QString, TrackPointer> s_trackCache;
+    {
+        QMutexLocker locker(&s_trackCacheMutex);
+        const auto it = s_trackCache.constFind(location);
+        if (it != s_trackCache.constEnd()) {
+            return it.value();
+        }
+    }
+#endif
+    TrackPointer track = BaseExternalPlaylistModel::getTrack(index);
 
     if (!QFile(location).exists()) {
         return track;
@@ -1651,6 +1789,15 @@ TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
             getFieldVariant(index, ColumnCache::COLUMN_REKORDBOX_ANALYZE_PATH).toString(),
             getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_KEY).toString(),
             getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_COLOR));
+#ifdef __ANDROID__
+    if (track) {
+        QMutexLocker locker(&s_trackCacheMutex);
+        if (s_trackCache.size() >= 500) {
+            s_trackCache.erase(s_trackCache.begin());
+        }
+        s_trackCache.insert(location, track);
+    }
+#endif
     return track;
 }
 
@@ -1743,6 +1890,7 @@ RekordboxFeature::RekordboxFeature(
             LIBRARYTABLE_BPM,
             LIBRARYTABLE_KEY,
             LIBRARYTABLE_COLOR,
+            LIBRARYTABLE_FILETYPE,
             REKORDBOX_ANALYZE_PATH};
 
     const QStringList searchColumns = {

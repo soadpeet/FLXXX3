@@ -298,6 +298,9 @@ class CueControl : public EngineControl {
     void loadCuesFromTrack();
     mixxx::audio::FramePos quantizeCuePoint(mixxx::audio::FramePos position);
     mixxx::audio::FramePos getQuantizedCurrentPosition();
+#ifdef __ANDROID__
+    mixxx::audio::FramePos getQuantizedCurrentPositionRaw();
+#endif
     TrackAt getTrackAt() const;
     void seekOnLoad(mixxx::audio::FramePos seekOnLoadPosition);
     void setHotcueFocusIndex(int hotcueIndex);

@@ -20,6 +20,8 @@
 #include "effects/backends/builtin/autopaneffect.h"
 #include "effects/backends/builtin/compressoreffect.h"
 #include "effects/backends/builtin/distortioneffect.h"
+#include "effects/backends/builtin/beatfxeffects.h"
+#include "effects/backends/builtin/colorfxeffects.h"
 #include "effects/backends/builtin/echoeffect.h"
 #include "effects/backends/builtin/glitcheffect.h"
 #include "effects/backends/builtin/keycomparisoneffect.h"
@@ -56,6 +58,15 @@ BuiltInBackend::BuiltInBackend() {
     registerEffect<EchoEffect>();
     registerEffect<DelayEffect>();
     registerEffect<PingPongEffect>();
+    registerEffect<TransEffect>();
+    registerEffect<SweepFilterEffect>();
+    registerEffect<SpiralEffect>();
+    registerEffect<HelixEffect>();
+    registerEffect<SpaceColorEffect>();
+    registerEffect<DubEchoColorEffect>();
+    registerEffect<CrushColorEffect>();
+    registerEffect<SweepColorEffect>();
+    registerEffect<NoiseColorEffect>();
     registerEffect<AutoPanEffect>();
 #ifndef __MACAPPSTORE__
     registerEffect<ReverbEffect>();

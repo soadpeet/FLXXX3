@@ -32,7 +32,12 @@ EffectManifestPointer Bessel8LVMixEQEffect::getManifest() {
 
 Bessel8LVMixEQEffect::Bessel8LVMixEQEffect()
         : m_pLoFreqCorner(kMixerProfile, kLowEqFrequency),
+#ifdef __ANDROID__
+          m_pHiFreqCorner(kMixerProfile, kHighEqFrequency),
+          m_eqMode(QStringLiteral("[AndroidDJ]"), QStringLiteral("eq_mode")) {
+#else
           m_pHiFreqCorner(kMixerProfile, kHighEqFrequency) {
+#endif
 }
 
 void Bessel8LVMixEQEffect::loadEngineEffectParameters(
@@ -76,6 +81,22 @@ void Bessel8LVMixEQEffect::processChannel(
         } else {
             fHigh = 0;
         }
+#ifdef __ANDROID__
+        // EQ mode (UTILITY > EQ / ISO): the bands do not kill, they are
+        // lowered by at most 26 dB (gain 0.05). ISO mode: kill at the end stop.
+        if (m_eqMode.get() > 0.5) {
+            constexpr double kEqMinGain = 0.0501;
+            if (!m_pKillLow->toBool()) {
+                fLow = std::max(fLow, kEqMinGain);
+            }
+            if (!m_pKillMid->toBool()) {
+                fMid = std::max(fMid, kEqMinGain);
+            }
+            if (!m_pKillHigh->toBool()) {
+                fHigh = std::max(fHigh, kEqMinGain);
+            }
+        }
+#endif
         pState->processChannel(pInput,
                 pOutput,
                 engineParameters.samplesPerBuffer(),

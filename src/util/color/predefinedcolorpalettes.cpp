@@ -46,12 +46,12 @@ constexpr mixxx::RgbColor kRekordboxTrackColorPurple(0x9808F8);
 // Rekordbox Hotcue Color Palette
 constexpr mixxx::RgbColor kRekordboxHotcueColor1(0xDE44CF);
 constexpr mixxx::RgbColor kRekordboxHotcueColor2(0xB432FF);
-constexpr mixxx::RgbColor kRekordboxHotcueColor3(0xAA42FF);
+constexpr mixxx::RgbColor kRekordboxHotcueColor3(0xAA72FF);
 constexpr mixxx::RgbColor kRekordboxHotcueColor4(0x6473FF);
 constexpr mixxx::RgbColor kRekordboxHotcueColor5(0x305AFF);
 constexpr mixxx::RgbColor kRekordboxHotcueColor6(0x50B4FF);
 constexpr mixxx::RgbColor kRekordboxHotcueColor7(0x00E0FF);
-constexpr mixxx::RgbColor kRekordboxHotcueColor8(0x1FA382);
+constexpr mixxx::RgbColor kRekordboxHotcueColor8(0x1FA392);
 constexpr mixxx::RgbColor kRekordboxHotcueColor9(0x10B176);
 constexpr mixxx::RgbColor kRekordboxHotcueColor10(0x28E214);
 constexpr mixxx::RgbColor kRekordboxHotcueColor11(0xA5E116);
@@ -252,6 +252,32 @@ namespace mixxx {
 const ColorPalette PredefinedColorPalettes::kMixxxHotcueColorPalette =
         ColorPalette(
                 QStringLiteral(QT_TRANSLATE_NOOP("PredefinedColorPaletes", "Mixxx Hotcue Colors")),
+#ifdef __ANDROID__
+                // Android edition: the 16 hotcue colours of Rekordbox, in the order of
+                // the Rekordbox palette (4 x 4 grid).
+                {
+                        kRekordboxHotcueColor1,
+                        kRekordboxHotcueColor2,
+                        kRekordboxHotcueColor3,
+                        kRekordboxHotcueColor4,
+                        kRekordboxHotcueColor5,
+                        kRekordboxHotcueColor6,
+                        kRekordboxHotcueColor7,
+                        kRekordboxHotcueColor8,
+                        kRekordboxHotcueColor9,
+                        kRekordboxHotcueColor10,
+                        kRekordboxHotcueColor11,
+                        kRekordboxHotcueColor12,
+                        kRekordboxHotcueColor13,
+                        kRekordboxHotcueColor14,
+                        kRekordboxHotcueColor15,
+                        kRekordboxHotcueColor16,
+                        kSchemaMigrationReplacementColor,
+                },
+                // Colours assigned to hotcues A - H: green, red, blue, yellow, aqua, pink,
+                // purple, orange (the Rekordbox defaults as far as they are known).
+                {9, 14, 4, 11, 6, 15, 1, 13});
+#else
                 {
                         kColorMixxxRed,
                         kColorMixxxGreen,
@@ -267,6 +293,7 @@ const ColorPalette PredefinedColorPalettes::kMixxxHotcueColorPalette =
                 // If there were 9 colors assigned to hotcues, that would look weird on
                 // controllers with >8 hotcue buttons, for example a Novation Launchpad.
                 {0, 1, 2, 3, 4, 5, 6, 7});
+#endif
 
 const ColorPalette
         PredefinedColorPalettes::kSeratoTrackMetadataHotcueColorPalette =

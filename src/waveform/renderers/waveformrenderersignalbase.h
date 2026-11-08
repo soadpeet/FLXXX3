@@ -65,7 +65,7 @@ class WaveformRendererSignalBase : public QObject, public WaveformRendererAbstra
 #ifdef __ANDROID__
     // Android edition: fixed gain that scales the loudest point of the whole
     // track up to just below the beat ticks.
-    float trackAutoGain(const Waveform* pWaveform, int dataSize);
+    float trackAutoGain(const Waveform* pWaveform, int dataSize, bool threeBand = false);
 #endif
     void getGains(float* pAllGain,
             float* pLowGain,

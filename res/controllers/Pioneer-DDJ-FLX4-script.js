@@ -175,6 +175,28 @@ PioneerDDJFLX4.sendKeepAlive = function() {
     midi.sendSysexMsg([0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x05, 0x00, 0x50, 0x02, 0xf7], 12); // This was reverse engineered with Wireshark
 };
 
+PioneerDDJFLX4.queryPositions = function() {
+    midi.sendSysexMsg([0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x05, 0x00, 0x03, 0x01, 0xF7], 12);
+};
+
+// Channel faders (14 bit): the curve of the UTILITY menu is applied here
+// ([AndroidDJ] fader_curve: 0 slow start, 1 linear, 2 fast start).
+PioneerDDJFLX4.faderMsb = {"[Channel1]": 0, "[Channel2]": 0};
+PioneerDDJFLX4.channelFaderMSB = function(channel, control, value, status, group) {
+    PioneerDDJFLX4.faderMsb[group] = value;
+};
+PioneerDDJFLX4.channelFaderLSB = function(channel, control, value, status, group) {
+    const x = ((PioneerDDJFLX4.faderMsb[group] << 7) | value) / 16383;
+    const curve = Math.round(engine.getValue("[AndroidDJ]", "fader_curve"));
+    let y = x;
+    if (curve === 0) {
+        y = x * x; // slow start
+    } else if (curve === 2) {
+        y = Math.min(1, x * 1.6); // fast start
+    }
+    engine.setValue(group, "volume", y);
+};
+
 // Jog wheel constants
 PioneerDDJFLX4.vinylMode = true;
 PioneerDDJFLX4.alpha = 1.0/8;
@@ -295,6 +317,21 @@ PioneerDDJFLX4.init = function() {
     }
     engine.makeConnection("[EffectRack1_EffectUnit1]", "focused_effect", PioneerDDJFLX4.toggleFxLight);
     PioneerDDJFLX4.toggleFxLight();
+    engine.makeConnection("[AndroidDJ]", "color_fx_on", PioneerDDJFLX4.updateColorFxLight);
+    PioneerDDJFLX4.updateColorFxLight();
+    // Watchdog: while the effect is on, its depth (the send of the effects)
+    // must not stay at 0 unless it was turned down with SHIFT + LEVEL/DEPTH.
+    engine.beginTimer(1000, function() {
+        if (!PioneerDDJFLX4.fxOn || PioneerDDJFLX4.fxTailTimer || !PioneerDDJFLX4.fxSyncFromEffect) {
+            return;
+        }
+        const group = PioneerDDJFLX4.focusedFxGroup();
+        if (engine.getValue(group, "loaded_effect") !== 10 &&
+                engine.getValue(group, "meta") < 0.01 &&
+                Date.now() - PioneerDDJFLX4.lastDepthKnobTime > 3000) {
+            engine.setValue(group, "meta", 1.0);
+        }
+    });
     // The effect is loaded (and enabled) by the screen shortly after the start:
     // force OFF a few times, then follow the effect.
     PioneerDDJFLX4.fxInitTimer = engine.beginTimer(2000, function() {
@@ -336,6 +373,68 @@ PioneerDDJFLX4.init = function() {
 
     // query the controller for current control positions on startup
     PioneerDDJFLX4.sendKeepAlive(); // the query seems to double as a keep alive message
+    // Android edition: the position query of the Rekordbox app (found in its FLX4
+    // section) makes the controller report all knobs, faders and the crossfader.
+    // Sent at once and once more after the start-up has settled.
+    PioneerDDJFLX4.queryPositions();
+    engine.beginTimer(3000, PioneerDDJFLX4.queryPositions, true);
+};
+
+//
+// Color FX (Android edition): SMART CFX switches the Color FX on / off, SMART
+// FADER selects the next one (down the list), SHIFT + SMART FADER the previous
+// one. The list: 0 SPACE, 1 DUB ECHO, 2 CRUSH, 3 SWEEP, 4 NOISE, 5 FILTER. The
+// state lives in [AndroidDJ] color_fx / color_fx_on (the screen shows it).
+//
+
+PioneerDDJFLX4.colorFxCount = 6;
+
+PioneerDDJFLX4.smartCfxPressed = function(_channel, _control, value) {
+    if (value === 0) { return; }
+    const on = engine.getValue("[AndroidDJ]", "color_fx_on") > 0;
+    engine.setValue("[AndroidDJ]", "color_fx_on", on ? 0 : 1);
+};
+
+PioneerDDJFLX4.stepColorFx = function(direction) {
+    const count = PioneerDDJFLX4.colorFxCount;
+    const current = Math.round(engine.getValue("[AndroidDJ]", "color_fx"));
+    engine.setValue("[AndroidDJ]", "color_fx", (current + direction + count) % count);
+};
+
+PioneerDDJFLX4.smartFaderPressed = function(_channel, _control, value) {
+    if (value === 0) { return; }
+    PioneerDDJFLX4.stepColorFx(1);
+};
+
+PioneerDDJFLX4.smartFaderShiftPressed = function(_channel, _control, value) {
+    if (value === 0) { return; }
+    PioneerDDJFLX4.stepColorFx(-1);
+};
+
+// The SMART CFX button blinks while the Color FX is on and is lit while it is
+// off. (The LED knows only on / off: the value 0x7F lights it, every other value
+// switches it off, so the blinking is made here.)
+PioneerDDJFLX4.colorFxBlinkTimer = 0;
+PioneerDDJFLX4.colorFxBlinkState = true;
+
+PioneerDDJFLX4.sendColorFxLight = function(lit) {
+    midi.sendShortMsg(0x96, 0x00, lit ? 0x7F : 0x00);
+    midi.sendShortMsg(0x96, 0x08, lit ? 0x7F : 0x00);
+};
+
+PioneerDDJFLX4.updateColorFxLight = function() {
+    if (PioneerDDJFLX4.colorFxBlinkTimer) {
+        engine.stopTimer(PioneerDDJFLX4.colorFxBlinkTimer);
+        PioneerDDJFLX4.colorFxBlinkTimer = 0;
+    }
+    PioneerDDJFLX4.colorFxBlinkState = true;
+    PioneerDDJFLX4.sendColorFxLight(true);
+    if (engine.getValue("[AndroidDJ]", "color_fx_on") > 0) {
+        PioneerDDJFLX4.colorFxBlinkTimer = engine.beginTimer(500, function() {
+            PioneerDDJFLX4.colorFxBlinkState = !PioneerDDJFLX4.colorFxBlinkState;
+            PioneerDDJFLX4.sendColorFxLight(PioneerDDJFLX4.colorFxBlinkState);
+        });
+    }
 };
 
 //
@@ -396,7 +495,8 @@ PioneerDDJFLX4.fxOn = false;
 PioneerDDJFLX4.fxSyncFromEffect = false;
 
 PioneerDDJFLX4.toggleFxLight = function(value, group, _control) {
-    if (PioneerDDJFLX4.fxSyncFromEffect && typeof group === "string" &&
+    // While the effect runs out the effect is still enabled: no follow-up.
+    if (PioneerDDJFLX4.fxSyncFromEffect && !PioneerDDJFLX4.fxTailTimer && typeof group === "string" &&
             group === PioneerDDJFLX4.focusedFxGroup()) {
         PioneerDDJFLX4.fxOn = value > 0;
     }
@@ -417,12 +517,65 @@ PioneerDDJFLX4.updateFxLight = function() {
 };
 PioneerDDJFLX4.fxLastValue = -1;
 
-// Sets the effect to the own state.
-PioneerDDJFLX4.applyFxState = function() {
+// Effect tail: when a delay / echo / ping pong / reverb is switched off, the
+// signal into the effect is stopped (the DEPTH knob of the effect is the send)
+// and the effect stays enabled for a while so that the repeats / the reverb
+// die away. Then it is disabled and the depth is restored.
+PioneerDDJFLX4.fxTailTimer = 0;
+PioneerDDJFLX4.fxTailMeta = 1;
+
+PioneerDDJFLX4.cancelFxTail = function(restoreDepth) {
+    if (!PioneerDDJFLX4.fxTailTimer) { return; }
+    engine.stopTimer(PioneerDDJFLX4.fxTailTimer);
+    PioneerDDJFLX4.fxTailTimer = 0;
+    if (restoreDepth) {
+        engine.setValue(PioneerDDJFLX4.focusedFxGroup(), "meta", PioneerDDJFLX4.fxTailMeta);
+    }
+};
+
+PioneerDDJFLX4.fxTailMs = function(loaded) {
+    if (loaded === 6) { return 3000; } // reverb
+    // Delay time in ms (first parameter: beats), 8 repeats, 1.5 - 6 s.
+    const group = "[EffectRack1_EffectUnit1_Effect1]";
+    const bpm = engine.getValue("[Channel" + (engine.getValue("[AndroidDJ]", "master_deck") === 2 ? 2 : 1) + "]", "bpm") || 120;
+    const delayMs = 60000 / bpm * engine.getValue(group, "parameter1");
+    return Math.max(1500, Math.min(6000, 8 * delayMs));
+};
+
+// Sets the effect to the own state. immediate = no tail.
+PioneerDDJFLX4.applyFxState = function(immediate) {
+    const focused = engine.getValue("[EffectRack1_EffectUnit1]", "focused_effect");
+    const group = "[EffectRack1_EffectUnit1_Effect" + focused + "]";
+    if (PioneerDDJFLX4.fxOn) {
+        PioneerDDJFLX4.cancelFxTail(true);
+    } else if (!immediate && PioneerDDJFLX4.fxSyncFromEffect && !PioneerDDJFLX4.fxTailTimer &&
+            engine.getValue(group, "enabled") > 0 &&
+            engine.getValue("[EffectRack1_EffectUnit1]", "mix") > 0.05) {
+        const loaded = engine.getValue(group, "loaded_effect");
+        // List positions: 1 Delay, 2 Echo, 3 Ping Pong, 4 Spiral, 6 Reverb (with tail).
+        if ((loaded >= 1 && loaded <= 4) || loaded === 6) {
+            PioneerDDJFLX4.fxTailMeta = engine.getValue(group, "meta");
+            engine.setValue(group, "meta", 0);
+            PioneerDDJFLX4.fxTailTimer = engine.beginTimer(PioneerDDJFLX4.fxTailMs(loaded), function() {
+                PioneerDDJFLX4.fxTailTimer = 0;
+                engine.setValue(group, "enabled", 0);
+                engine.setValue(group, "meta", PioneerDDJFLX4.fxTailMeta);
+            }, true);
+            PioneerDDJFLX4.toggleFxLight();
+            return;
+        }
+    }
+    if (!PioneerDDJFLX4.fxOn && PioneerDDJFLX4.fxTailTimer && !immediate) {
+        // already running out
+        PioneerDDJFLX4.toggleFxLight();
+        return;
+    }
+    if (immediate) {
+        PioneerDDJFLX4.cancelFxTail(true);
+    }
     for (let i = 1; i <= 3; i++) {
         engine.setValue("[EffectRack1_EffectUnit1_Effect" + i + "]", "enabled",
-                (i === engine.getValue("[EffectRack1_EffectUnit1]", "focused_effect") &&
-                    PioneerDDJFLX4.fxOn) ? 1 : 0);
+                (i === focused && PioneerDDJFLX4.fxOn) ? 1 : 0);
     }
     PioneerDDJFLX4.toggleFxLight();
 };
@@ -432,7 +585,11 @@ PioneerDDJFLX4.focusedFxGroup = function() {
     return "[EffectRack1_EffectUnit1_Effect" + focusedFx + "]";
 };
 
+PioneerDDJFLX4.lastDepthKnobTime = 0;
 PioneerDDJFLX4.beatFxLevelDepthRotate = function(_channel, _control, value) {
+    if (PioneerDDJFLX4.shiftButtonDown[0] || PioneerDDJFLX4.shiftButtonDown[1]) {
+        PioneerDDJFLX4.lastDepthKnobTime = Date.now();
+    }
     if (PioneerDDJFLX4.shiftButtonDown[0] || PioneerDDJFLX4.shiftButtonDown[1]) {
         engine.softTakeoverIgnoreNextValue("[EffectRack1_EffectUnit1]", "mix");
         engine.setParameter(PioneerDDJFLX4.focusedFxGroup(), "meta", value / 0x7F);
@@ -478,19 +635,18 @@ PioneerDDJFLX4.beatFxSelectShiftPressed = function(_channel, _control, value) {
 };
 
 // Android edition: the BEAT < > buttons step through the effect time in beats
-// (1/16 - 8 beats, like the Pioneer players) for the delay effects (list
-// positions 1-3, 5, 6: Delay, Echo, Ping Pong, Flanger, Phaser), whose first
-// parameter is the time in beats (0 - 8). Reverb steps in 10 % steps.
+// (1/16 - 8 beats, like the Pioneer players). All effects have the time in
+// beats as their first parameter (0 - 8), except the reverb (percent). List
+// positions: 1 Delay, 2 Echo, 3 Ping Pong, 4 Spiral, 5 Helix, 6 Reverb,
+// 7 Flanger, 8 Phaser, 9 Trans, 10 Filter.
 PioneerDDJFLX4.beatFxBeatValues = [0.0625, 0.125, 0.25, 0.5, 0.75, 1, 2, 4, 8];
 
 PioneerDDJFLX4.stepBeatFxTime = function(direction) {
     const group = "[EffectRack1_EffectUnit1_Effect1]";
     const loaded = engine.getValue(group, "loaded_effect");
-    // List positions: 1 Delay, 2 Echo, 3 Ping Pong, 4 Reverb, 5 Flanger,
-    // 6 Phaser, 7 Filter.
-    if (loaded < 1 || loaded === 7) { return; } // the filter has no beat parameter
+    if (loaded < 1) { return; }
 
-    if (loaded === 4) { // reverb: percent
+    if (loaded === 6) { // reverb: percent
         const percent = Math.round(engine.getParameter(group, "parameter1") * 10) + direction;
         engine.setParameter(group, "parameter1", Math.max(0, Math.min(10, percent)) / 10);
         return;
@@ -523,16 +679,6 @@ PioneerDDJFLX4.beatFxOnOffPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
 
     PioneerDDJFLX4.fxOn = !PioneerDDJFLX4.fxOn;
-    PioneerDDJFLX4.applyFxState();
-};
-
-PioneerDDJFLX4.beatFxOnOffShiftPressed = function(_channel, _control, value) {
-    if (value === 0) { return; }
-
-    engine.setParameter("[EffectRack1_EffectUnit1]", "mix", 0);
-    engine.softTakeoverIgnoreNextValue("[EffectRack1_EffectUnit1]", "mix");
-
-    PioneerDDJFLX4.fxOn = false;
     PioneerDDJFLX4.applyFxState();
 };
 
@@ -788,7 +934,19 @@ PioneerDDJFLX4.jogTurn = function(channel, _control, value, _status, group) {
         }
     }
 
+    const jogState = PioneerDDJFLX4.jogState[channel];
+    if (jogState.braking && newVal !== 0) {
+        // turning the jog while it holds the slowed deck: scratch from here
+        jogState.braking = false;
+        PioneerDDJFLX4.stopJogRamp(channel);
+        engine.scratchEnable(deckNum, 720, 33+1/3, this.alpha, this.beta);
+    }
     if (engine.isScratching(deckNum)) {
+        jogState.vel = jogState.vel * 0.6 + newVal * 0.4;
+        jogState.time = Date.now();
+        // the last turns (time, ticks) for the speed of the BACK SPIN
+        jogState.samples.push([jogState.time, newVal]);
+        if (jogState.samples.length > 30) { jogState.samples.shift(); }
         engine.scratchTick(deckNum, newVal);
     } else { // fallback
         engine.setValue(group, "jog", newVal * this.bendScale);
@@ -801,17 +959,162 @@ PioneerDDJFLX4.jogSearch = function(_channel, _control, value, _status, group) {
     engine.setValue(group, "jog", newVal);
 };
 
+// ---- JOGWHEEL settings (Android edition, menu JOGWHEEL on the screen) --------
+// VINYL SPEED ADJUST (TOUCH): touching the jog of a playing deck slows it down in
+// the set time instead of stopping it at once; releasing it (without turning it)
+// speeds it up again in that time. BACK SPIN: turning the jog fast backwards and
+// letting go spins the track back, then it plays on.
+PioneerDDJFLX4.jogState = [
+    {vel: 0, time: 0, braking: false, ramp: 0, watch: 0, wasPlaying: false, backspinning: false, samples: []},
+    {vel: 0, time: 0, braking: false, ramp: 0, watch: 0, wasPlaying: false, backspinning: false, samples: []}
+];
+
+PioneerDDJFLX4.stopJogRamp = function(channel) {
+    const state = PioneerDDJFLX4.jogState[channel];
+    if (state.ramp) {
+        engine.stopTimer(state.ramp);
+        state.ramp = 0;
+    }
+};
+
+// Moves the speed of the deck (scratch2) from one rate to another in `seconds`.
+PioneerDDJFLX4.rampJogSpeed = function(channel, group, fromRate, toRate, seconds, onDone) {
+    const state = PioneerDDJFLX4.jogState[channel];
+    PioneerDDJFLX4.stopJogRamp(channel);
+    const start = Date.now();
+    state.ramp = engine.beginTimer(20, function() {
+        const progress = seconds <= 0 ? 1 : Math.min(1, (Date.now() - start) / (seconds * 1000));
+        engine.setValue(group, "scratch2", fromRate + (toRate - fromRate) * progress);
+        if (progress >= 1) {
+            PioneerDDJFLX4.stopJogRamp(channel);
+            if (onDone) { onDone(); }
+        }
+    });
+};
+
+// BACK SPIN, simulated here (the wheel of the FLX4 has no motor: it only turns as long as
+// the hand moves it, so the slowing down must come from the software). The deck runs backwards
+// at the start rate and slows down, passes the standstill and speeds up to its normal speed
+// again, in the time of BACK SPIN LENGTH (SHORT / NORMAL / LONG). It uses the same ramp as
+// VINYL SPEED ADJUST, which always ends by itself (time based).
+PioneerDDJFLX4.endBackspin = function(channel, group) {
+    const state = PioneerDDJFLX4.jogState[channel];
+    PioneerDDJFLX4.stopJogRamp(channel);
+    state.backspinning = false;
+    engine.setValue(group, "scratch2_enable", 0);
+};
+
+// Speed of the jog in the 100 ms before the last tick, in times of the normal speed of the
+// wheel (a record at 33 1/3 rpm = 400 ticks per second); negative = backwards.
+PioneerDDJFLX4.jogSpeedTimes = function(channel) {
+    const samples = PioneerDDJFLX4.jogState[channel].samples;
+    if (samples.length === 0) { return 0; }
+    const last = samples[samples.length - 1][0];
+    let ticks = 0;
+    for (let i = 0; i < samples.length; i++) {
+        if (last - samples[i][0] <= 100) { ticks += samples[i][1]; }
+    }
+    return ticks * 10 / 400;
+};
+
+// The harder the jog was turned back, the faster the start and the longer the spin back:
+// start speed = measured speed x BACK SPIN SENSITIVITY (between the set minimum and maximum),
+// time = BACK SPIN LENGTH (0.5 / 2 / 4 s) x (measured speed / 6), between half and double.
+PioneerDDJFLX4.startBackspin = function(channel, group, speedTimes) {
+    const deckNum = channel + 1;
+    const state = PioneerDDJFLX4.jogState[channel];
+    const length = Math.max(0, Math.min(2, Math.round(engine.getValue("[AndroidDJ]", "backspin_length"))));
+    const measured = Math.abs(speedTimes);
+    const sens = engine.getValue("[AndroidDJ]", "backspin_sens");
+    const minRate = engine.getValue("[AndroidDJ]", "backspin_min_rate");
+    const maxRate = Math.max(minRate, engine.getValue("[AndroidDJ]", "backspin_max_rate"));
+    const rate = Math.max(minRate, Math.min(maxRate, measured * sens));
+    // SHORT: up to 1 s, NORMAL: up to 4 s, LONG: up to 8 s (the hardest turn).
+    const seconds = [0.5, 2.0, 4.0][length] * Math.max(0.5, Math.min(2, measured / 6));
+    const startRate = -rate;
+    engine.setValue("[AndroidDJ]", "backspin_last_speed", measured);
+    engine.setValue("[AndroidDJ]", "backspin_last_rate", rate);
+    const target = engine.getValue(group, "rate_ratio");
+    engine.scratchDisable(deckNum, false);
+    engine.setValue(group, "scratch2_enable", 1);
+    engine.setValue(group, "scratch2", startRate);
+    state.backspinning = true;
+    PioneerDDJFLX4.rampJogSpeed(channel, group, startRate, target, seconds, function() {
+        PioneerDDJFLX4.endBackspin(channel, group);
+    });
+};
+
 PioneerDDJFLX4.jogTouch = function(channel, _control, value) {
     const deckNum = channel + 1;
+    const group = "[Channel" + deckNum + "]";
+    const state = PioneerDDJFLX4.jogState[channel];
 
     // skip while adjusting the loop points
     if (PioneerDDJFLX4.loopAdjustIn[channel] || PioneerDDJFLX4.loopAdjustOut[channel]) {
         return;
     }
 
+    const stopSeconds = engine.getValue("[AndroidDJ]", "vinyl_stop_sec");
+    const startSeconds = engine.getValue("[AndroidDJ]", "vinyl_start_sec");
+    // TEMP-DIAG jog: what the touch sees (bits: 1 touch, 2 stop time set, 4 deck playing,
+    // 8 not scratching, 16 start time set); shown in ADVANCED SETTINGS -> JOGWHEEL.
+    engine.setValue("[AndroidDJ]", "jog_dbg", (value !== 0 ? 1 : 0) +
+        (stopSeconds > 0 ? 2 : 0) + (engine.getValue(group, "play") > 0 ? 4 : 0) +
+        (!engine.isScratching(deckNum) ? 8 : 0) + (startSeconds > 0 ? 16 : 0));
+    print("JOGDIAG ch=" + channel + " value=" + value + " stop=" + stopSeconds + " start=" + startSeconds +
+        " play=" + engine.getValue(group, "play") + " scratching=" + engine.isScratching(deckNum));
+
     if (value !== 0 && this.vinylMode) {
+        state.vel = 0;
+        state.samples = [];
+        if (state.backspinning) {
+            // touching the jog during a spin back: take over
+            PioneerDDJFLX4.endBackspin(channel, group);
+        }
+        state.wasPlaying = engine.getValue(group, "play") > 0;
+        if (stopSeconds > 0 && state.wasPlaying && !engine.isScratching(deckNum)) {
+            // slow down in the set time (VINYL SPEED ADJUST, stop)
+            const startRate = engine.getValue(group, "rate_ratio");
+            engine.setValue(group, "scratch2_enable", 1);
+            engine.setValue(group, "scratch2", startRate);
+            state.braking = true;
+            PioneerDDJFLX4.rampJogSpeed(channel, group, startRate, 0, stopSeconds, null);
+            return;
+        }
         engine.scratchEnable(deckNum, 720, 33+1/3, this.alpha, this.beta);
     } else {
+        const target = engine.getValue(group, "rate_ratio");
+        if (state.braking) {
+            // let go without turning: speed up again (VINYL SPEED ADJUST, start)
+            state.braking = false;
+            const current = engine.getValue(group, "scratch2");
+            if (startSeconds > 0) {
+                PioneerDDJFLX4.rampJogSpeed(channel, group, current, target, startSeconds, function() {
+                    engine.setValue(group, "scratch2_enable", 0);
+                });
+            } else {
+                PioneerDDJFLX4.stopJogRamp(channel);
+                engine.setValue(group, "scratch2_enable", 0);
+            }
+            return;
+        }
+        if (engine.isScratching(deckNum) &&
+                engine.getValue("[AndroidDJ]", "backspin_on") > 0 &&
+                state.wasPlaying &&
+                state.vel < -6 && Date.now() - state.time < 120) {
+            PioneerDDJFLX4.startBackspin(channel, group, PioneerDDJFLX4.jogSpeedTimes(channel));
+            return;
+        }
+        if (engine.isScratching(deckNum) && startSeconds > 0 && state.wasPlaying) {
+            // after scratching: speed up in the set time
+            engine.scratchDisable(deckNum, false);
+            engine.setValue(group, "scratch2_enable", 1);
+            engine.setValue(group, "scratch2", 0);
+            PioneerDDJFLX4.rampJogSpeed(channel, group, 0, target, startSeconds, function() {
+                engine.setValue(group, "scratch2_enable", 0);
+            });
+            return;
+        }
         engine.scratchDisable(deckNum);
     }
 };

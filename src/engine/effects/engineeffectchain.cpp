@@ -1,5 +1,10 @@
 #include "engine/effects/engineeffectchain.h"
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <cmath>
+#endif
+
 #include <cmath>
 
 #include "engine/effects/engineeffect.h"
@@ -383,6 +388,54 @@ bool EngineEffectChain::process(const ChannelHandle& inputHandle,
         SampleUtil::add(pOut, m_bandRest.data(), static_cast<int>(numSamples));
     }
 
+#ifdef __ANDROID__
+    { // TEMP-DIAG7: once per second, the state of the quick effect chains
+        static thread_local int tick = 0;
+        if (++tick % 190 == 0) {
+            const QString name = debugString();
+            if (name.contains("Quick")) {
+                float inPeak = 0.f;
+                float outPeak = 0.f;
+                for (std::size_t i = 0; i < numSamples; ++i) {
+                    inPeak = std::max(inPeak, std::abs(pIn[i]));
+                    outPeak = std::max(outPeak, std::abs(pOut[i]));
+                }
+                __android_log_print(ANDROID_LOG_INFO, "mixxx-cfx",
+                        "STATE %s: chainEnabled %d effective %d channel %d processed %d bandMask %d in %.3f out %.3f",
+                        name.toUtf8().constData(), static_cast<int>(m_enableState),
+                        static_cast<int>(effectiveChainEnableState),
+                        static_cast<int>(channelStatus.enableState), processingOccured ? 1 : 0,
+                        static_cast<int>(m_bandMask), inPeak, outPeak);
+            }
+        }
+    }
+#endif
+#ifdef __ANDROID__
+    if (processingOccured) { // TEMP-DIAG5 (Color FX): does the chain output vanish or turn invalid?
+        float inPeak = 0.f;
+        float outPeak = 0.f;
+        bool bad = false;
+        for (std::size_t i = 0; i < numSamples; ++i) {
+            inPeak = std::max(inPeak, std::abs(pIn[i]));
+            const float o = pOut[i];
+            if (!std::isfinite(o)) {
+                bad = true;
+            } else {
+                outPeak = std::max(outPeak, std::abs(o));
+            }
+        }
+        static thread_local int sinceLog = 0;
+        ++sinceLog;
+        if ((bad || (inPeak > 0.05f && outPeak < 0.002f)) && sinceLog > 20) {
+            sinceLog = 0;
+            __android_log_print(ANDROID_LOG_INFO, "mixxx-cfx",
+                    "CHAIN %s: in %.3f out %.4f%s state %d mix %.2f/%.2f",
+                    debugString().toUtf8().constData(), inPeak, outPeak,
+                    bad ? " NOT-FINITE" : "", static_cast<int>(effectiveChainEnableState),
+                    lastCallbackMixKnob, currentMixKnob);
+        }
+    }
+#endif
     channelStatus.oldMixKnob = currentMixKnob;
 
     return processingOccured;

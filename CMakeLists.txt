@@ -1280,6 +1280,8 @@ add_library(
   src/effects/backends/builtin/bitcrushereffect.cpp
   src/effects/backends/builtin/builtinbackend.cpp
   src/effects/backends/builtin/distortioneffect.cpp
+  src/effects/backends/builtin/beatfxeffects.cpp
+  src/effects/backends/builtin/colorfxeffects.cpp
   src/effects/backends/builtin/echoeffect.cpp
   src/effects/backends/builtin/filtereffect.cpp
   src/effects/backends/builtin/flangereffect.cpp
@@ -1601,6 +1603,8 @@ add_library(
   src/soundio/sounddevice.cpp
   src/soundio/sounddevicenetwork.cpp
   src/soundio/sounddeviceportaudio.cpp
+  src/soundio/androidopenslout.cpp
+  src/soundio/androidusbaudio.cpp
   src/soundio/soundmanager.cpp
   src/soundio/soundmanagerconfig.cpp
   src/soundio/soundmanagerutil.cpp
@@ -2387,6 +2391,9 @@ if(ANDROID)
   set_target_properties(mixxx PROPERTIES QT_ANDROID_PACKAGE_NAME "org.mixxx")
   # AMidi (native MIDI API used for MIDI controllers) requires API level 29.
   set_target_properties(mixxx PROPERTIES QT_ANDROID_MIN_SDK_VERSION 29)
+  # Target SDK 35: from 36 on, Android 16 ignores the orientation lock on large
+  # screens (tablet), but the app must stay in landscape (both directions).
+  set_target_properties(mixxx PROPERTIES QT_ANDROID_TARGET_SDK_VERSION 35)
   set_target_properties(
     mixxx
     PROPERTIES QT_ANDROID_VERSION_NAME "${MIXXX_VERSION}"
@@ -5300,6 +5307,10 @@ endif()
 
 # USB HID or/and Bulk controller support
 find_package(LibUSB)
+if(ANDROID AND LibUSB_FOUND)
+  # Own USB audio driver for the DDJ-FLX4 (src/soundio/androidusbaudio.cpp).
+  target_link_libraries(mixxx-lib PRIVATE LibUSB::LibUSB)
+endif()
 
 # USB HID controller support
 option(HID "USB HID controller support" ON)

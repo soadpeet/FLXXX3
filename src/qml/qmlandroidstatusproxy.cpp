@@ -1,9 +1,11 @@
+#include <android/log.h>
 #include "qml/qmlandroidstatusproxy.h"
 
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QJniEnvironment>
 #include <QJniObject>
+#include <QtCore/private/qandroidextras_p.h>
 #include <QDir>
 #include <QHash>
 #include <QStorageInfo>
@@ -277,6 +279,71 @@ void QmlAndroidStatusProxy::update() {
             oldSlotBusy[0] != m_slotBusy[0] || oldSlotBusy[1] != m_slotBusy[1]) {
         emit changed();
     }
+}
+
+void QmlAndroidStatusProxy::setScreenBrightness(double value) {
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([value]() {
+        QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (!activity.isValid()) {
+            return;
+        }
+        QJniObject window = activity.callObjectMethod("getWindow", "()Landroid/view/Window;");
+        if (!window.isValid()) {
+            return;
+        }
+        QJniObject attributes = window.callObjectMethod(
+                "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
+        if (!attributes.isValid()) {
+            return;
+        }
+        attributes.setField<jfloat>("screenBrightness", static_cast<jfloat>(value));
+        window.callMethod<void>("setAttributes",
+                "(Landroid/view/WindowManager$LayoutParams;)V",
+                attributes.object());
+    });
+}
+
+void QmlAndroidStatusProxy::lockScreen() {
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() {
+        QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (!activity.isValid()) {
+            return;
+        }
+        QJniObject window = activity.callObjectMethod("getWindow", "()Landroid/view/Window;");
+        if (window.isValid()) {
+            // FLAG_KEEP_SCREEN_ON: the screen stays on while the app is in front.
+            window.callMethod<void>("addFlags", "(I)V", 0x00000080);
+            // Fixed refresh rate: the adaptive (variable) refresh of some phones makes
+            // a still picture flicker when the rate changes.
+            QJniObject attributes = window.callObjectMethod(
+                    "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
+            if (attributes.isValid()) {
+                attributes.setField<jfloat>("preferredRefreshRate", 60.0f);
+                window.callMethod<void>("setAttributes",
+                        "(Landroid/view/WindowManager$LayoutParams;)V",
+                        attributes.object());
+            }
+            QJniObject decor = window.callObjectMethod("getDecorView", "()Landroid/view/View;");
+            if (decor.isValid()) {
+                // IMMERSIVE_STICKY | HIDE_NAVIGATION | FULLSCREEN | LAYOUT_*
+                decor.callMethod<void>("setSystemUiVisibility", "(I)V", 0x1706);
+            }
+        }
+    });
+}
+
+void QmlAndroidStatusProxy::log(const QString& text) {
+    __android_log_print(ANDROID_LOG_INFO, "mixxx-qml", "%s", text.toUtf8().constData());
+}
+
+void QmlAndroidStatusProxy::quitApp() {
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() {
+        QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (!activity.isValid()) {
+            return;
+        }
+        activity.callMethod<void>("finishAndRemoveTask", "()V");
+    });
 }
 
 } // namespace qml

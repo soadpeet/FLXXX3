@@ -69,8 +69,15 @@ class ControllerManager : public QObject {
     void slotShutdown();
     /// Calls poll() on all devices that have isPolling() true.
     void slotPollDevices();
+#ifdef __ANDROID_MIDI__
+    /// Android edition: notices the controller being plugged in or unplugged.
+    void androidHotplugCheck();
+#endif
 
   private:
+#ifdef __ANDROID_MIDI__
+    bool m_androidSetupDone = false;
+#endif
     void updateControllerList();
     void startPolling();
     void stopPolling();

@@ -402,7 +402,10 @@ Rectangle {
             width: Math.round(root.unit * 7.6)
 
             anchors {
+                // With a track the info row below is collapsed and the middle row grows
+                // by its height: the BPM box keeps the size it has without a track.
                 bottom: parent.bottom
+                bottomMargin: root.loaded && !root.bpmFixOpen ? Math.round(root.unit * 1.9) : 0
                 right: parent.right
                 top: parent.top
                 topMargin: Math.round(root.unit * 0.3)
@@ -598,7 +601,7 @@ Rectangle {
         id: overview
 
         group: root.group
-        height: Math.round(root.height * 0.4)
+        height: Math.round(root.height * 0.28)
 
         anchors {
             bottom: parent.bottom
@@ -606,4 +609,5 @@ Rectangle {
             right: parent.right
         }
     }
+
 }

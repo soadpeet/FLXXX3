@@ -31,6 +31,12 @@ class EffectsManager {
     void resetStemQuickFxKnob(const ChannelHandleAndGroup& stemHandleGroup);
 
     void loadDefaultEqsAndQuickEffects();
+#ifdef __ANDROID__
+    // Android edition: puts the selected Color FX (SPACE, DUB ECHO, CRUSH, SWEEP,
+    // NOISE, FILTER) as the quick effect into the chains of the channels and
+    // switches them on or off ([AndroidDJ] color_fx / color_fx_on).
+    void applyColorFx();
+#endif
 
     EffectChainPointer getEffectChain(const QString& group) const;
     EqualizerEffectChainPointer getEqualizerEffectChain(
@@ -123,6 +129,9 @@ class EffectsManager {
     // and QuickEffect chains) have been initialized, either with defaults or the
     // previous state read from effects.xml
     bool m_initializedFromEffectsXml;
+#ifdef __ANDROID__
+    std::unique_ptr<QObject> m_pColorFxHelper;
+#endif
 
     DISALLOW_COPY_AND_ASSIGN(EffectsManager);
 };

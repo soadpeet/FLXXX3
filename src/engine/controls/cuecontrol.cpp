@@ -2408,7 +2408,30 @@ CueControl::TrackAt CueControl::getTrackAt() const {
     return TrackAt::ElseWhere;
 }
 
+#ifdef __ANDROID__
+// Android edition: cues, hotcues and loops are never set before the first beat of the
+// beat grid (the first beat of the Rekordbox grid, like the one the track waits on).
+
+
 mixxx::audio::FramePos CueControl::getQuantizedCurrentPosition() {
+    const mixxx::audio::FramePos position = getQuantizedCurrentPositionRaw();
+    if (position.isValid() && m_pLoadedTrack) {
+        const mixxx::BeatsPointer pBeats = m_pLoadedTrack->getBeats();
+        if (pBeats) {
+            const mixxx::audio::FramePos firstBeat =
+                    pBeats->findNextBeat(mixxx::audio::FramePos(-3000.0));
+            if (firstBeat.isValid() && position < firstBeat) {
+                return std::max(firstBeat, mixxx::audio::kStartFramePos);
+            }
+        }
+    }
+    return position;
+}
+
+mixxx::audio::FramePos CueControl::getQuantizedCurrentPositionRaw() {
+#else
+mixxx::audio::FramePos CueControl::getQuantizedCurrentPosition() {
+#endif
     FrameInfo info = frameInfo();
 
     // Note: currentPos can be past the end of the track, in the padded

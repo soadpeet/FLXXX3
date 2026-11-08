@@ -121,7 +121,8 @@ Item {
             anchors.fill: parent
             channels: Mixxx.WaveformOverview.Channels.BothChannels
             minuteMarkers: Mixxx.Config.waveformOverviewMinuteMarkers
-            normalized: Mixxx.Config.waveformOverviewNormalized
+            // Android edition: always normalized, so that every track fills the overview the same way.
+            normalized: Qt.platform.os === "android" ? true : Mixxx.Config.waveformOverviewNormalized
             renderer: Mixxx.Config.waveformOverviewType === 0 ? Mixxx.WaveformOverview.Renderer.Filtered : Mixxx.Config.waveformOverviewType === 1 ? Mixxx.WaveformOverview.Renderer.HSV : Mixxx.WaveformOverview.Renderer.RGB
             // Android edition: one upper half instead of mirrored left/right.
             stereo: Qt.platform.os === "android" ? false : Mixxx.Config.waveformOverviewStereo
@@ -129,8 +130,10 @@ Item {
             colorMid: Theme.blue
             colorLow: Theme.green
             group: root.group
-            // Android edition: no moving by touch while the track plays.
-            interactive: Qt.platform.os !== "android" || overviewPlayControl.value <= 0
+            // Android edition: no moving by touch while the track plays and the
+            // channel fader is up (20 % or more).
+            interactive: Qt.platform.os !== "android" ||
+                    !(overviewPlayControl.value > 0 && overviewVolumeControl.value >= 0.2)
         }
     }
     Mixxx.ControlProxy {
@@ -138,6 +141,12 @@ Item {
 
         group: root.group
         key: "play"
+    }
+    Mixxx.ControlProxy {
+        id: overviewVolumeControl
+
+        group: root.group
+        key: "volume"
     }
 
     Rectangle {

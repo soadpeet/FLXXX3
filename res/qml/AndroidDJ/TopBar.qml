@@ -11,9 +11,10 @@ Rectangle {
     property string activeButton: ""
     readonly property var buttons: ["SOURCE", "BROWSE", "TAG LIST", "PLAYLIST", "SEARCH", "UTILITY"]
     // Buttons without a counterpart in Mixxx yet are shown dimmed.
-    readonly property var disabledButtons: ["TAG LIST"]
+    readonly property var disabledButtons: []
 
     signal buttonClicked(string name)
+    signal closeRequested
 
     color: "#161616"
 
@@ -47,7 +48,7 @@ Rectangle {
                 // Narrower buttons on narrow screens (tablet): they must not run
                 // into the status chips on the right.
                 width: Math.max(40, Math.min(Math.round(root.height * 2.6),
-                        (root.width - indicators.width - 30 - 5 * 6) / 6))
+                        (root.width - indicators.width - root.height - 30 - 5 * 6) / 6))
 
                 Text {
                     anchors.centerIn: parent
@@ -73,7 +74,7 @@ Rectangle {
 
         anchors {
             right: parent.right
-            rightMargin: 10
+            rightMargin: 10 + root.height
             verticalCenter: parent.verticalCenter
         }
 
@@ -127,6 +128,35 @@ Rectangle {
 
                 onStopped: usb2Chip.opacity = 1.0
             }
+        }
+    }
+    // X at the right edge: closes the app (after a confirmation).
+    Rectangle {
+        border.color: "#6a3a3a"
+        color: closeTap.pressed ? "#5a2a2a" : "#2a1a1a"
+        radius: 3
+        width: root.height - 6
+
+        anchors {
+            bottom: parent.bottom
+            bottomMargin: 3
+            right: parent.right
+            rightMargin: 6
+            top: parent.top
+            topMargin: 3
+        }
+
+        Text {
+            anchors.centerIn: parent
+            color: "#ff6a6a"
+            font.bold: true
+            font.pixelSize: Math.round(root.height * 0.5)
+            text: "X"
+        }
+        TapHandler {
+            id: closeTap
+
+            onTapped: root.closeRequested()
         }
     }
 }
