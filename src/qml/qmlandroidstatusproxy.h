@@ -80,7 +80,7 @@ class QmlAndroidStatusProxy : public QObject {
     Q_INVOKABLE void setScreenBrightness(double value);
     // Hides the system bars (no app pinning).
     Q_INVOKABLE void lockScreen();
-    // TEMP-DIAG: writes a line to the Android log (tag mixxx-qml).
+    // Writes a line to the Android log (tag mixxx-qml), for debugging QML.
     Q_INVOKABLE void log(const QString& text);
     // Unpins and closes the app.
     Q_INVOKABLE void quitApp();

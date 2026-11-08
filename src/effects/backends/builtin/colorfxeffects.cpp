@@ -3,9 +3,6 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
-#ifdef __ANDROID__
-#include <android/log.h>
-#endif
 
 #include "effects/backends/effectmanifest.h"
 #include "engine/effects/engineeffectparameter.h"
@@ -145,15 +142,6 @@ void ColorFxBase::amountAndSide(float* pAmount, int* pSide) const {
     const float knob = static_cast<float>(math_clamp(m_pKnob->value(), 0.0, 1.0));
     *pAmount = std::abs(knob - 0.5f) * 2.0f * g_release.load();
     *pSide = knob < 0.5f ? -1 : 1;
-#ifdef __ANDROID__
-    { // TEMP-DIAG4: log the knob value when it jumps (audio thread, rare)
-        static float lastKnob = 0.5f;
-        if (std::abs(knob - lastKnob) > 0.2f) {
-            __android_log_print(ANDROID_LOG_INFO, "mixxx-cfx", "knob %.3f amount %.3f", knob, *pAmount);
-        }
-        lastKnob = knob;
-    }
-#endif
 }
 
 // ============================ SPACE (reverb) ================================

@@ -2,9 +2,6 @@
 
 #include <QPainter>
 #include <QPainterPath>
-#ifdef __ANDROID__
-#include <android/log.h>
-#endif
 
 #include "control/controlproxy.h"
 #include "track/track.h"
@@ -203,7 +200,6 @@ void WaveformWidgetRenderer::onPreRender(VSyncTimeProvider* vsyncThread) {
     } else if (m_hasLastTruePos && m_pLastTruePosTrack == m_pTrack.get()) {
         truePos[0] = m_lastTruePos[0];
         truePos[1] = m_lastTruePos[1];
-        __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "no play position, kept the last one (%.5f)", truePos[0]);
     }
 #else
     m_visualPlayPosition->getPlaySlipAtNextVSync(vsyncThread,

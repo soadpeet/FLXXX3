@@ -1,10 +1,5 @@
 #include "effects/effectchain.h"
 
-#ifdef __ANDROID__
-#include <android/log.h>
-#include <cmath>
-#include <unordered_map>
-#endif
 
 #include "control/controlencoder.h"
 #include "control/controlpotmeter.h"
@@ -369,19 +364,6 @@ void EffectChain::slotControlClear(double v) {
 
 void EffectChain::slotControlChainSuperParameter(double v, bool force) {
     // qDebug() << debugString() << "slotControlChainSuperParameter" << v;
-#ifdef __ANDROID__
-    { // TEMP-DIAG4 (Color FX): log big jumps and every move at the ends of the super knob
-        static std::unordered_map<QString, double> lastValue;
-        const auto it = lastValue.find(m_group);
-        const double prev = it == lastValue.end() ? 0.5 : it->second;
-        const bool atEnd = v < 0.02 || v > 0.98;
-        if (std::abs(prev - v) > 0.3 || (atEnd && std::abs(prev - v) > 1e-6) || force) {
-            __android_log_print(ANDROID_LOG_INFO, "mixxx-cfx", "super1 %s: %.4f -> %.4f%s",
-                    m_group.toUtf8().constData(), prev, v, force ? " (forced)" : "");
-        }
-        lastValue[m_group] = v;
-    }
-#endif
 
     m_pControlChainSuperParameter->set(v);
     for (const auto& pEffectSlot : std::as_const(m_effectSlots)) {

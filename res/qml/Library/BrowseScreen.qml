@@ -136,7 +136,6 @@ Rectangle {
         if (g === "")
             return;
         const player = Mixxx.PlayerManager.getPlayer(g);
-        Mixxx.AndroidStatus.log("masterkey group " + g + " keyText [" + (player && player.currentTrack ? player.currentTrack.keyText : "no track") + "] master_deck " + filterMasterDeck.value);
         const key = root.toCamelot(player && player.currentTrack ? player.currentTrack.keyText : "");
         if (key !== "") {
             root.filterKey = key;

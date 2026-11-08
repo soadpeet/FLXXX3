@@ -232,10 +232,6 @@ bool AndroidMidiController::poll() {
                         } else if ((status == 0xB0 || status == 0xB1) &&
                                 (data1 == 0x04 || data1 == 0x24)) {
                             const int deck = status == 0xB0 ? 0 : 1;
-                            // TEMP-DIAG8
-                            __android_log_print(ANDROID_LOG_INFO, "mixxx-cfx", "TRIM %02X %02X %02X %s",
-                                    static_cast<unsigned>(status), static_cast<unsigned>(data1),
-                                    static_cast<unsigned>(data2), inZone[deck] ? "DROPPED" : "passed");
                             if (inZone[deck]) {
                                 return;
                             }

@@ -1,10 +1,6 @@
 #include "waveform/renderers/allshader/waveformrendererfiltered.h"
 
 #include <algorithm>
-#ifdef __ANDROID__
-#include <android/log.h>
-#include <unordered_map>
-#endif
 
 #include "rendergraph/material/rgbmaterial.h"
 #include "rendergraph/vertexupdaters/rgbvertexupdater.h"
@@ -15,23 +11,6 @@
 #include "waveform/waveform.h"
 
 using namespace rendergraph;
-
-#ifdef __ANDROID__
-// TEMP-DIAG3: a frame without geometry makes the waveform vanish for one frame.
-// Log why, but only if the previous frame of this renderer was drawn.
-static std::unordered_map<const void*, bool>& diagDrawn() {
-    static thread_local std::unordered_map<const void*, bool> m;
-    return m;
-}
-static bool diagFail(const void* self, const char* why) {
-    if (diagDrawn()[self]) {
-        __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "NO-DRAW %p: %s", self, why);
-    }
-    diagDrawn()[self] = false;
-    return false;
-}
-#endif
-
 
 namespace allshader {
 
@@ -61,28 +40,28 @@ bool WaveformRendererFiltered::preprocessInner() {
     TrackPointer pTrack = m_waveformRenderer->getTrackInfo();
 
     if (!pTrack) {
-        return diagFail(this, "return-false #1");
+        return false;
     }
 
     ConstWaveformPointer waveform = pTrack->getWaveform();
     if (waveform.isNull()) {
-        return diagFail(this, "return-false #2");
+        return false;
     }
 
     const int dataSize = waveform->getDataSize();
     if (dataSize <= 1) {
-        return diagFail(this, "return-false #3");
+        return false;
     }
 
     const WaveformData* data = waveform->data();
     if (data == nullptr) {
-        return diagFail(this, "return-false #4");
+        return false;
     }
 #ifdef __STEM__
     auto stemInfo = pTrack->getStemInfo();
     // If this track is a stem track, skip the rendering
     if (!stemInfo.isEmpty() && waveform->hasStem() && !m_ignoreStem) {
-        return diagFail(this, "return-false #5");
+        return false;
     }
 #endif
 
@@ -103,7 +82,7 @@ bool WaveformRendererFiltered::preprocessInner() {
     const double visualIncrementPerPixel =
             (lastVisualFrame - firstVisualFrame) / static_cast<double>(pixelLength);
     if (visualIncrementPerPixel == 0.0) {
-        return diagFail(this, "return-false #6");
+        return false;
     }
 
     // Per-band gain from the EQ knobs.
@@ -118,32 +97,6 @@ bool WaveformRendererFiltered::preprocessInner() {
 
     const float breadth = static_cast<float>(m_waveformRenderer->getBreadth());
     const float halfBreadth = breadth / 2.0f;
-#ifdef __ANDROID__
-    { // TEMP-DIAG: what changes from frame to frame (log only on a change)
-        struct Prev {
-            float allGain, low, mid, high, breadth;
-            double inc, first;
-            int length;
-        };
-        static thread_local std::unordered_map<const void*, Prev> prevMap;
-        Prev now{allGain, bandGain[0], bandGain[1], bandGain[2], breadth, visualIncrementPerPixel, firstVisualFrame, length};
-        auto it = prevMap.find(this);
-        if (it != prevMap.end()) {
-            const Prev& p = it->second;
-            if (std::abs(p.allGain - now.allGain) > 1e-4f || std::abs(p.low - now.low) > 1e-3f ||
-                    std::abs(p.mid - now.mid) > 1e-3f || std::abs(p.high - now.high) > 1e-3f ||
-                    std::abs(p.breadth - now.breadth) > 0.01f ||
-                    std::abs(p.inc - now.inc) > 1e-6 || p.length != now.length) {
-                __android_log_print(ANDROID_LOG_INFO,
-                        "mixxx-wf",
-                        "change %p: gain %.3f->%.3f bands %.3f/%.3f/%.3f -> %.3f/%.3f/%.3f breadth %.1f->%.1f inc %.4f->%.4f len %d->%d",
-                        this, p.allGain, now.allGain, p.low, p.mid, p.high, now.low, now.mid, now.high,
-                        p.breadth, now.breadth, p.inc, now.inc, p.length, now.length);
-            }
-        }
-        prevMap[this] = now;
-    }
-#endif
 
     const float heightFactor = allGain * halfBreadth / m_maxValue;
 
@@ -219,9 +172,6 @@ bool WaveformRendererFiltered::preprocessInner() {
             numVerticesPerLine * (1 + pixelLength * 3)};
 #endif
     const double maxSamplingRange = visualIncrementPerPixel / 2.0;
-#ifdef __ANDROID__
-    double diagSum = 0.0;
-#endif
 
     for (int pos = 0; pos < pixelLength; ++pos) {
         const int visualFrameStart = std::lround(xVisualFrame - maxSamplingRange);
@@ -314,9 +264,6 @@ bool WaveformRendererFiltered::preprocessInner() {
                     {fpos + halfPixelSize, halfBreadth + heightFactor * amplitude[layer][1]},
                     {rgb[layer]});
         }
-#ifdef __ANDROID__
-        diagSum += amplitude[0][0] + amplitude[0][1] + amplitude[2][0] + amplitude[3][0];
-#endif
         xVisualFrame += visualIncrementPerPixel;
         continue;
 #endif
@@ -348,32 +295,8 @@ bool WaveformRendererFiltered::preprocessInner() {
 #endif
 
 
-#ifdef __ANDROID__
-    { // TEMP-DIAG2: checksum of everything drawn; changes while the position and zoom stay the same?
-        struct PrevSum {
-            double sum;
-            double first;
-            double inc;
-            int count;
-        };
-        static thread_local std::unordered_map<const void*, PrevSum> prevSums;
-        auto it2 = prevSums.find(this);
-        if (it2 != prevSums.end() && it2->second.first == firstVisualFrame &&
-                it2->second.inc == visualIncrementPerPixel &&
-                std::abs(it2->second.sum - diagSum) > 1e-3) {
-            __android_log_print(ANDROID_LOG_INFO,
-                    "mixxx-wf",
-                    "SUM %p: %.3f -> %.3f at the same position/zoom (first %.2f, inc %.5f)",
-                    this, it2->second.sum, diagSum, firstVisualFrame, visualIncrementPerPixel);
-        }
-        prevSums[this] = PrevSum{diagSum, firstVisualFrame, visualIncrementPerPixel, 0};
-    }
-#endif
     markDirtyMaterial();
 
-#ifdef __ANDROID__
-    diagDrawn()[this] = true;
-#endif
     return true;
 }
 

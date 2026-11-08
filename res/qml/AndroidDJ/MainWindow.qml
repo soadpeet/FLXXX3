@@ -900,35 +900,4 @@ Item {
             }
         }
     }
-
-    // TEMP-DIAG6 (Color FX dropouts): levels and effect state, 4 lines per second.
-    Mixxx.ControlProxy { id: dgMasterL; group: "[Main]"; key: "vu_meter_left" }
-    Mixxx.ControlProxy { id: dgMasterR; group: "[Main]"; key: "vu_meter_right" }
-    Mixxx.ControlProxy { id: dgCh1; group: "[Channel1]"; key: "vu_meter" }
-    Mixxx.ControlProxy { id: dgCh2; group: "[Channel2]"; key: "vu_meter" }
-    Mixxx.ControlProxy { id: dgFx1On; group: "[QuickEffectRack1_[Channel1]]"; key: "enabled" }
-    Mixxx.ControlProxy { id: dgFx1Super; group: "[QuickEffectRack1_[Channel1]]"; key: "super1" }
-    Mixxx.ControlProxy { id: dgFx2Super; group: "[QuickEffectRack1_[Channel2]]"; key: "super1" }
-    Mixxx.ControlProxy { id: dgPlay1; group: "[Channel1]"; key: "play" }
-    Mixxx.ControlProxy { id: dgPlay2; group: "[Channel2]"; key: "play" }
-    Mixxx.ControlProxy { id: dgVol1; group: "[Channel1]"; key: "volume" }
-    Mixxx.ControlProxy { id: dgGain1; group: "[Channel1]"; key: "pregain" }
-    Mixxx.ControlProxy { id: dgMute1; group: "[Channel1]"; key: "mute" }
-    Mixxx.ControlProxy { id: dgRate1; group: "[Channel1]"; key: "rate_ratio" }
-    Mixxx.ControlProxy { id: dgEqLo1; group: "[EqualizerRack1_[Channel1]_Effect1]"; key: "parameter1" }
-    Mixxx.ControlProxy { id: dgEqMi1; group: "[EqualizerRack1_[Channel1]_Effect1]"; key: "parameter2" }
-    Mixxx.ControlProxy { id: dgEqHi1; group: "[EqualizerRack1_[Channel1]_Effect1]"; key: "parameter3" }
-    Mixxx.ControlProxy { id: dgPos1; group: "[Channel1]"; key: "playposition" }
-    Timer {
-        interval: 250
-        repeat: true
-        running: true
-        onTriggered: Mixxx.AndroidStatus.log("DIAG6 main " + dgMasterL.value.toFixed(2) + "/" + dgMasterR.value.toFixed(2)
-                + " ch1 " + dgCh1.value.toFixed(2) + " ch2 " + dgCh2.value.toFixed(2)
-                + " play " + dgPlay1.value + dgPlay2.value + " fx1on " + dgFx1On.value
-                + " s1 " + dgFx1Super.value.toFixed(3) + " s2 " + dgFx2Super.value.toFixed(3)
-                + " vol " + dgVol1.value.toFixed(2) + " gain " + dgGain1.value.toFixed(2) + " mute " + dgMute1.value
-                + " rate " + dgRate1.value.toFixed(3) + " eq " + dgEqLo1.value.toFixed(2) + "/" + dgEqMi1.value.toFixed(2) + "/" + dgEqHi1.value.toFixed(2)
-                + " pos " + dgPos1.value.toFixed(4))
-    }
 }

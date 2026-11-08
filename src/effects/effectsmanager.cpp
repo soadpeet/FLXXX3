@@ -30,8 +30,6 @@ const QString kEffectsXmlFile = QStringLiteral("effects.xml");
 } // anonymous namespace
 
 #ifdef __ANDROID__
-#include <android/log.h>
-
 namespace {
 // Owns the two controls of the Color FX and calls applyColorFx() (in the main
 // thread) when one of them changes.
@@ -175,8 +173,6 @@ void EffectsManager::applyColorFx() {
                         true);
             }
         }
-        __android_log_print(ANDROID_LOG_INFO, "mixxx-cfx", "applyColorFx %s: effect %d on %d",
-                pChain->group().toUtf8().constData(), index, enable ? 1 : 0);
         ControlObject::set(ConfigKey(pChain->group(), QStringLiteral("enabled")), enable ? 1.0 : 0.0);
     }
 }

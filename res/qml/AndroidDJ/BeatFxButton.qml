@@ -52,11 +52,6 @@ Rectangle {
     opacity: 0.92
 
     Mixxx.ControlProxy { id: enabledProxy; group: "[EffectRack1_EffectUnit1_Effect1]"; key: "enabled" }
-    // TEMP-DIAG: when does the Beat FX switch on / off?
-    Connections {
-        function onValueChanged() { Mixxx.AndroidStatus.log("beatfx enabled " + enabledProxy.value); }
-        target: enabledProxy
-    }
 
     Component.onCompleted: enableTimer.start()
     Timer {
