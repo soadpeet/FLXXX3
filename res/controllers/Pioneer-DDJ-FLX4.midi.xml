@@ -104,13 +104,13 @@
             </control>
 
             <control>
-                <description>PLAY/PAUSE (DECK1) - press - Play/Pause</description>
+                <description>PLAY/PAUSE (DECK1) - press - Play/Pause (start and stop time of VINYL SPEED ADJUST)</description>
                 <group>[Channel1]</group>
-                <key>play</key>
+                <key>PioneerDDJFLX4.playButton</key>
                 <status>0x90</status>
                 <midino>0x0B</midino>
                 <options>
-                    <Normal/>
+                    <Script-Binding/>
                 </options>
             </control>
             <control>
@@ -124,13 +124,13 @@
                 </options>
             </control>
             <control>
-                <description>PLAY/PAUSE (DECK2) - press - Play/Pause</description>
+                <description>PLAY/PAUSE (DECK2) - press - Play/Pause (start and stop time of VINYL SPEED ADJUST)</description>
                 <group>[Channel2]</group>
-                <key>play</key>
+                <key>PioneerDDJFLX4.playButton</key>
                 <status>0x91</status>
                 <midino>0x0B</midino>
                 <options>
-                    <Normal/>
+                    <Script-Binding/>
                 </options>
             </control>
             <control>

@@ -27,8 +27,8 @@ Item {
         { key: "longPressSec", area: "WINDOW", label: "LONG PRESS (TRACK MENU)", kind: "number", min: 0.2, max: 2, step: 0.1, fine: 0.05, decimals: 2, unit: "s", def: 0.5 },
         // ---- JOGWHEEL (controls of the engine, used by the FLX4 script) ----
         { key: "backspin_length", area: "JOGWHEEL", label: "BACK SPIN LENGTH", kind: "choice", choices: [{ t: "SHORT", v: 0 }, { t: "NORMAL", v: 1 }, { t: "LONG", v: 2 }], def: 1, control: true },
-        { key: "vinyl_stop_sec", area: "JOGWHEEL", label: "VINYL SPEED ADJUST - STOP (0 = OFF)", kind: "number", min: 0, max: 5, step: 0.1, fine: 0.01, decimals: 2, unit: "s", def: 0, control: true },
-        { key: "vinyl_start_sec", area: "JOGWHEEL", label: "VINYL SPEED ADJUST - START (0 = OFF)", kind: "number", min: 0, max: 5, step: 0.1, fine: 0.01, decimals: 2, unit: "s", def: 0, control: true },
+        { key: "vinyl_stop_sec", area: "JOGWHEEL", label: "VINYL SPEED ADJUST - STOP TIME (PLAY -> PAUSE, 0 = OFF)", kind: "number", min: 0, max: 5, step: 0.1, fine: 0.01, decimals: 2, unit: "s", def: 0, control: true },
+        { key: "vinyl_start_sec", area: "JOGWHEEL", label: "VINYL SPEED ADJUST - START TIME (PAUSE -> PLAY, 0 = OFF)", kind: "number", min: 0, max: 5, step: 0.1, fine: 0.01, decimals: 2, unit: "s", def: 0, control: true },
         // BACK SPIN depends on how hard the jog was turned (speeds in times of the normal speed of the wheel)
         { key: "backspin_sens", area: "JOGWHEEL", label: "BACK SPIN SENSITIVITY (START SPEED PER TURN SPEED)", kind: "number", min: 0.1, max: 3, step: 0.1, fine: 0.01, decimals: 2, unit: "x", def: 1, control: true },
         { key: "backspin_min_rate", area: "JOGWHEEL", label: "BACK SPIN: SLOWEST START SPEED", kind: "number", min: 0.5, max: 10, step: 0.5, fine: 0.1, decimals: 1, unit: "x", def: 2, control: true },

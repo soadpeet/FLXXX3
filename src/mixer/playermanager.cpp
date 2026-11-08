@@ -161,8 +161,7 @@ PlayerManager::PlayerManager(UserSettingsPointer pConfig,
                  JogControl{"backspin_min_rate", 2.0},
                  JogControl{"backspin_max_rate", 12.0},
                  JogControl{"backspin_last_speed", 0.0},
-                 JogControl{"backspin_last_rate", 0.0},
-                 JogControl{"jog_dbg", 0.0}}) {
+                 JogControl{"backspin_last_rate", 0.0}}) {
         m_jogControls.push_back(std::make_unique<ControlObject>(
                 ConfigKey(QStringLiteral("[AndroidDJ]"), QString::fromLatin1(jog.key)),
                 false,

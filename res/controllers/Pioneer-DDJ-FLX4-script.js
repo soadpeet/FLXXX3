@@ -730,6 +730,11 @@ PioneerDDJFLX4.loopButton = function(group, key, value) {
             return;
         }
         PioneerDDJFLX4.loopButtonForwarded[id] = true;
+        if (key === "loop_in") {
+            // A loop end that is left from an earlier loop and lies behind the new start would make
+            // IN start a long loop at once: clear it, IN only sets the start (-1 = no end).
+            engine.setValue(group, "loop_end_position", -1);
+        }
         engine.setValue(group, key, 1);
     } else if (PioneerDDJFLX4.loopButtonForwarded[id]) {
         PioneerDDJFLX4.loopButtonForwarded[id] = false;
@@ -935,12 +940,6 @@ PioneerDDJFLX4.jogTurn = function(channel, _control, value, _status, group) {
     }
 
     const jogState = PioneerDDJFLX4.jogState[channel];
-    if (jogState.braking && newVal !== 0) {
-        // turning the jog while it holds the slowed deck: scratch from here
-        jogState.braking = false;
-        PioneerDDJFLX4.stopJogRamp(channel);
-        engine.scratchEnable(deckNum, 720, 33+1/3, this.alpha, this.beta);
-    }
     if (engine.isScratching(deckNum)) {
         jogState.vel = jogState.vel * 0.6 + newVal * 0.4;
         jogState.time = Date.now();
@@ -960,13 +959,11 @@ PioneerDDJFLX4.jogSearch = function(_channel, _control, value, _status, group) {
 };
 
 // ---- JOGWHEEL settings (Android edition, menu JOGWHEEL on the screen) --------
-// VINYL SPEED ADJUST (TOUCH): touching the jog of a playing deck slows it down in
-// the set time instead of stopping it at once; releasing it (without turning it)
-// speeds it up again in that time. BACK SPIN: turning the jog fast backwards and
-// letting go spins the track back, then it plays on.
+// BACK SPIN: turning the jog fast backwards and letting go spins the track back, then it
+// plays on. (VINYL SPEED ADJUST, the start and stop time of PLAY, is at PioneerDDJFLX4.playButton.)
 PioneerDDJFLX4.jogState = [
-    {vel: 0, time: 0, braking: false, ramp: 0, watch: 0, wasPlaying: false, backspinning: false, samples: []},
-    {vel: 0, time: 0, braking: false, ramp: 0, watch: 0, wasPlaying: false, backspinning: false, samples: []}
+    {vel: 0, time: 0, braking: false, ramp: 0, watch: 0, wasPlaying: false, backspinning: false, samples: [], playRamp: ""},
+    {vel: 0, time: 0, braking: false, ramp: 0, watch: 0, wasPlaying: false, backspinning: false, samples: [], playRamp: ""}
 ];
 
 PioneerDDJFLX4.stopJogRamp = function(channel) {
@@ -1044,6 +1041,62 @@ PioneerDDJFLX4.startBackspin = function(channel, group, speedTimes) {
     });
 };
 
+// VINYL SPEED ADJUST: the time that the deck needs to start up when PLAY starts it (START) and
+// to slow down to a standstill when PLAY pauses it (STOP), like a turntable; 0 seconds = off
+// (plays or pauses at once). Time based ramp of the speed (scratch2), it always ends by itself.
+PioneerDDJFLX4.cancelPlayRamp = function(channel, group) {
+    const state = PioneerDDJFLX4.jogState[channel];
+    if (state.playRamp === "") { return; }
+    PioneerDDJFLX4.stopJogRamp(channel);
+    state.playRamp = "";
+    engine.setValue(group, "scratch2_enable", 0);
+};
+
+PioneerDDJFLX4.playButton = function(channel, _control, value, _status, group) {
+    if (value === 0) { return; } // only the press
+    const deckNum = channel + 1;
+    const state = PioneerDDJFLX4.jogState[channel];
+    const stopSeconds = engine.getValue("[AndroidDJ]", "vinyl_stop_sec");
+    const startSeconds = engine.getValue("[AndroidDJ]", "vinyl_start_sec");
+    if (state.playRamp === "stop") {
+        // pressed again while it slows down: it plays on at full speed
+        PioneerDDJFLX4.cancelPlayRamp(channel, group);
+        return;
+    }
+    if (state.playRamp === "start") {
+        // pressed again while it starts up: pause at once
+        PioneerDDJFLX4.cancelPlayRamp(channel, group);
+        engine.setValue(group, "play", 0);
+        return;
+    }
+    const rate = engine.getValue(group, "rate_ratio");
+    if (engine.getValue(group, "play") > 0) {
+        if (stopSeconds > 0 && !engine.isScratching(deckNum)) {
+            state.playRamp = "stop";
+            engine.setValue(group, "scratch2_enable", 1);
+            engine.setValue(group, "scratch2", rate);
+            PioneerDDJFLX4.rampJogSpeed(channel, group, rate, 0, stopSeconds, function() {
+                state.playRamp = "";
+                engine.setValue(group, "play", 0);
+                engine.setValue(group, "scratch2_enable", 0);
+            });
+        } else {
+            engine.setValue(group, "play", 0);
+        }
+    } else if (startSeconds > 0 && !engine.isScratching(deckNum)) {
+        state.playRamp = "start";
+        engine.setValue(group, "scratch2_enable", 1);
+        engine.setValue(group, "scratch2", 0);
+        engine.setValue(group, "play", 1);
+        PioneerDDJFLX4.rampJogSpeed(channel, group, 0, rate, startSeconds, function() {
+            state.playRamp = "";
+            engine.setValue(group, "scratch2_enable", 0);
+        });
+    } else {
+        engine.setValue(group, "play", 1);
+    }
+};
+
 PioneerDDJFLX4.jogTouch = function(channel, _control, value) {
     const deckNum = channel + 1;
     const group = "[Channel" + deckNum + "]";
@@ -1054,16 +1107,6 @@ PioneerDDJFLX4.jogTouch = function(channel, _control, value) {
         return;
     }
 
-    const stopSeconds = engine.getValue("[AndroidDJ]", "vinyl_stop_sec");
-    const startSeconds = engine.getValue("[AndroidDJ]", "vinyl_start_sec");
-    // TEMP-DIAG jog: what the touch sees (bits: 1 touch, 2 stop time set, 4 deck playing,
-    // 8 not scratching, 16 start time set); shown in ADVANCED SETTINGS -> JOGWHEEL.
-    engine.setValue("[AndroidDJ]", "jog_dbg", (value !== 0 ? 1 : 0) +
-        (stopSeconds > 0 ? 2 : 0) + (engine.getValue(group, "play") > 0 ? 4 : 0) +
-        (!engine.isScratching(deckNum) ? 8 : 0) + (startSeconds > 0 ? 16 : 0));
-    print("JOGDIAG ch=" + channel + " value=" + value + " stop=" + stopSeconds + " start=" + startSeconds +
-        " play=" + engine.getValue(group, "play") + " scratching=" + engine.isScratching(deckNum));
-
     if (value !== 0 && this.vinylMode) {
         state.vel = 0;
         state.samples = [];
@@ -1071,48 +1114,16 @@ PioneerDDJFLX4.jogTouch = function(channel, _control, value) {
             // touching the jog during a spin back: take over
             PioneerDDJFLX4.endBackspin(channel, group);
         }
+        // touching the jog ends a start or stop ramp of PLAY (the deck keeps playing)
+        PioneerDDJFLX4.cancelPlayRamp(channel, group);
         state.wasPlaying = engine.getValue(group, "play") > 0;
-        if (stopSeconds > 0 && state.wasPlaying && !engine.isScratching(deckNum)) {
-            // slow down in the set time (VINYL SPEED ADJUST, stop)
-            const startRate = engine.getValue(group, "rate_ratio");
-            engine.setValue(group, "scratch2_enable", 1);
-            engine.setValue(group, "scratch2", startRate);
-            state.braking = true;
-            PioneerDDJFLX4.rampJogSpeed(channel, group, startRate, 0, stopSeconds, null);
-            return;
-        }
         engine.scratchEnable(deckNum, 720, 33+1/3, this.alpha, this.beta);
     } else {
-        const target = engine.getValue(group, "rate_ratio");
-        if (state.braking) {
-            // let go without turning: speed up again (VINYL SPEED ADJUST, start)
-            state.braking = false;
-            const current = engine.getValue(group, "scratch2");
-            if (startSeconds > 0) {
-                PioneerDDJFLX4.rampJogSpeed(channel, group, current, target, startSeconds, function() {
-                    engine.setValue(group, "scratch2_enable", 0);
-                });
-            } else {
-                PioneerDDJFLX4.stopJogRamp(channel);
-                engine.setValue(group, "scratch2_enable", 0);
-            }
-            return;
-        }
         if (engine.isScratching(deckNum) &&
                 engine.getValue("[AndroidDJ]", "backspin_on") > 0 &&
                 state.wasPlaying &&
                 state.vel < -6 && Date.now() - state.time < 120) {
             PioneerDDJFLX4.startBackspin(channel, group, PioneerDDJFLX4.jogSpeedTimes(channel));
-            return;
-        }
-        if (engine.isScratching(deckNum) && startSeconds > 0 && state.wasPlaying) {
-            // after scratching: speed up in the set time
-            engine.scratchDisable(deckNum, false);
-            engine.setValue(group, "scratch2_enable", 1);
-            engine.setValue(group, "scratch2", 0);
-            PioneerDDJFLX4.rampJogSpeed(channel, group, 0, target, startSeconds, function() {
-                engine.setValue(group, "scratch2_enable", 0);
-            });
             return;
         }
         engine.scratchDisable(deckNum);

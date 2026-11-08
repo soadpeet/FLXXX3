@@ -106,7 +106,6 @@ Rectangle {
 
     Mixxx.ControlProxy { id: lastSpeed; group: "[AndroidDJ]"; key: "backspin_last_speed" }
     Mixxx.ControlProxy { id: lastRate; group: "[AndroidDJ]"; key: "backspin_last_rate" }
-    Mixxx.ControlProxy { id: jogDbg; group: "[AndroidDJ]"; key: "jog_dbg" }
 
     // ---- header ----
     Text {
@@ -289,13 +288,6 @@ Rectangle {
                 color: "#8a8a8a"
                 font.pixelSize: root.u * 1.0
                 text: "LAST BACK SPIN:  turned at " + Number(lastSpeed.value).toFixed(1) + " x normal speed  ->  started at " + Number(lastRate.value).toFixed(1) + " x"
-                visible: root.area === "JOGWHEEL"
-            }
-            // TEMP-DIAG: what the last touch of a jog wheel saw.
-            Text {
-                color: "#8a8a8a"
-                font.pixelSize: root.u * 1.0
-                text: "JOG TOUCH (DIAGNOSIS): " + (jogDbg.value & 1 ? "touch " : "release ") + (jogDbg.value & 2 ? "stop-time-set " : "stop-time-OFF ") + (jogDbg.value & 4 ? "playing " : "not-playing ") + (jogDbg.value & 8 ? "not-scratching " : "scratching ") + (jogDbg.value & 16 ? "start-time-set" : "start-time-OFF")
                 visible: root.area === "JOGWHEEL"
             }
             // Areas whose settings are still to come.

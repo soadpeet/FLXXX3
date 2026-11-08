@@ -87,8 +87,8 @@ Popup {
             // time, START = it speeds up again in this time (0 seconds = off).
             Repeater {
                 model: [
-                    { label: "VINYL SPEED ADJUST  -  STOP", index: 2 },
-                    { label: "VINYL SPEED ADJUST  -  START", index: 3 }
+                    { label: "VINYL SPEED ADJUST  -  STOP TIME (PLAY \u2192 PAUSE)", index: 2 },
+                    { label: "VINYL SPEED ADJUST  -  START TIME (PAUSE \u2192 PLAY)", index: 3 }
                 ]
 
                 Item {
