@@ -25,6 +25,7 @@ Pfade mit `*` sind neu (untracked) und brauchen `git add`. Dateien mit Hunks meh
 | L | **Beat FX** | `src/effects/backends/builtin/{builtinbackend,echoeffect,flangereffect,phasereffect}.{h,cpp}`, `src/effects/visibleeffectslist.cpp`, `src/effects/effectchain.{h,cpp}`, `src/engine/effects/{engineeffectchain.{h,cpp},message.h}`, `res/qml/AndroidDJ/{FxPanel,FxPresetBand}.qml` (in H-Ordner) | Delay, Ping Pong, feste Liste; Beat-Werte; Bandwahl LOW/MID/HI (Frequenzweiche in `EngineEffectChain`, Steuerwert `[EffectRackN_EffectUnitM],bands`) | Bandwahl als Feature denkbar |
 | M | **FLX4-Skript und -Mapping** | `res/controllers/Pioneer-DDJ-FLX4-script.js`, `res/controllers/Pioneer-DDJ-FLX4.midi.xml` | Tempo-Bereiche, Sync/MASTER, Beat-FX (ON/OFF-LED: 0x7F = Blinken, 0x00 = Leuchten), SHIFT+Browse = 10 Titel pro Schritt, LOOP IN/OUT (in einer aktiven Loop ohne Wirkung; IN setzt nur den Start, OUT setzt das Ende und erzeugt die Loop), RELOOP/EXIT (Loop verlassen oder neue 4-Beat-Loop), Loop setzt Cue | projektspezifisch |
 | N | **Paketierung** | `packaging/android/AndroidManifest.xml`, `packaging/android/res/drawable/ic_launcher_{background,foreground}.xml` | App-Name FLXXX3, Symbole; `profileable` ist entfernt | projektspezifisch |
+| O | **ADVANCED SETTINGS** | `res/qml/AdvSettings/`* (`AdvSettings.qml`, `qmldir`), `res/qml/AndroidDJ/{AdvancedSettings,UtilityMenu}.qml`, `src/soundio/soundmanager.h`, `src/soundio/soundmanagerconfig.cpp`, `src/qml/qmlandroidstatusproxy.cpp`, `src/library/rekordbox/rekordboxfeature.{h,cpp}`, `src/waveform/renderers/{waveformrenderersignalbase.cpp,allshader/waveformrenderer{filtered,rgb}.cpp}` | Feineinstellungen mit Presets: AUDIO (USB-Puffer, Samplerate, Master-Headroom), WAVEFORM (Zoom, Höhe, Beatgrid-Helligkeit), WINDOW (Zeiten), JOGWHEEL (Backspin, Vinyl-Stop/Start), START (Tempo-Bereich, Sticks automatisch oder auf Abruf lesen), INFO; Nachtmodus = Systemhelligkeit + Abdunklung; Medienlautstärke nur mit FLX4 auf Max | projektspezifisch |
 | – | **Dokumentation** | `docs/android-port/`* | Projektgedächtnis | nicht für Upstream |
 
 ## 2. Diagnose und Aufräumen
@@ -40,6 +41,8 @@ Noch zu prüfen (nicht angefasst):
 - Reste im FLX4-Skript: keine bekannt; Tempo-Regler eines Sync-Followers wird bewusst ignoriert (Pick-up nach Sync-Aus).
 
 ## 3. Bekannte Lücken
+- Stand 2026-11-08: Die Diagnose-Logs (Waveform SUM/NO-DRAW, Color FX, TRIM, `masterkey`, `STICKSCAN`) sind aus dem Quelltext entfernt (per Suche geprüft, nicht am Gerät); `androidopenslout.*` ist entfernt (Commit `e583d485ea`).
+- ADVANCED SETTINGS: USB-Puffer und Samplerate wirken erst nach einem Neustart; Master-Headroom ist eine feste Pegelabsenkung (Mixxx hat keinen Limiter); Beat-Grid-Helligkeit am Gerät nicht gesondert bestätigt.
 - Ordner-Schalter OFF/ACTIVE in SOURCE filtert die Tablet-Liste noch nicht pro Ordner (zeigt alle Titel, sobald ein Ordner aktiv ist).
 - BROWSE: PLAYLIST, FOLDER, HISTORY, GENRE, SEARCH, TAG LIST, Sortieren, TRACK FILTER fehlen.
 - Beat FX: Spiral, Helix, Trans fehlen; Filter ohne Tempo-Parameter; Bandweiche ist eine einfache Frequenzweiche (250 Hz / 2,5 kHz) ohne Latenzausgleich.

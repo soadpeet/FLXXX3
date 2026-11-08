@@ -180,3 +180,11 @@ Entscheidungen des Inhabers: **eine einzige Ansicht wie der RX3**, ersetzt die a
 - [EXPERIMENT, Nutzer] **Offen:** Erstes Laden eines Titels vom Stick: Waveform erscheint noch nach ca. 5 s (Analyse-Thread: Waveform + EBU R128 gemessen; fmod ersetzt, ReplayGain aus, **Nutzer: nicht schneller**). Zu klären: Titel aus „All…“ oder Rekordbox-Liste, `.EXT` vorhanden, ANLZ-Import wirksam.
 - Weitere offene Punkte: siehe Gedächtnisdatei `project_android_todo_2026-11-06.md` (Zoomstufen RX3, Hotcue/Memory-Cue-Optik, Waveform-Varianten, FLX4-Reglerabfrage, Utility-Funktionen, Ton-Versatz S25, Track-Zucken nach Laden).
 <!-- Ende KI-generierter Text -->
+
+<!-- KI-Disclaimer: Der folgende Abschnitt wurde autonom von einem KI-Agenten (Claude) erzeugt. -->
+## Sitzung 2026-11-08 (ADVANCED SETTINGS, Listen) – Stand Build `ui293`, Commit `0b3db5f058`
+- [CODE, Nutzer bestätigt] **ADVANCED SETTINGS fertig:** AUDIO (USB-Puffer 128–1024 Frames, Samplerate 44,1/48 kHz, beides erst nach Neustart; Master-Headroom 0–12 dB über `[Main],gain`), START (Tempo-Bereich, Standard 6 %; Sticks automatisch oder „ON REQUEST“ mit READ STICKS NOW), WAVEFORM (Höhe 0,5–1,5, Beat-Grid-Helligkeit). Puffer und Samplerate werden in `SoundManagerConfig` aus `[AndroidDJ]` gelesen (`adv_audio_buffer`, `adv_audio_rate`).
+- [CODE, Nutzer bestätigt] **Fehler behoben:** Die Waveform-Höhe war auf Android fest (0,9); `getGains()` und die Renderer (3BAND, RGB) übernehmen jetzt den Wert aus `gainAll`. Nachtmodus war bei dunkler Umgebung heller als NORMAL (feste 3 % Bildschirmhelligkeit) → jetzt Systemhelligkeit + schwarze Abdunklung 45 %. Die Medienlautstärke wird nur noch mit angeschlossenem FLX4 auf Max gehalten. Waveforms, Pinch und Rand-Buttons sind unter UTILITY/ADVANCED SETTINGS gesperrt.
+- [CODE] **Listen:** WAVEFORM ist ein Schalter unter „SHOW IN THE LIST“ (BROWSE und PLAYLIST); Kopfzeile und Trennstrich verschwinden mit der Waveform. Stick-Lesen auf Abruf: Schlüssel `stick_scan_request` wird alle 2 s in `checkRemovableVolumes` ausgewertet.
+- [Hinweis] Das Verhalten „ON REQUEST“ zeigte beim ersten Test keine Titel, beim zweiten ja; die Ursache blieb ungeklärt (Log-Ausgaben kamen nicht ins `logcat`). Beim nächsten Test wiederholen.
+<!-- Ende KI-generierter Text -->
