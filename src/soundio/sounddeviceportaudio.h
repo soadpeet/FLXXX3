@@ -9,7 +9,6 @@
 #include "control/pollingcontrolproxy.h"
 #include "soundio/sounddevice.h"
 #ifdef __ANDROID__
-#include "soundio/androidopenslout.h"
 #include "soundio/androidusbaudio.h"
 #endif
 #include "soundio/soundmanagerconfig.h"
@@ -68,11 +67,7 @@ class SoundDevicePortAudio : public SoundDevice {
 
     void makeStreamInactiveAndWait();
 #ifdef __ANDROID__
-    // Direct output for the DDJ-FLX4 (see AndroidOpenSLOutput, experiment, off by default). Returns false if
-    // it cannot be used; the PortAudio stream is opened then.
-    bool openAndroidDirect(int framesPerBuffer);
     bool openAndroidUsb(int framesPerBuffer);
-    std::unique_ptr<AndroidOpenSLOutput> m_pAndroidDirect;
     std::unique_ptr<AndroidUsbAudio> m_pAndroidUsb;
 #endif
 

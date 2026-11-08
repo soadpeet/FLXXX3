@@ -368,21 +368,11 @@ SoundDeviceStatus SoundDevicePortAudio::open(bool isClkRefDevice, int syncBuffer
     }
 
 #ifdef __ANDROID__
-    // EXPERIMENT (off): the FLX4 (4 output channels) with the same kind of
-    // stream as Rekordbox opens (DIRECT output). In the tests it was not faster
-    // (latency above 300 ms), so it is only used if the file
-    // ".../files/audio_direct" exists.
     // Own USB audio driver (libusb) for the DDJ-FLX4: the app is only used with
     // the FLX4, so this is the normal way to play the sound.
     if (isClkRefDevice && m_deviceTypeId == paOboe && pOutputParams &&
             m_outputParams.channelCount == 4 && !pInputParams &&
             openAndroidUsb(static_cast<int>(framesPerBuffer))) {
-        return SoundDeviceStatus::Ok;
-    }
-    if (QFile::exists(QStringLiteral("/sdcard/Android/data/org.mixxx/files/audio_direct")) &&
-            isClkRefDevice && m_deviceTypeId == paOboe && pOutputParams &&
-            m_outputParams.channelCount == 4 && !pInputParams &&
-            openAndroidDirect(static_cast<int>(framesPerBuffer))) {
         return SoundDeviceStatus::Ok;
     }
 #endif
@@ -460,7 +450,7 @@ SoundDeviceStatus SoundDevicePortAudio::open(bool isClkRefDevice, int syncBuffer
 
 bool SoundDevicePortAudio::isOpen() const {
 #ifdef __ANDROID__
-    if (m_pAndroidDirect || m_pAndroidUsb) {
+    if (m_pAndroidUsb) {
         return true;
     }
 #endif
@@ -492,35 +482,6 @@ bool SoundDevicePortAudio::openAndroidUsb(int framesPerBuffer) {
     ControlObject::set(
             ConfigKey(kAppGroup, QStringLiteral("output_latency_ms")),
             m_pAndroidUsb->latencyMs());
-    ControlObject::set(ConfigKey(kAppGroup, QStringLiteral("samplerate")), m_sampleRate);
-    m_invalidTimeInfoCount = 0;
-    return true;
-}
-
-bool SoundDevicePortAudio::openAndroidDirect(int framesPerBuffer) {
-    m_callbackResult.store(paContinue, std::memory_order_release);
-    m_clkRefTimer.start();
-    const int sampleRate = static_cast<int>(m_sampleRate.value());
-    auto pOutput = std::make_unique<AndroidOpenSLOutput>(sampleRate,
-            m_outputParams.channelCount,
-            framesPerBuffer,
-            [this, sampleRate](float* out, int frames) {
-                PaStreamCallbackTimeInfo timeInfo{};
-                const double now = std::chrono::duration<double>(
-                        std::chrono::steady_clock::now().time_since_epoch())
-                                           .count();
-                timeInfo.currentTime = now;
-                timeInfo.outputBufferDacTime = now + static_cast<double>(frames) / sampleRate;
-                const int result = callbackProcessClkRef(frames, out, nullptr, &timeInfo, 0);
-                return result == paContinue;
-            });
-    if (!pOutput->open()) {
-        return false;
-    }
-    m_pAndroidDirect = std::move(pOutput);
-    ControlObject::set(
-            ConfigKey(kAppGroup, QStringLiteral("output_latency_ms")),
-            m_pAndroidDirect->latencyMs());
     ControlObject::set(ConfigKey(kAppGroup, QStringLiteral("samplerate")), m_sampleRate);
     m_invalidTimeInfoCount = 0;
     return true;
@@ -573,15 +534,6 @@ SoundDeviceStatus SoundDevicePortAudio::close() {
         m_callbackResult.store(paAbort, std::memory_order_release);
         m_pAndroidUsb->close();
         m_pAndroidUsb.reset();
-        m_outputFifo.reset();
-        m_inputFifo.reset();
-        m_bSetThreadPriority = false;
-        return SoundDeviceStatus::Ok;
-    }
-    if (m_pAndroidDirect) {
-        m_callbackResult.store(paAbort, std::memory_order_release);
-        m_pAndroidDirect->close();
-        m_pAndroidDirect.reset();
         m_outputFifo.reset();
         m_inputFifo.reset();
         m_bSetThreadPriority = false;

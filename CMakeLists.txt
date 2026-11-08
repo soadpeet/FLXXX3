@@ -1603,7 +1603,6 @@ add_library(
   src/soundio/sounddevice.cpp
   src/soundio/sounddevicenetwork.cpp
   src/soundio/sounddeviceportaudio.cpp
-  src/soundio/androidopenslout.cpp
   src/soundio/androidusbaudio.cpp
   src/soundio/soundmanager.cpp
   src/soundio/soundmanagerconfig.cpp

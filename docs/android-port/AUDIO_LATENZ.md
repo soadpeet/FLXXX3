@@ -21,7 +21,7 @@
 - In der eigenen Binärdatei sind `SL_IID_*`-Variablen aus einer statischen Bibliothek definiert (Wert ungültig für das System); die IDs müssen per `dlsym` aus `libOpenSLES.so` geholt werden (siehe `androidopenslout.cpp`).
 
 ## Stand im Code
-- `src/soundio/androidopenslout.{h,cpp}` + Einbindung in `sounddeviceportaudio.cpp` (`openAndroidDirect`): **Experiment, nur aktiv, wenn die Datei `/sdcard/Android/data/org.mixxx/files/audio_direct` existiert** (Pufferzahl: Datei `audio_bufs`).
+- Das OpenSL-ES-Experiment (`androidopenslout.{h,cpp}`, `openAndroidDirect`, Datei `audio_direct`) wurde **am 2026-11-08 aus dem Code entfernt** (Ergebnis siehe Tabelle: Latenz ~270 ms oder Stottern); der eigene USB-Audiotreiber (`androidusbaudio.*`) hat die Latenz gelöst.
 - UTILITY → AUDIO OUTPUT: „FAST, NO CUE“ (Stereo, MMAP) oder „WITH CUE“ (Standard), gilt nach Neustart (`[AndroidDJ] audioStereo`).
 
 - Mit zeitgesteuerter Lieferung (nur CPU-Uhr) wächst der Track-Puffer, weil der DIRECT-Thread erst verzögert zu lesen beginnt; mit Positionsrückkopplung bleibt er bei ~2048, die Positionsauflösung ist aber grob (DIRECT-Thread liest 3840-Frame-Blöcke), und der Ton stottert.
