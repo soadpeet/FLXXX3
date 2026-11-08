@@ -290,6 +290,13 @@ Rectangle {
                 text: "LAST BACK SPIN:  turned at " + Number(lastSpeed.value).toFixed(1) + " x normal speed  ->  started at " + Number(lastRate.value).toFixed(1) + " x"
                 visible: root.area === "JOGWHEEL"
             }
+            // START: read the sticks that are plugged in now (for READ REKORDBOX STICKS = ON REQUEST).
+            Btn {
+                text: "READ STICKS NOW"
+                visible: root.area === "START"
+                width: root.u * 16
+                onClicked: Mixxx.Config.setAndroidSetting("stick_scan_request", "1")
+            }
             // Areas whose settings are still to come.
             Text {
                 color: "#8a8a8a"

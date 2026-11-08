@@ -1,4 +1,5 @@
 import "../" as Skin
+import "../AdvSettings"
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import "." as DJ
@@ -75,6 +76,11 @@ Rectangle {
     signal timeModeToggled
 
     Component.onCompleted: {
+        // Fixed start range from ADVANCED SETTINGS > START (0 = the one used last).
+        if (AdvSettings.values.startTempoRange > 0) {
+            rateRangeControl.value = AdvSettings.values.startTempoRange;
+            return;
+        }
         // Start with one of the four steps (the saved range may be anything).
         for (let i = 0; i < tempoRanges.length; ++i) {
             if (Math.abs(tempoRanges[i] - rateRangeControl.value) < 0.005) {

@@ -1473,12 +1473,12 @@ Rectangle {
                     font.bold: true
                     font.pixelSize: Math.round(17 * root.s)
                     height: Math.round(44 * root.s)
-                    text: "WAVEFORM"
+                    text: "WAVEFORM SIZE"
                     verticalAlignment: Text.AlignVCenter
                     width: Math.round(170 * root.s)
                 }
                 Repeater {
-                    model: [{"t": "OFF", "v": 0}, {"t": "SMALL", "v": 90}, {"t": "MEDIUM", "v": 150}, {"t": "LARGE", "v": 220}]
+                    model: [{"t": "SMALL", "v": 90}, {"t": "MEDIUM", "v": 150}, {"t": "LARGE", "v": 220}]
 
                     SButton {
                         required property var modelData
@@ -1503,14 +1503,27 @@ Rectangle {
                 width: parent.width
 
                 Repeater {
-                    model: ["Artist", "Album", "Year", "Bpm", "Key", "Stars", "File Type", "Bitrate"]
+                    model: ["Waveform", "Artist", "Album", "Year", "Bpm", "Key", "Stars", "File Type", "Bitrate"]
 
                     SButton {
                         required property string modelData
 
-                        active: trackList.hiddenColumns.indexOf(modelData) < 0
+                        active: modelData === "Waveform" ? trackList.waveWidth > 0 : trackList.hiddenColumns.indexOf(modelData) < 0
                         text: modelData.toUpperCase()
-                        onClicked: trackList.toggleColumn(modelData)
+                        onClicked: {
+                            if (modelData === "Waveform") {
+                                // on: the width chosen last (MEDIUM when none), off: width 0
+                                if (trackList.waveWidth > 0) {
+                                    trackList.lastWaveWidth = trackList.waveWidth;
+                                    trackList.waveWidth = 0;
+                                } else {
+                                    trackList.waveWidth = trackList.lastWaveWidth > 0 ? trackList.lastWaveWidth : 150;
+                                }
+                                trackList.saveView();
+                            } else {
+                                trackList.toggleColumn(modelData);
+                            }
+                        }
                     }
                 }
             }

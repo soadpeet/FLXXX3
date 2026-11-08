@@ -97,7 +97,8 @@ bool WaveformRendererRGB::preprocessInner() {
     float highGain = 1.0f;
     getGains(&allGain, &lowGain, &midGain, &highGain);
 #ifdef __ANDROID__
-    allGain = trackAutoGain(waveform.data(), dataSize) * 1.25f; // same height as the Rekordbox look
+    // same height as the Rekordbox look, times ADVANCED SETTINGS > WAVEFORM HEIGHT (0.9 * scale)
+    allGain = trackAutoGain(waveform.data(), dataSize) * 1.25f * (allGain / 0.9f);
 #endif
 
     const float breadth = static_cast<float>(m_waveformRenderer->getBreadth());

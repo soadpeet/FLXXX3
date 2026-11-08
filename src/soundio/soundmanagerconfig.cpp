@@ -332,6 +332,16 @@ mixxx::audio::SampleRate SoundManagerConfig::getSampleRate() const {
 }
 
 void SoundManagerConfig::setSampleRate(mixxx::audio::SampleRate sampleRate) {
+#ifdef __ANDROID__
+    // ADVANCED SETTINGS > AUDIO: 44.1 or 48 kHz, read when the app starts.
+    if (m_pSoundManager) {
+        const unsigned int rate = m_pSoundManager->androidUintSetting(
+                QStringLiteral("adv_audio_rate"));
+        if (rate == 44100 || rate == 48000) {
+            sampleRate = mixxx::audio::SampleRate(rate);
+        }
+    }
+#endif
     // making sure we don't divide by zero elsewhere
     m_sampleRate = sampleRate.isValid() ? sampleRate : kFallbackSampleRate;
 }
@@ -461,6 +471,14 @@ unsigned int SoundManagerConfig::getFramesPerBuffer() const {
         if (idx.open(QIODevice::ReadOnly)) {
             const unsigned int v = idx.readAll().trimmed().toUInt();
             if (v >= 1 && v <= 7) {
+                audioBufferSizeIndex = v;
+            }
+        }
+        // ADVANCED SETTINGS > AUDIO (2 = 128 frames ... 5 = 1024 frames at 48 kHz)
+        if (m_pSoundManager) {
+            const unsigned int v = m_pSoundManager->androidUintSetting(
+                    QStringLiteral("adv_audio_buffer"));
+            if (v >= 2 && v <= 5) {
                 audioBufferSizeIndex = v;
             }
         }

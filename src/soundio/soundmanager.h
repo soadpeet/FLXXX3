@@ -70,6 +70,14 @@ class SoundManager : public QObject {
     // Android edition (UTILITY > AUDIO OUTPUT): only the main output (stereo)
     // is opened. Android then offers the low latency path, but the headphone
     // cue of the controller is silent.
+    // Android edition (ADVANCED SETTINGS > AUDIO): value saved in group [AndroidDJ]
+    // (0 = not set).
+    unsigned int androidUintSetting(const QString& key) const {
+        return m_pConfig
+                ->getValue(ConfigKey(QStringLiteral("[AndroidDJ]"), key),
+                        QStringLiteral("0"))
+                .toUInt();
+    }
     bool androidStereoOnly() const {
         return m_pConfig->getValue(ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("audioStereo")),
                        QStringLiteral("0")) == QStringLiteral("1");

@@ -3,6 +3,7 @@ import Mixxx 1.0 as Mixxx
 import Mixxx.Controls 1.0 as MixxxControls
 import QtQuick 2.12
 import "Theme"
+import "AdvSettings"
 
 Item {
     id: root
@@ -21,7 +22,7 @@ Item {
     // the legacy preferences dialog can recreate that stack explicitly.
     property int renderedWaveformType: -1
     // Android edition: fixed gain (the waveform data is already normalised).
-    readonly property real visualGain: Qt.platform.os === "android" ? 1.0 : Mixxx.Config.waveformVisualGainAll
+    readonly property real visualGain: Qt.platform.os === "android" ? AdvSettings.values.waveGain : Mixxx.Config.waveformVisualGainAll
     readonly property string zoomGroup: Mixxx.Config.waveformZoomSynchronization ? "[Channel1]" : group
 
     Connections {
@@ -161,7 +162,7 @@ Item {
             splitStemTracks: root.splitStemTracks || Mixxx.Config.waveformStemSplitTracks
         }
         Mixxx.WaveformRendererBeat {
-            color: Qt.rgba(161 / 255, 161 / 255, 161 / 255, Mixxx.Config.waveformBeatGridAlpha / 100)
+            color: Qt.rgba(161 / 255, 161 / 255, 161 / 255, (Qt.platform.os === "android" ? AdvSettings.values.beatGridAlpha : Mixxx.Config.waveformBeatGridAlpha) / 100)
         }
         Mixxx.WaveformRendererMark {
             playMarkerBackground: '#D9D9D9'

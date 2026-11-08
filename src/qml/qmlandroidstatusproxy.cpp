@@ -101,9 +101,14 @@ void QmlAndroidStatusProxy::readBattery() {
 
 // The output of Mixxx must not depend on the phone's media volume (Android
 // applies it in software to USB audio devices): while the app is in the
-// foreground the music volume is kept at the maximum.
+// foreground and the controller is connected the music volume is kept at the maximum.
 void QmlAndroidStatusProxy::keepMaxVolume() {
     if (QGuiApplication::applicationState() != Qt::ApplicationActive) {
+        return;
+    }
+    // Without the controller the tablet speaker / headphones are used: the user's
+    // volume stays as it is.
+    if (!m_controllerConnected) {
         return;
     }
     constexpr jint kStreamMusic = 3;

@@ -58,6 +58,8 @@ Rectangle {
     // Android edition: look of the list (SETTINGS gear in BROWSE), saved on the device.
     property int rowHeight: 54
     property int waveWidth: 150
+    // The width before the waveform was switched off (SHOW IN THE LIST > WAVEFORM).
+    property int lastWaveWidth: 150
     property var hiddenColumns: ["Album", "Year", "File Type", "Bitrate"]
     // Key of the saved list settings: BROWSE and PLAYLIST each have their own.
     property string viewKey: "list_view"
@@ -525,7 +527,7 @@ Rectangle {
                     top: parent.top
                 }
                 color: Theme.darkGray2
-                visible: column.split
+                visible: column.split && root.waveWidth > 0
                 width: 1
             }
             Rectangle {
@@ -553,7 +555,7 @@ Rectangle {
                 height: parent.height
                 text: "Waveform"
                 verticalAlignment: Text.AlignVCenter
-                visible: column.split
+                visible: column.split && root.waveWidth > 0
                 x: column.numEnd + 6
             }
             Rectangle {

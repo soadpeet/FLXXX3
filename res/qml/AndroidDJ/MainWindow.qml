@@ -186,7 +186,7 @@ Item {
     Mixxx.ControlProxy { id: brightnessProxy; group: "[AndroidDJ]"; key: "brightness" }
     function applyBrightness() {
         const level = Math.round(brightnessProxy.value);
-        Mixxx.AndroidStatus.setScreenBrightness(level === 0 ? 0.03 : (level === 2 ? 1.0 : -1.0));
+        Mixxx.AndroidStatus.setScreenBrightness(level === 2 ? 1.0 : -1.0);
     }
     Connections {
         function onValueChanged() {
@@ -197,7 +197,7 @@ Item {
         target: brightnessProxy
     }
     Component.onCompleted: {
-        masterGainProxy.value = 1.0;
+        masterGainProxy.value = Math.pow(10, -(AdvSettings.values.headroom || 0) / 20);
         // Waveform zoom: only when ADVANCED SETTINGS changed it from the factory value (otherwise the
         // zoom of the last session stays).
         if (AdvSettings.values.zoomStart !== AdvSettings.definition("zoomStart").def) {
@@ -400,6 +400,8 @@ Item {
             Skin.WaveformDisplay {
                 required property int index
 
+                // No touches for the waveforms below UTILITY / ADVANCED SETTINGS.
+                enabled: !root.advancedOpen && !root.utilityOpen
                 group: "[Channel" + (index + 1) + "]"
                 height: root.waveformHeight
                 width: parent.width
@@ -412,6 +414,7 @@ Item {
 
             property real startZoom: 3
 
+            enabled: !root.advancedOpen && !root.utilityOpen
             maximumPointCount: 2
             minimumPointCount: 2
             target: null
@@ -450,6 +453,7 @@ Item {
         color: jogTap.pressed ? "#3a3a3a" : "#202020"
         height: root.waveformHeight
         // solid: the waveform behind must not shine through
+        enabled: !root.advancedOpen && !root.utilityOpen
         opacity: 1.0
         width: Math.max(28, Math.round(root.width * 0.034))
         z: 20
@@ -492,6 +496,7 @@ Item {
         color: brightnessTap.pressed ? "#3a3a3a" : "#202020"
         height: root.waveformHeight
         // solid: the waveform behind must not shine through
+        enabled: !root.advancedOpen && !root.utilityOpen
         opacity: 1.0
         width: Math.max(28, Math.round(root.width * 0.034))
         z: 20
@@ -828,7 +833,16 @@ Item {
         event.accepted = true;
         quitDialog.open();
     }
-    // NIGHT: warm orange tint over everything (touches pass through).
+    // NIGHT: the system brightness (never brighter than NORMAL, even when the system is
+    // already at its dimmest in the dark) with a dark layer and a warm orange tint over everything
+    // (touches pass through).
+    Rectangle {
+        anchors.fill: parent
+        z: 9999
+        color: "#000000"
+        opacity: Math.round(brightnessProxy.value) === 0 ? 0.45 : 0
+        visible: opacity > 0
+    }
     Rectangle {
         anchors.fill: parent
         z: 10000

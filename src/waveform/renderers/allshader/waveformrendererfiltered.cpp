@@ -92,7 +92,8 @@ bool WaveformRendererFiltered::preprocessInner() {
 #ifdef __ANDROID__
     // Built from the 3-band waveform of Rekordbox: real band levels.
     const bool threeBand = rekordbox3band::isMarked(waveform.data());
-    allGain = trackAutoGain(waveform.data(), dataSize, threeBand);
+    // ADVANCED SETTINGS > WAVEFORM HEIGHT arrives as 0.9 * scale from getGains().
+    allGain = trackAutoGain(waveform.data(), dataSize, threeBand) * (allGain / 0.9f);
 #endif
 
     const float breadth = static_cast<float>(m_waveformRenderer->getBreadth());

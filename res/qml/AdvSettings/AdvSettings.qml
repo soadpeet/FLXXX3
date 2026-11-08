@@ -16,7 +16,16 @@ Item {
 
     // kind: "number" (min, max, step, fine, decimals, unit) or "choice" (choices: [{t, v}])
     readonly property var defs: [
+        // ---- AUDIO (buffer and sample rate are read when the app starts: restart needed) ----
+        { key: "audioBuffer", area: "AUDIO", label: "USB AUDIO BUFFER (RESTART NEEDED)", kind: "choice", choices: [{ t: "128 (2.7 ms)", v: 2 }, { t: "256 (5.3 ms)", v: 3 }, { t: "512 (10.7 ms)", v: 4 }, { t: "1024 (21 ms)", v: 5 }], def: 3, mirror: "adv_audio_buffer" },
+        { key: "audioRate", area: "AUDIO", label: "SAMPLE RATE (RESTART NEEDED)", kind: "choice", choices: [{ t: "44.1 kHz", v: 44100 }, { t: "48 kHz", v: 48000 }], def: 48000, mirror: "adv_audio_rate" },
+        { key: "headroom", area: "AUDIO", label: "MASTER HEADROOM (LOWERS THE MASTER OUTPUT)", kind: "number", min: 0, max: 12, step: 0.5, fine: 0.1, decimals: 1, unit: "dB", def: 0 },
+        // ---- START (values the app starts with) ----
+        { key: "stickAuto", area: "START", label: "READ REKORDBOX STICKS", kind: "choice", choices: [{ t: "AUTOMATIC", v: 1 }, { t: "ON REQUEST", v: 0 }], def: 1, mirror: "adv_stick_auto" },
+        { key: "startTempoRange", area: "START", label: "TEMPO RANGE AT START", kind: "choice", choices: [{ t: "LAST USED", v: 0 }, { t: "6%", v: 0.06 }, { t: "10%", v: 0.10 }, { t: "16%", v: 0.16 }, { t: "WIDE", v: 1.0 }], def: 0.06 },
         // ---- WAVEFORM ----
+        { key: "waveGain", area: "WAVEFORM", label: "WAVEFORM HEIGHT (SCALE)", kind: "number", min: 0.5, max: 1.5, step: 0.05, fine: 0.01, decimals: 2, unit: "x", def: 1 },
+        { key: "beatGridAlpha", area: "WAVEFORM", label: "BEAT GRID LINES BRIGHTNESS", kind: "number", min: 0, max: 100, step: 5, fine: 1, decimals: 0, unit: "%", def: 90 },
         { key: "zoomStart", area: "WAVEFORM", label: "ZOOM AFTER START", kind: "number", min: 0.3, max: 30, step: 0.5, fine: 0.1, decimals: 1, unit: "", def: 3 },
         { key: "zoomMin", area: "WAVEFORM", label: "ZOOM LIMIT: MOST DETAIL", kind: "number", min: 0.1, max: 5, step: 0.1, fine: 0.05, decimals: 2, unit: "", def: 0.3 },
         { key: "zoomMax", area: "WAVEFORM", label: "ZOOM LIMIT: MOST OVERVIEW", kind: "number", min: 5, max: 60, step: 1, fine: 0.5, decimals: 1, unit: "", def: 30 },
@@ -85,6 +94,18 @@ Item {
                 own[d.key] = root.values[d.key];
         });
         Mixxx.Config.setAndroidSetting("adv_values", JSON.stringify(own));
+        root.defs.forEach(d => {
+            if (d.mirror)
+                Mixxx.Config.setAndroidSetting(d.mirror, String(root.values[d.key]));
+        });
+        root.applyHeadroom();
+    }
+    // Master headroom: a fixed gain below 0 dB on the master output.
+    function applyHeadroom() {
+        const db = root.values.headroom;
+        if (db === undefined)
+            return;
+        pMasterGain.value = Math.pow(10, -db / 20);
     }
     function set(key, value) {
         const d = root.definition(key);
@@ -159,6 +180,12 @@ Item {
 
     data: [
         Mixxx.ControlProxy {
+            id: pMasterGain
+
+            group: "[Main]"
+            key: "gain"
+        },
+        Mixxx.ControlProxy {
             id: pBackspinLength
 
             group: "[AndroidDJ]"
@@ -222,6 +249,7 @@ Item {
             }
         });
         root.values = v;
+        root.applyHeadroom();
         try {
             const list = JSON.parse(Mixxx.Config.androidSetting("adv_presets", "[]"));
             if (Array.isArray(list))

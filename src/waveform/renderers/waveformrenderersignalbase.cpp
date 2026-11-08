@@ -168,7 +168,7 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
         // Android edition: fixed height. The tracks are normalised beforehand,
         // so the loudest points reach just below the beat ticks (5 % of the
         // height at the top and at the bottom).
-        *pAllGain = 0.9f;
+        *pAllGain = 0.9f * static_cast<float>(m_allChannelVisualGain);
 #else
         *pAllGain = static_cast<CSAMPLE_GAIN>(
                             m_waveformRenderer->getGain()) *

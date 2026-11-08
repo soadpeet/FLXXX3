@@ -106,6 +106,7 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
     QSet<QString> m_mountedVolumes;
     bool m_volumesChecked = false;
     bool m_silentParse = false;
+    bool m_manualScan = false;
     bool m_shown = false;
     QString m_devicePlaylist;
     QStringList m_devicePlaylists;

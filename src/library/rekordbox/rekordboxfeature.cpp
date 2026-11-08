@@ -1954,6 +1954,14 @@ RekordboxFeature::RekordboxFeature(
 
 #ifdef __ANDROID__
 void RekordboxFeature::checkRemovableVolumes() {
+    // ADVANCED SETTINGS > START > READ STICKS: with "ON REQUEST" a stick is only read after
+    // the READ STICKS NOW button (it sets this key).
+    const ConfigKey scanRequest(QStringLiteral("[AndroidDJ]"), QStringLiteral("stick_scan_request"));
+    if (m_pConfig && m_pConfig->getValue(scanRequest, QStringLiteral("0")) == QStringLiteral("1")) {
+        m_pConfig->setValue(scanRequest, QStringLiteral("0"));
+        m_manualScan = true;
+        parseNextDevice();
+    }
     QSet<QString> mounted;
     for (const QStorageInfo& volume : QStorageInfo::mountedVolumes()) {
         const QString root = volume.rootPath();
@@ -2008,6 +2016,13 @@ void RekordboxFeature::parseNextDevice() {
     if (m_silentParse || m_tracksFuture.isRunning()) {
         return;
     }
+    const bool autoRead = !m_pConfig ||
+            m_pConfig->getValue(ConfigKey(QStringLiteral("[AndroidDJ]"),
+                                        QStringLiteral("adv_stick_auto")),
+                    QStringLiteral("1")) != QStringLiteral("0");
+    if (!autoRead && !m_manualScan) {
+        return;
+    }
     TreeItem* root = m_pSidebarModel->getRootItem();
     for (int i = 0; i < root->childRows(); ++i) {
         TreeItem* pDevice = root->child(i);
@@ -2023,6 +2038,8 @@ void RekordboxFeature::parseNextDevice() {
             return;
         }
     }
+    // Nothing left to read: the next request starts again.
+    m_manualScan = false;
 }
 
 // One list with the tracks of all sticks that are plugged in.
