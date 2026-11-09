@@ -9,6 +9,7 @@
 #include <QtDebug>
 #include <QtGlobal>
 #include <cstdio>
+#include <cstdlib>
 #include <memory>
 #include <stdexcept>
 
@@ -329,5 +330,12 @@ int main(int argc, char * argv[]) {
 
     mixxx::Logging::shutdown();
 
+#ifdef __ANDROID__
+    // Android edition: Mixxx and its settings are shut down at this point. Destroying the
+    // Qt application objects afterwards crashed (SIGSEGV in ~QGuiApplicationPrivate, in 4 of
+    // 8 crash reports of 2026-11-06/08) and the system showed it as an app crash. Leave
+    // the process without that last cleanup.
+    std::_Exit(exitCode);
+#endif
     return exitCode;
 }

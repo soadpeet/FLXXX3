@@ -52,7 +52,7 @@ Item {
 
         anchors.fill: parent
         backgroundColor: "transparent"
-        frameRate: Mixxx.Config.waveformFrameRate
+        frameRate: Qt.platform.os === "android" ? AdvSettings.values.waveFps : Mixxx.Config.waveformFrameRate
         group: root.group
         options: Qt.platform.os === "android" ? Mixxx.WaveformDisplay.Option.None : Mixxx.Config.waveformOptions
         visible: Mixxx.Config.waveformEnabled

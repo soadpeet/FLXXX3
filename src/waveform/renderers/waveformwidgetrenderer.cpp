@@ -1,4 +1,10 @@
 #include "waveform/renderers/waveformwidgetrenderer.h"
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <chrono>
+#include <cmath>
+#include <map>
+#endif
 
 #include <QPainter>
 #include <QPainterPath>
@@ -205,6 +211,47 @@ void WaveformWidgetRenderer::onPreRender(VSyncTimeProvider* vsyncThread) {
     m_visualPlayPosition->getPlaySlipAtNextVSync(vsyncThread,
             truePos + ::WaveformRendererAbstract::Play,
             truePos + ::WaveformRendererAbstract::Slip);
+#endif
+#ifdef __ANDROID__
+    // TEMP-DIAG9 (remove before commit): smoothness of the waveform position, per renderer.
+    {
+        struct Diag {
+            double lastPos = -1, lastT = 0, accStart = 0;
+            int n = 0, longGaps = 0, same = 0;
+            double sumDt = 0, maxDt = 0, sumDp = 0, sumDp2 = 0, maxDp = 0, minDp = 1e18;
+        };
+        static thread_local std::map<const void*, Diag> diags;
+        Diag& d = diags[this];
+        const double t = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now().time_since_epoch()).count();
+        if (d.lastPos >= 0 && t - d.lastT < 200) {
+            const double dt = t - d.lastT;
+            const double dp = truePos[0] - d.lastPos;
+            ++d.n;
+            d.sumDt += dt;
+            d.maxDt = std::max(d.maxDt, dt);
+            if (dt > 25.0) ++d.longGaps;
+            d.sumDp += dp;
+            d.sumDp2 += dp * dp;
+            d.maxDp = std::max(d.maxDp, dp);
+            d.minDp = std::min(d.minDp, dp);
+            if (dp == 0.0) ++d.same;
+        }
+        d.lastPos = truePos[0];
+        d.lastT = t;
+        if (d.accStart == 0) d.accStart = t;
+        if (t - d.accStart > 5000 && d.n > 10) {
+            const double mean = d.sumDp / d.n;
+            const double sd = std::sqrt(std::max(0.0, d.sumDp2 / d.n - mean * mean));
+            __android_log_print(ANDROID_LOG_INFO, "mixxx-wf",
+                    "SMOOTH %s n=%d dt avg %.1f max %.1f ms gaps>25ms %d | dpos avg %.0f sd %.0f min %.0f max %.0f same %d",
+                    m_group.toUtf8().constData(), d.n, d.sumDt / d.n, d.maxDt, d.longGaps, mean, sd, d.minDp, d.maxDp, d.same);
+            d = Diag();
+            d.accStart = t;
+            d.lastPos = truePos[0];
+            d.lastT = t;
+        }
+    }
 #endif
     // truePlayPos = -1 happens, when a new track is in buffer but m_visualPlayPosition was not updated
 

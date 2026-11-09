@@ -22,6 +22,8 @@ Item {
     // Android edition (BROWSE screen like the XDJ-RX3): name of the shown source
     // (stick or tablet), set by the main window.
     property string sourceTitle: ""
+    // Android edition: folders of the tablet that are shown (empty = no folder filter).
+    property var folderFilter: []
     readonly property bool touchUi: Qt.platform.os === "android"
     // Android edition: shown screen (BROWSE, PLAYLIST, SEARCH, TAG LIST, set by the
     // main window) and the lists that the app keeps (tag list, history, my lists).

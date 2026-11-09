@@ -169,6 +169,22 @@ Rectangle {
         const other = m[2] === "A" ? "B" : "A";
         return [n + m[2], up + m[2], down + m[2], n + other];
     }
+    // Runs a search; in BROWSE and SEARCH only the ACTIVE folders of the tablet are shown (the
+    // search syntax has no brackets: every OR part gets its own copy of the folder condition).
+    function runSearch(text) {
+        if (!root.tracklist)
+            return;
+        const folders = root.library.folderFilter || [];
+        if ((root.mode !== "BROWSE" && root.mode !== "SEARCH") || folders.length === 0) {
+            root.tracklist.search(text);
+            return;
+        }
+        const parts = String(text).split(" | ");
+        const groups = [];
+        folders.forEach(path => parts.forEach(part =>
+            groups.push((part.trim() + " lo:\"" + String(path).replace(/\/+$/, "").replace(/"/g, "") + "/\"").trim())));
+        root.tracklist.search(groups.join(" | "));
+    }
     // The search text for the filter; the OR parts of the search syntax carry the keys
     // (the syntax has no brackets, so every key gets its own copy of the other conditions).
     function buildSearch() {
@@ -200,7 +216,7 @@ Rectangle {
         interval: 350
         onTriggered: {
             if (root.tracklist && root.tracksVisible) {
-                root.tracklist.search(root.buildSearch());
+                root.runSearch(root.buildSearch());
                 // The search drops the chosen sorting: apply it again.
                 if (root.sortColumn >= 0)
                     root.tracklist.sort(root.sortColumn, root.sortOrder);
@@ -242,7 +258,7 @@ Rectangle {
         root.drillValue = "";
         root.baseSearch = "";
         if (root.tracklist) {
-            root.tracklist.search(name === "TRACK" ? root.buildSearch() : "");
+            root.runSearch(name === "TRACK" ? root.buildSearch() : "");
             if (root.categoryDistinct[name] !== undefined) {
                 root.values = root.tracklist.distinctField(root.categoryDistinct[name]);
                 // STARS: five stars first
@@ -265,7 +281,7 @@ Rectangle {
             } else {
                 root.baseSearch = field + ":\"" + value + "\"";
             }
-            root.tracklist.search(root.buildSearch());
+            root.runSearch(root.buildSearch());
         }
     }
     // Index of the column with this label in the model (the hidden cover column in front
@@ -389,7 +405,7 @@ Rectangle {
         const parts = root.terms.slice();
         if (root.input.trim() !== "")
             parts.push(root.input.trim());
-        root.tracklist.search(parts.join(" "));
+        root.runSearch(parts.join(" "));
     }
 
     // ---------------- BACK ----------------
@@ -398,7 +414,7 @@ Rectangle {
             if (root.drillValue !== "") {
                 root.drillValue = "";
                 if (root.tracklist)
-                    root.tracklist.search("");
+                    root.runSearch("");
             } else if (root.category !== "TRACK") {
                 root.selectCategory("TRACK");
             }
@@ -425,13 +441,13 @@ Rectangle {
         } else if (root.mode === "PLAYLIST") {
             root.myListShown = -1;
             if (root.tracklist)
-                root.tracklist.search("");
+                root.runSearch("");
             root.treeBuild();
         } else if (root.mode === "SEARCH") {
             root.terms = [];
             root.input = "";
             if (root.tracklist)
-                root.tracklist.search("");
+                root.runSearch("");
         } else if (root.mode === "TAG LIST") {
             tagList.setAllChecked(false);
         }

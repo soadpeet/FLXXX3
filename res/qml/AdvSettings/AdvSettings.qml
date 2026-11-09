@@ -24,6 +24,7 @@ Item {
         { key: "stickAuto", area: "START", label: "READ REKORDBOX STICKS", kind: "choice", choices: [{ t: "AUTOMATIC", v: 1 }, { t: "ON REQUEST", v: 0 }], def: 1, mirror: "adv_stick_auto" },
         { key: "startTempoRange", area: "START", label: "TEMPO RANGE AT START", kind: "choice", choices: [{ t: "LAST USED", v: 0 }, { t: "6%", v: 0.06 }, { t: "10%", v: 0.10 }, { t: "16%", v: 0.16 }, { t: "WIDE", v: 1.0 }], def: 0.06 },
         // ---- WAVEFORM ----
+        { key: "waveFps", area: "WAVEFORM", label: "WAVEFORM FRAME RATE", kind: "choice", choices: [{ t: "30", v: 30 }, { t: "45", v: 45 }, { t: "60", v: 60 }], def: 60 },
         { key: "waveGain", area: "WAVEFORM", label: "WAVEFORM HEIGHT (SCALE)", kind: "number", min: 0.5, max: 1.5, step: 0.05, fine: 0.01, decimals: 2, unit: "x", def: 1 },
         { key: "beatGridAlpha", area: "WAVEFORM", label: "BEAT GRID LINES BRIGHTNESS", kind: "number", min: 0, max: 100, step: 5, fine: 1, decimals: 0, unit: "%", def: 90 },
         { key: "zoomStart", area: "WAVEFORM", label: "ZOOM AFTER START", kind: "number", min: 0.3, max: 30, step: 0.5, fine: 0.1, decimals: 1, unit: "", def: 3 },

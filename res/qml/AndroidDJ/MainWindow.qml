@@ -686,6 +686,8 @@ Item {
     // Library overlay, created only while it is open.
     // SOURCE screen: devices and own music folders.
     DJ.SourceScreen {
+        id: sourceScreen
+
         visible: root.browserOpen && root.browserMode === "SOURCE"
         // Above the side buttons (z 20) of the waveforms.
         z: 30
@@ -705,6 +707,8 @@ Item {
             if (lib) {
                 lib.mode = "BROWSE";
                 lib.sourceTitle = title;
+                // The tablet list shows only the folders that are ACTIVE in SOURCE.
+                lib.folderFilter = kind === "TABLET" ? Object.keys(sourceScreen.activeFolders) : [];
                 lib.resetBrowse();
             }
             root.openBrowser();

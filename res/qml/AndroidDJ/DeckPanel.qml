@@ -149,9 +149,19 @@ Rectangle {
     Rectangle {
         id: deckColumn
 
-        // Only a little lighter while the deck plays.
-        color: playControl.value > 0 ? "#383838" : "#181818"
+        // Only a little lighter while the deck plays (and while the DECK field is held).
+        color: deckHold.pressed ? "#505050" : (playControl.value > 0 ? "#383838" : "#181818")
         width: Math.round(root.unit * 3.2)
+
+        // Hold the DECK field briefly: starts or stops the loaded track (like PLAY).
+        TapHandler {
+            id: deckHold
+
+            enabled: root.loaded
+            longPressThreshold: AdvSettings.values.longPressSec
+
+            onLongPressed: playControl.value = playControl.value > 0 ? 0 : 1
+        }
 
         anchors {
             bottom: parent.bottom
@@ -490,7 +500,7 @@ Rectangle {
                 rightMargin: 8
                 top: parent.top
             }
-            width: Math.round(root.unit * 7)
+            width: Math.round(root.unit * 9)
 
             Text {
                 id: tempoLabel
@@ -519,7 +529,7 @@ Rectangle {
                     right: parent.right
                 }
                 color: Math.abs(root.tempoPercent) < 0.005 ? "#cfcfcf" : "#7fe0a0"
-                font.pixelSize: Math.round(metrics.height * 0.36)
+                font.pixelSize: Math.round(Math.min(metrics.height * 0.6, tempoBlock.width / 4.6))
                 text: (root.tempoPercent >= 0 ? "" : "-") + Math.abs(root.tempoPercent).toFixed(2) + "%"
             }
         }

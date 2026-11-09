@@ -1,6 +1,11 @@
 #include "qml/qmlwaveformdisplay.h"
 
 #include <QQuickWindow>
+#include <QScreen>
+#ifdef __ANDROID__
+#include <android/log.h>
+#include <chrono>
+#endif
 #include <QSGFlatColorMaterial>
 #include <QSGSimpleRectNode>
 #include <QSGVertexColorMaterial>
@@ -277,8 +282,57 @@ void QmlWaveformDisplay::setStaticTrack(QmlTrackProxy* track) {
     update();
 }
 
+#ifdef __ANDROID__
+namespace {
+// TEMP-DIAG10 (remove before commit): where the time of a slow frame goes.
+struct FrameDiag {
+    using Clock = std::chrono::steady_clock;
+    Clock::time_point syncBegin, syncEnd, renderBegin, renderEnd, frameEnd, lastFrameEnd;
+    double sumSync = 0, sumRender = 0, sumSwap = 0, sumIdle = 0;
+    double worstSync = 0, worstRender = 0, worstSwap = 0;
+    int frames = 0, slow = 0;
+    Clock::time_point statStart = Clock::now();
+};
+FrameDiag g_frameDiag;
+double msBetween(FrameDiag::Clock::time_point a, FrameDiag::Clock::time_point b) {
+    return std::chrono::duration<double, std::milli>(b - a).count();
+}
+} // namespace
+#endif
+
 void QmlWaveformDisplay::slotWindowChanged(QQuickWindow* window) {
     m_dirtyFlag.setFlag(DirtyFlag::Window, true);
+#ifdef __ANDROID__
+    static bool diagConnected = false;
+    if (window && !diagConnected) {
+        diagConnected = true;
+        using C = FrameDiag::Clock;
+        connect(window, &QQuickWindow::beforeSynchronizing, window, [] { g_frameDiag.syncBegin = C::now(); }, Qt::DirectConnection);
+        connect(window, &QQuickWindow::afterSynchronizing, window, [] { g_frameDiag.syncEnd = C::now(); }, Qt::DirectConnection);
+        connect(window, &QQuickWindow::beforeRendering, window, [] { g_frameDiag.renderBegin = C::now(); }, Qt::DirectConnection);
+        connect(window, &QQuickWindow::afterRendering, window, [] { g_frameDiag.renderEnd = C::now(); }, Qt::DirectConnection);
+        connect(window, &QQuickWindow::afterFrameEnd, window, [] {
+            FrameDiag& d = g_frameDiag;
+            d.frameEnd = C::now();
+            const double sync = msBetween(d.syncBegin, d.syncEnd);
+            const double render = msBetween(d.renderBegin, d.renderEnd);
+            const double swap = msBetween(d.renderEnd, d.frameEnd);
+            const double total = msBetween(d.syncBegin, d.frameEnd);
+            if (d.frames++ > 0 && total > 20.0) ++d.slow;
+            d.sumSync += sync; d.sumRender += render; d.sumSwap += swap;
+            d.worstSync = std::max(d.worstSync, sync);
+            d.worstRender = std::max(d.worstRender, render);
+            d.worstSwap = std::max(d.worstSwap, swap);
+            if (msBetween(d.statStart, d.frameEnd) > 5000 && d.frames > 10) {
+                __android_log_print(ANDROID_LOG_INFO, "mixxx-wf",
+                        "FRAMES n=%d slow(>20ms) %d | sync avg %.1f worst %.1f | render(cpu) avg %.1f worst %.1f | swap avg %.1f worst %.1f ms",
+                        d.frames, d.slow, d.sumSync / d.frames, d.worstSync, d.sumRender / d.frames,
+                        d.worstRender, d.sumSwap / d.frames, d.worstSwap);
+                d = FrameDiag();
+            }
+        }, Qt::DirectConnection);
+    }
+#endif
     if (window) {
         connect(window,
                 &QQuickWindow::afterFrameEnd,
@@ -326,6 +380,21 @@ void QmlWaveformDisplay::requestUpdateAtFrameRate() {
         return;
     }
 
+#ifdef __ANDROID__
+    // Android edition: a timer that rounds up to whole milliseconds misses the vsync
+    // from time to time (a frame is shown twice, the waveform judders). At the frame
+    // rate of the display (60 or more) the next frame is requested right away: the swap
+    // waits for the vsync by itself, so the frames follow the display exactly.
+    if (m_frameRate >= 60) {
+        if (window() && window()->screen() && window()->screen()->refreshRate() > 1.0) {
+            m_syncInterval = std::chrono::microseconds(
+                    static_cast<qint64>(1'000'000 / window()->screen()->refreshRate()));
+        }
+        m_frameRateTimer.stop();
+        update();
+        return;
+    }
+#endif
     if (!m_frameRequestTimer.isValid()) {
         m_frameRequestTimer.start();
     }
