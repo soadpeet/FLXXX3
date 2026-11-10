@@ -2,6 +2,7 @@
 #include "qml/qmlandroidstatusproxy.h"
 
 #include <QCoreApplication>
+#include <QtConcurrent>
 #include <QGuiApplication>
 #include <QJniEnvironment>
 #include <QJniObject>
@@ -61,6 +62,7 @@ QStringList removableVolumeIds() {
 QmlAndroidStatusProxy::QmlAndroidStatusProxy(QObject* parent)
         : QObject(parent) {
     connect(&m_timer, &QTimer::timeout, this, &QmlAndroidStatusProxy::update);
+    connect(&m_idsWatcher, &QFutureWatcher<QStringList>::finished, this, &QmlAndroidStatusProxy::onVolumeIdsRead);
     m_timer.start(kUpdateIntervalMs);
     update();
 }
@@ -227,6 +229,18 @@ QStringList QmlAndroidStatusProxy::subDirectories(const QString& path) const {
 
 void QmlAndroidStatusProxy::update() {
     keepMaxVolume();
+    if (!m_idsWatcher.isRunning()) {
+        m_idsWatcher.setFuture(QtConcurrent::run(removableVolumeIds));
+    }
+    refreshState();
+}
+
+void QmlAndroidStatusProxy::onVolumeIdsRead() {
+    m_volumeIds = m_idsWatcher.result();
+    refreshState();
+}
+
+void QmlAndroidStatusProxy::refreshState() {
     const int oldPercent = m_batteryPercent;
     const bool oldCharging = m_batteryCharging;
     const bool oldController = m_controllerConnected;
@@ -243,7 +257,7 @@ void QmlAndroidStatusProxy::update() {
             : QString();
 
     // A stick keeps its slot (USB1 / USB2) while it stays plugged in.
-    const QStringList ids = removableVolumeIds();
+    const QStringList ids = m_volumeIds;
     for (QString& slotId : m_slotIds) {
         if (!ids.contains(slotId)) {
             slotId.clear();

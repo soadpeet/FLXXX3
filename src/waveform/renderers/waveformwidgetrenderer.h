@@ -294,5 +294,9 @@ private:
     double m_lastTruePos[2] = {0.0, 0.0};
     const Track* m_pLastTruePosTrack = nullptr;
     bool m_hasLastTruePos = false;
+    // Speed of the position in units per ms, measured between two valid frames,
+    // and the time of the last valid frame; used to extrapolate gap frames.
+    double m_truePosRate[2] = {0.0, 0.0};
+    double m_lastTruePosTimeMs = 0.0;
 #endif
 };

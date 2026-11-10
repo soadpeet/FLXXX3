@@ -7,7 +7,7 @@ set -euo pipefail
 
 BASE="$HOME/mixxx-android"
 BUILD="$BASE/build-flxxx3"
-KEYSTORE="$BASE/debug.keystore"
+KEYSTORE="/mnt/x/Dev/android-tools/debug.keystore"
 ALIAS="mixxxdebug"
 PASS="${KEYSTORE_PASS:-android}"
 BT="/usr/lib/android-sdk/build-tools/35.0.0"

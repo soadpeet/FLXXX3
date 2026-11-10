@@ -1,9 +1,7 @@
 #include "waveform/renderers/waveformwidgetrenderer.h"
 #ifdef __ANDROID__
-#include <android/log.h>
+#include <algorithm>
 #include <chrono>
-#include <cmath>
-#include <map>
 #endif
 
 #include <QPainter>
@@ -196,62 +194,38 @@ void WaveformWidgetRenderer::onPreRender(VSyncTimeProvider* vsyncThread) {
     // audio callbacks of the USB driver arrive late), the old code left the
     // position at 0 and the waveform jumped to the start of the track for one
     // frame. Keep the last valid position of the same track instead.
+    const double nowMs = std::chrono::duration<double, std::milli>(
+            std::chrono::steady_clock::now().time_since_epoch())
+                                 .count();
     if (m_visualPlayPosition->getPlaySlipAtNextVSync(vsyncThread,
                 truePos + ::WaveformRendererAbstract::Play,
                 truePos + ::WaveformRendererAbstract::Slip)) {
+        // Measure the speed of the position while the data is valid, so that a
+        // gap frame can continue the movement instead of standing still.
+        const double dt = nowMs - m_lastTruePosTimeMs;
+        if (m_hasLastTruePos && m_pLastTruePosTrack == m_pTrack.get() &&
+                dt > 1.0 && dt < 100.0) {
+            for (int k = 0; k < 2; ++k) {
+                const double rate = (truePos[k] - m_lastTruePos[k]) / dt;
+                m_truePosRate[k] = m_truePosRate[k] * 0.8 + rate * 0.2;
+            }
+        }
         m_lastTruePos[0] = truePos[0];
         m_lastTruePos[1] = truePos[1];
+        m_lastTruePosTimeMs = nowMs;
         m_pLastTruePosTrack = m_pTrack.get();
         m_hasLastTruePos = true;
     } else if (m_hasLastTruePos && m_pLastTruePosTrack == m_pTrack.get()) {
-        truePos[0] = m_lastTruePos[0];
-        truePos[1] = m_lastTruePos[1];
+        const double dt = nowMs - m_lastTruePosTimeMs;
+        // Extrapolate for up to 100 ms; after that hold the position.
+        const double use = std::min(dt, 100.0);
+        truePos[0] = m_lastTruePos[0] + m_truePosRate[0] * use;
+        truePos[1] = m_lastTruePos[1] + m_truePosRate[1] * use;
     }
 #else
     m_visualPlayPosition->getPlaySlipAtNextVSync(vsyncThread,
             truePos + ::WaveformRendererAbstract::Play,
             truePos + ::WaveformRendererAbstract::Slip);
-#endif
-#ifdef __ANDROID__
-    // TEMP-DIAG9 (remove before commit): smoothness of the waveform position, per renderer.
-    {
-        struct Diag {
-            double lastPos = -1, lastT = 0, accStart = 0;
-            int n = 0, longGaps = 0, same = 0;
-            double sumDt = 0, maxDt = 0, sumDp = 0, sumDp2 = 0, maxDp = 0, minDp = 1e18;
-        };
-        static thread_local std::map<const void*, Diag> diags;
-        Diag& d = diags[this];
-        const double t = std::chrono::duration<double, std::milli>(
-                std::chrono::steady_clock::now().time_since_epoch()).count();
-        if (d.lastPos >= 0 && t - d.lastT < 200) {
-            const double dt = t - d.lastT;
-            const double dp = truePos[0] - d.lastPos;
-            ++d.n;
-            d.sumDt += dt;
-            d.maxDt = std::max(d.maxDt, dt);
-            if (dt > 25.0) ++d.longGaps;
-            d.sumDp += dp;
-            d.sumDp2 += dp * dp;
-            d.maxDp = std::max(d.maxDp, dp);
-            d.minDp = std::min(d.minDp, dp);
-            if (dp == 0.0) ++d.same;
-        }
-        d.lastPos = truePos[0];
-        d.lastT = t;
-        if (d.accStart == 0) d.accStart = t;
-        if (t - d.accStart > 5000 && d.n > 10) {
-            const double mean = d.sumDp / d.n;
-            const double sd = std::sqrt(std::max(0.0, d.sumDp2 / d.n - mean * mean));
-            __android_log_print(ANDROID_LOG_INFO, "mixxx-wf",
-                    "SMOOTH %s n=%d dt avg %.1f max %.1f ms gaps>25ms %d | dpos avg %.0f sd %.0f min %.0f max %.0f same %d",
-                    m_group.toUtf8().constData(), d.n, d.sumDt / d.n, d.maxDt, d.longGaps, mean, sd, d.minDp, d.maxDp, d.same);
-            d = Diag();
-            d.accStart = t;
-            d.lastPos = truePos[0];
-            d.lastT = t;
-        }
-    }
 #endif
     // truePlayPos = -1 happens, when a new track is in buffer but m_visualPlayPosition was not updated
 

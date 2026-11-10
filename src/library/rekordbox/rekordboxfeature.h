@@ -82,6 +82,7 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
     void htmlLinkClicked(const QUrl& link);
 #ifdef __ANDROID__
     void checkRemovableVolumes();
+    void onMountedVolumesRead();
     void parseNextDevice();
     void rebuildAllSticksList();
 #endif
@@ -104,6 +105,8 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
 #ifdef __ANDROID__
     // Android edition: ids of the removable volumes mounted at the last check.
     QSet<QString> m_mountedVolumes;
+    // Reading /proc/self/mountinfo takes 3-10 ms, so it runs off the GUI thread.
+    QFutureWatcher<QSet<QString>> m_mountedFutureWatcher;
     bool m_volumesChecked = false;
     bool m_silentParse = false;
     bool m_manualScan = false;

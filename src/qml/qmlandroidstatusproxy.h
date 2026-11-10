@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QFutureWatcher>
 #include <QJSEngine>
 #include <QObject>
 #include <QStringList>
@@ -90,12 +91,17 @@ class QmlAndroidStatusProxy : public QObject {
 
   private slots:
     void update();
+    void onVolumeIdsRead();
 
   private:
+    void refreshState();
     void readBattery();
     void keepMaxVolume();
 
     QTimer m_timer;
+    // /proc/self/mountinfo takes 6-10 ms to read: done off the GUI thread.
+    QFutureWatcher<QStringList> m_idsWatcher;
+    QStringList m_volumeIds;
     int m_batteryPercent = -1;
     bool m_batteryCharging = false;
     bool m_controllerConnected = false;

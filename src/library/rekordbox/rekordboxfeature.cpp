@@ -1,4 +1,5 @@
 #include "library/rekordbox/rekordboxfeature.h"
+#include <QFile>
 
 #include "waveform/rekordbox3band.h"
 
@@ -1947,6 +1948,7 @@ RekordboxFeature::RekordboxFeature(
     // a newly inserted stick is picked up without opening the Rekordbox entry.
     auto* pVolumeTimer = new QTimer(this);
     connect(pVolumeTimer, &QTimer::timeout, this, &RekordboxFeature::checkRemovableVolumes);
+    connect(&m_mountedFutureWatcher, &QFutureWatcher<QSet<QString>>::finished, this, &RekordboxFeature::onMountedVolumesRead);
     pVolumeTimer->start(2000);
     QTimer::singleShot(0, this, &RekordboxFeature::checkRemovableVolumes);
 #endif
@@ -1962,13 +1964,34 @@ void RekordboxFeature::checkRemovableVolumes() {
         m_manualScan = true;
         parseNextDevice();
     }
-    QSet<QString> mounted;
-    for (const QStorageInfo& volume : QStorageInfo::mountedVolumes()) {
-        const QString root = volume.rootPath();
-        if (root.startsWith(QStringLiteral("/mnt/media_rw/")) && volume.isValid() && volume.isReady()) {
-            mounted.insert(QFileInfo(root).fileName());
-        }
+    if (m_mountedFutureWatcher.isRunning()) {
+        return;
     }
+    // Read /proc/self/mountinfo instead of QStorageInfo::mountedVolumes() (which calls
+    // statfs() for every mount and blocked the GUI thread for 12-26 ms every 2 s) and do
+    // it on a worker thread: even the plain read costs 3-10 ms. Field 5 of a line is
+    // the mount point.
+    m_mountedFutureWatcher.setFuture(QtConcurrent::run([]() {
+        QSet<QString> mounted;
+        QFile mountInfo(QStringLiteral("/proc/self/mountinfo"));
+        if (mountInfo.open(QIODevice::ReadOnly)) {
+            const QList<QByteArray> lines = mountInfo.readAll().split('\n');
+            for (const QByteArray& line : lines) {
+                const QList<QByteArray> fields = line.split(' ');
+                if (fields.size() > 4) {
+                    const QString root = QString::fromUtf8(fields.at(4));
+                    if (root.startsWith(QStringLiteral("/mnt/media_rw/"))) {
+                        mounted.insert(QFileInfo(root).fileName());
+                    }
+                }
+            }
+        }
+        return mounted;
+    }));
+}
+
+void RekordboxFeature::onMountedVolumesRead() {
+    const QSet<QString> mounted = m_mountedFutureWatcher.result();
     if (m_volumesChecked && mounted == m_mountedVolumes) {
         return;
     }
