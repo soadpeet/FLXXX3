@@ -1,4 +1,4 @@
-package org.mixxx;
+package de.biggo.flxxx3;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -10,7 +10,7 @@ import android.util.Log;
 
 public class UsbPermission {
     private static final String ACTION_USB_PERMISSION =
-        "org.mixxx.permissions.USB_PERMISSION";
+        "de.biggo.flxxx3.permissions.USB_PERMISSION";
     private static final String TAG = "MixxxUsbPermission";
     private static native void usbDeviceAccessResult(Object device, boolean granted);
     public boolean registerServiceBroadcastReceiver(Context context) {

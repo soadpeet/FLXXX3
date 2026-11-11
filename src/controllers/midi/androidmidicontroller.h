@@ -9,7 +9,7 @@
 #include "controllers/midi/midicontroller.h"
 
 /// MIDI controller on Android, based on android.media.midi (device discovery
-/// and opening through org.mixxx.MidiHelper) and AMidi (native data transfer,
+/// and opening through de.biggo.flxxx3.MidiHelper) and AMidi (native data transfer,
 /// API 29+). Counterpart of PortMidiController.
 ///
 /// Naming follows AMidi: an "output port" of a device delivers data to the app

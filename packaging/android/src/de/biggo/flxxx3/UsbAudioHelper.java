@@ -1,5 +1,5 @@
 // AI disclaimer: this file was written autonomously by an AI agent (Claude).
-package org.mixxx;
+package de.biggo.flxxx3;
 
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 // descriptor of the opened device. The connection stays open until close().
 public class UsbAudioHelper {
     private static final String TAG = "MixxxUsbAudio";
-    private static final String ACTION = "org.mixxx.permissions.USB_AUDIO";
+    private static final String ACTION = "de.biggo.flxxx3.permissions.USB_AUDIO";
     private static UsbDeviceConnection sConnection;
     private static volatile boolean sGranted;
     private static CountDownLatch sLatch;

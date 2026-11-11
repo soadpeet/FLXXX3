@@ -6,7 +6,7 @@
 #include "controllers/midi/midienumerator.h"
 
 /// Discovers USB MIDI controllers through android.media.midi (via
-/// org.mixxx.MidiHelper) and exposes them as AndroidMidiController.
+/// de.biggo.flxxx3.MidiHelper) and exposes them as AndroidMidiController.
 class AndroidMidiEnumerator : public MidiEnumerator {
     Q_OBJECT
   public:

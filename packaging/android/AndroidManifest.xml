@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.mixxx"
+    package="de.biggo.flxxx3"
     android:installLocation="auto"
     android:versionCode="1"
     android:versionName="1.0">
@@ -28,7 +28,7 @@
         android:allowBackup="true"
         android:fullBackupOnly="false">
         <activity
-            android:name="org.mixxx.MainActivity"
+            android:name="de.biggo.flxxx3.MainActivity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
             android:launchMode="singleTop"
             android:screenOrientation="sensorLandscape"

@@ -467,7 +467,7 @@ unsigned int SoundManagerConfig::getFramesPerBuffer() const {
     // frames at 48 kHz, ~5 ms); file ".../files/audio_usb_idx" overrides the index.
     {
         audioBufferSizeIndex = static_cast<unsigned int>(AudioBufferSizeIndex::Size5xms);
-        QFile idx(QStringLiteral("/sdcard/Android/data/org.mixxx/files/audio_usb_idx"));
+        QFile idx(QStringLiteral("/sdcard/Android/data/de.biggo.flxxx3/files/audio_usb_idx"));
         if (idx.open(QIODevice::ReadOnly)) {
             const unsigned int v = idx.readAll().trimmed().toUInt();
             if (v >= 1 && v <= 7) {

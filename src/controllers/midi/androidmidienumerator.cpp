@@ -23,10 +23,10 @@ constexpr int kMidiWaitMaxSteps = 12; // 6 seconds
 
 AndroidMidiEnumerator::AndroidMidiEnumerator() {
     QJniObject context = QNativeInterface::QAndroidApplication::context();
-    m_helper = QJniObject("org/mixxx/MidiHelper", "(Landroid/content/Context;)V", context.object());
+    m_helper = QJniObject("de/biggo/flxxx3/MidiHelper", "(Landroid/content/Context;)V", context.object());
     QJniEnvironment().checkAndClearExceptions();
     if (!m_helper.isValid()) {
-        qWarning() << "AndroidMidiEnumerator: could not create org.mixxx.MidiHelper";
+        qWarning() << "AndroidMidiEnumerator: could not create de.biggo.flxxx3.MidiHelper";
         __android_log_print(ANDROID_LOG_WARN, kLogTag, "MidiHelper not available");
     }
 }

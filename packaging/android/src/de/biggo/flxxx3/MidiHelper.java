@@ -1,4 +1,4 @@
-package org.mixxx;
+package de.biggo.flxxx3;
 
 import android.content.Context;
 import android.hardware.usb.UsbDevice;

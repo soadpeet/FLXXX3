@@ -2379,7 +2379,7 @@ if(ANDROID)
     PUBLIC __STDC_CONSTANT_MACROS __STDC_LIMIT_MACROS __STDC_FORMAT_MACROS
   )
   set_property(TARGET mixxx-lib PROPERTY ANDROID_ABIS "arm64-v8a")
-  target_compile_definitions(mixxx-lib PUBLIC ANDROID_PACKAGE_NAME="org.mixxx")
+  target_compile_definitions(mixxx-lib PUBLIC ANDROID_PACKAGE_NAME="de.biggo.flxxx3")
   qt_add_executable(mixxx src/main.cpp MANUAL_FINALIZATION)
   set_property(
     TARGET mixxx
@@ -2387,7 +2387,7 @@ if(ANDROID)
       QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/packaging/android"
   )
   set_target_properties(mixxx PROPERTIES QT_ANDROID_ABIS "${ANDROID_ABI}")
-  set_target_properties(mixxx PROPERTIES QT_ANDROID_PACKAGE_NAME "org.mixxx")
+  set_target_properties(mixxx PROPERTIES QT_ANDROID_PACKAGE_NAME "de.biggo.flxxx3")
   # AMidi (native MIDI API used for MIDI controllers) requires API level 29.
   set_target_properties(mixxx PROPERTIES QT_ANDROID_MIN_SDK_VERSION 29)
   # Target SDK 35: from 36 on, Android 16 ignores the orientation lock on large
@@ -3804,7 +3804,7 @@ if(PORTMIDI)
   )
 endif()
 
-# Android MIDI: android.media.midi (Java, via org.mixxx.MidiHelper) for
+# Android MIDI: android.media.midi (Java, via de.biggo.flxxx3.MidiHelper) for
 # discovery and opening, AMidi (NDK, API 29+) for the data transfer.
 if(ANDROID)
   target_compile_definitions(mixxx-lib PUBLIC __ANDROID_MIDI__)

@@ -88,7 +88,7 @@ bool AndroidUsbAudio::connectUsb(bool firstTime) {
         return false;
     }
     const QJniObject name = QJniObject::fromString(QStringLiteral("DDJ-FLX4"));
-    const jint fd = QJniObject::callStaticMethod<jint>("org/mixxx/UsbAudioHelper",
+    const jint fd = QJniObject::callStaticMethod<jint>("de/biggo/flxxx3/UsbAudioHelper",
             "openDevice",
             "(Landroid/content/Context;Ljava/lang/String;)I",
             context.object(),
@@ -363,7 +363,7 @@ void AndroidUsbAudio::disconnectUsb() {
         libusb_exit(m_pContext);
         m_pContext = nullptr;
     }
-    QJniObject::callStaticMethod<void>("org/mixxx/UsbAudioHelper", "close", "()V");
+    QJniObject::callStaticMethod<void>("de/biggo/flxxx3/UsbAudioHelper", "close", "()V");
 }
 
 // Notices when the FLX4 was unplugged (all transfers ended) and connects again

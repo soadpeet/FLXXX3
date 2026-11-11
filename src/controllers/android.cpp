@@ -30,13 +30,13 @@ const QJniObject& getIntent() {
 
     QJniObject context = QNativeInterface::QAndroidApplication::context();
 
-    s_usbManager = QJniObject("org/mixxx/UsbPermission");
+    s_usbManager = QJniObject("de/biggo/flxxx3/UsbPermission");
     jint FLAG_IMMUTABLE =
             QJniObject::getStaticField<jint>(
                     "android/app/PendingIntent",
                     "FLAG_IMMUTABLE");
     QtJniTypes::String ACTION_USB_PERMISSION =
-            QJniObject::fromString("org.mixxx.permissions.USB_PERMISSION");
+            QJniObject::fromString("de.biggo.flxxx3.permissions.USB_PERMISSION");
     QtJniTypes::Intent intent = QJniObject("android/content/Intent",
             "(Ljava/lang/String;)V",
             ACTION_USB_PERMISSION.object<jstring>());
@@ -113,7 +113,7 @@ void usbDeviceAccessResult(QJniObject device, bool granted) {
 } // namespace android
 } // namespace mixxx
 
-Q_DECLARE_JNI_CLASS(UsbPermissionClass, "org/mixxx/UsbPermission")
+Q_DECLARE_JNI_CLASS(UsbPermissionClass, "de/biggo/flxxx3/UsbPermission")
 
 void usbDeviceAccessResult(JNIEnv*, jobject, jobject device, jboolean granted) {
     mixxx::android::usbDeviceAccessResult(device, granted);

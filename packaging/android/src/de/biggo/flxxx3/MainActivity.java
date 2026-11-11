@@ -1,4 +1,4 @@
-package org.mixxx;
+package de.biggo.flxxx3;
 
 import android.os.Bundle;
 import android.view.WindowManager;

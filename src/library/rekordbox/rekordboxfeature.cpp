@@ -1078,7 +1078,7 @@ RekordboxWaveformColumns decodeThreeBandWaveform(const std::string& entries, uin
         return columns;
     }
     int order[3] = {0, 1, 2};
-    QFile orderFile(QStringLiteral("/sdcard/Android/data/org.mixxx/files/wf3_order"));
+    QFile orderFile(QStringLiteral("/sdcard/Android/data/de.biggo.flxxx3/files/wf3_order"));
     if (orderFile.open(QIODevice::ReadOnly)) {
         const QByteArray text = orderFile.readAll().trimmed();
         if (text.size() == 3) {
