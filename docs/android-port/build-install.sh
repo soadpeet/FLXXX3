@@ -5,19 +5,24 @@
 # Optional: KEYSTORE_PASS=... (Standard: "android"), ADB_TARGET=<ip:port> fuer WLAN-Debugging.
 set -euo pipefail
 
-BASE="$HOME/mixxx-android"
-BUILD="$BASE/build-flxxx3"
-KEYSTORE="/mnt/x/Dev/android-tools/debug.keystore"
-ALIAS="mixxxdebug"
+# Alle Werte koennen per Umgebungsvariable ueberschrieben werden; die Standardwerte
+# entsprechen dem bisherigen Verhalten (siehe docs/android-port/build/README.md).
+BASE="${MIXXX_ANDROID_BASE:-$HOME/mixxx-android}"
+BUILD="${BUILD_DIR:-$BASE/build-flxxx3}"
+KEYSTORE="${KEYSTORE:-/mnt/x/Dev/android-tools/debug.keystore}"
+ALIAS="${KEYSTORE_ALIAS:-mixxxdebug}"
 PASS="${KEYSTORE_PASS:-android}"
-BT="/usr/lib/android-sdk/build-tools/35.0.0"
-ADB="/usr/lib/android-sdk/platform-tools/adb"
+BT="${BUILD_TOOLS:-/usr/lib/android-sdk/build-tools/35.0.0}"
+ADB="${ADB:-/usr/lib/android-sdk/platform-tools/adb}"
 
 # shellcheck disable=SC1091
 source "$BASE/env.sh"
 export PATH="$BASE/shim:$PATH"   # uname-Shim wegen WSL-Sperre (CMakeLists.txt:268-276)
 
 cmake --build "$BUILD" --target apk -j"$(nproc)"
+# A change in QML files only is copied into the assets, but the apk target does not notice
+# it and keeps the old APK: run gradle once more (a no-op when nothing changed).
+( cd "$BUILD/android-build" && ANDROID_SDK_ROOT="$ANDROID_SDK" ./gradlew assembleRelease --offline -q )
 
 UNSIGNED="$BUILD/android-build/build/outputs/apk/release/android-build-release-unsigned.apk"
 ALIGNED="$BASE/flx-aligned.apk"
