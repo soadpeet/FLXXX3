@@ -72,3 +72,6 @@ src/mixxx.rc.include
 src/mixxx.res
 src/test/**/*.actual
 res/qrc_mixxx.cc
+
+# Android edition: built release files (APK), not for git
+/Releases/

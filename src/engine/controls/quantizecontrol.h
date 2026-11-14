@@ -31,6 +31,9 @@ class QuantizeControl : public EngineControl {
     ControlPushButton* m_pCOQuantizeEnabled;
     ControlObject* m_pCONextBeat;
     ControlObject* m_pCOPrevBeat;
+    // Android edition: position of the previous beat in a bar of 4 (0 = first beat of the bar,
+    // counted from the first beat of the grid).
+    ControlObject* m_pCOBeatInBar;
     ControlObject* m_pCOClosestBeat;
 
     // m_pBeats is written from an engine worker thread

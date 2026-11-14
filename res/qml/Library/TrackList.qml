@@ -839,6 +839,10 @@ Rectangle {
                 return;
 
             this.prepareSelectedTrack();
+            // The deck shows the position in the list as TRACK.
+            const rows = this.selectionModel.selectedIndexes;
+            if (rows.length > 0)
+                Mixxx.Config.setAndroidSetting("listPos" + group, String(rows[0].row + 1));
             Mixxx.PlayerManager.getPlayer(group).loadTrackFromLocationUrl(urls[0], play);
         }
         function loadSelectedTrackIntoNextAvailableDeck(play) {

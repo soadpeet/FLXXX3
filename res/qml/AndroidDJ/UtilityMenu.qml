@@ -14,6 +14,8 @@ Rectangle {
     property bool showRemain: true
     property bool keyCamelot: true
     property bool autoCue: false
+    property bool cdjView: false
+    property int beatMatchMode: 1
     property string quantizeBeat: "1/4"
 
     // Blocks touches for the main window below (BEAT FX etc.).
@@ -28,6 +30,8 @@ Rectangle {
     signal showRemainSelected(bool remain)
     signal keyCamelotSelected(bool camelot)
     signal autoCueSelected(bool on)
+    signal cdjViewSelected(bool on)
+    signal beatMatchModeSelected(int mode)
     signal quantizeBeatSelected(string beat)
 
     color: "#0a0a0a"
@@ -232,18 +236,34 @@ Rectangle {
                 onActivated: index => root.keyCamelotSelected(index === 1)
             }
         }
-        Item { height: root.u * 0.4; width: 1 }
-        DJ.SectionTitle { u: root.u; text: "DISPLAY BRIGHTNESS / CONTRAST"; width: parent.width }
-        // Left: gentle on the eyes in the dark, middle: normal, right: strong
-        // contrast for direct sunlight.
-        DJ.Segmented {
-            currentIndex: Math.round(brightnessProxy.value)
-            fontSize: root.u * 0.95
-            height: root.u * 2.5
-            labels: ["NIGHT", "NORMAL", "OUTDOOR"]
-            width: root.u * 26
+        Column {
+            spacing: 3
 
-            onActivated: index => brightnessProxy.value = index
+            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "SCREEN LAYOUT" }
+            DJ.Segmented {
+                fontSize: root.u * 0.95
+                height: root.u * 2.5
+                currentIndex: root.cdjView ? 1 : 0
+                labels: ["XDJ", "CDJ"]
+                width: root.u * 17
+
+                onActivated: index => root.cdjViewSelected(index === 1)
+            }
+        }
+        Column {
+            spacing: 3
+            visible: root.cdjView
+
+            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "BEAT MATCH" }
+            DJ.Segmented {
+                fontSize: root.u * 0.95
+                height: root.u * 2.5
+                currentIndex: root.beatMatchMode
+                labels: ["OFF", "WAVEFORM", "PHASE"]
+                width: root.u * 25
+
+                onActivated: index => root.beatMatchModeSelected(index)
+            }
         }
         Item { height: root.u * 0.4; width: 1 }
     }

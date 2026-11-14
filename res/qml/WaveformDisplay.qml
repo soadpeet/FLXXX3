@@ -23,7 +23,10 @@ Item {
     property int renderedWaveformType: -1
     // Android edition: fixed gain (the waveform data is already normalised).
     readonly property real visualGain: Qt.platform.os === "android" ? AdvSettings.values.waveGain : Mixxx.Config.waveformVisualGainAll
-    readonly property string zoomGroup: Mixxx.Config.waveformZoomSynchronization ? "[Channel1]" : group
+    // Android edition: small waveform of the other deck (beat match aid) follows the zoom of this deck.
+    property string zoomGroupOverride: ""
+    property int frameRateOverride: 0
+    readonly property string zoomGroup: zoomGroupOverride !== "" ? zoomGroupOverride : (Mixxx.Config.waveformZoomSynchronization ? "[Channel1]" : group)
 
     Connections {
         target: Mixxx.Config
@@ -52,7 +55,7 @@ Item {
 
         anchors.fill: parent
         backgroundColor: "transparent"
-        frameRate: Qt.platform.os === "android" ? AdvSettings.values.waveFps : Mixxx.Config.waveformFrameRate
+        frameRate: frameRateOverride > 0 ? frameRateOverride : Qt.platform.os === "android" ? AdvSettings.values.waveFps : Mixxx.Config.waveformFrameRate
         group: root.group
         options: Qt.platform.os === "android" ? Mixxx.WaveformDisplay.Option.None : Mixxx.Config.waveformOptions
         visible: Mixxx.Config.waveformEnabled

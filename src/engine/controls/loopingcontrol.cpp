@@ -897,6 +897,20 @@ void LoopingControl::setLoopOutToCurrentPosition() {
         }
     }
 
+    // Android edition (like Pioneer): with quantize, a quick IN + OUT snaps both
+    // to the same beat. Make a 1 beat loop instead of ignoring OUT.
+    if (quantizedBeatPosition.isValid() && pBeats && loopInfo.startPosition.isValid() &&
+            position == loopInfo.startPosition) {
+        mixxx::audio::FramePos nextBeat = pBeats->findNthBeat(loopInfo.startPosition, 2);
+        if (nextBeat.isValid() &&
+                (nextBeat - loopInfo.startPosition) < kMinimumAudibleLoopSizeFrames) {
+            nextBeat = pBeats->findNthBeat(loopInfo.startPosition, 3);
+        }
+        if (nextBeat.isValid() && nextBeat > loopInfo.startPosition) {
+            position = nextBeat;
+        }
+    }
+
     // If the user is trying to set a loop-out before the loop in or without
     // having a loop-in, then ignore it.
     if (!loopInfo.startPosition.isValid() || position <= loopInfo.startPosition) {

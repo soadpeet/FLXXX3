@@ -3,6 +3,7 @@ import "../AdvSettings"
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import QtQuick.Controls
+import QtQuick.Window
 import "../Theme"
 import "." as DJ
 
@@ -36,6 +37,19 @@ Item {
     property bool fxPresetMode: false
     // Key display: classic notation (Am) or Camelot (8A).
     property bool keyCamelot: true
+    // Screen layout (UTILITY): false = XDJ view (both waveforms stacked, a panel per
+    // deck below), true = CDJ view (the screen is split in two halves, one per deck:
+    // deck panel on top, the big waveform below, hotcues at the bottom).
+    property bool cdjView: false
+    // Beat match aid above the waveforms, CDJ view only (UTILITY): 0 = off, 1 = WAVEFORM of the
+    // other deck, 2 = PHASE METER. The main waveform gets smaller by its height.
+    property int beatMatchMode: 1
+    readonly property int beatMatchEffective: cdjView ? beatMatchMode : 0
+    readonly property real beatMatchHeight: Math.round(waveformHeight * (beatMatchEffective === 1
+            ? 0.5 : beatMatchEffective === 2 ? 0.3 : 0))
+    readonly property real beatMatchReserved: beatMatchHeight
+    onBeatMatchModeChanged: saveSetting("beatMatchModeV2", beatMatchMode)
+    onCdjViewChanged: saveSetting("cdjView", cdjView ? "1" : "0")
     // Quantize beat value shown on the decks (1/8, 1/4, 1/2, 1).
     property string quantizeBeat: "1/4"
     // AUTO CUE of both decks (UTILITY menu).
@@ -198,6 +212,8 @@ Item {
     }
     Component.onCompleted: {
         masterGainProxy.value = Math.pow(10, -(AdvSettings.values.headroom || 0) / 20);
+        // Each deck zooms on its own (without this both waveforms use the zoom of deck 1).
+        Mixxx.Config.waveformZoomSynchronization = false;
         // Waveform zoom: only when ADVANCED SETTINGS changed it from the factory value (otherwise the
         // zoom of the last session stays).
         if (AdvSettings.values.zoomStart !== AdvSettings.definition("zoomStart").def) {
@@ -217,6 +233,8 @@ Item {
         }
         root.showRemain = Mixxx.Config.androidSetting("showRemain", "1") === "1";
         root.keyCamelot = Mixxx.Config.androidSetting("keyCamelot", "1") === "1";
+        root.cdjView = Mixxx.Config.androidSetting("cdjView", "0") === "1";
+        root.beatMatchMode = parseInt(Mixxx.Config.androidSetting("beatMatchModeV2", "1"));
         root.quantizeBeat = Mixxx.Config.androidSetting("quantizeBeat", "1/4");
         root.autoCue = Mixxx.Config.androidSetting("autoCue", "0") === "1";
         root.applyQuantizeBeat();
@@ -290,8 +308,27 @@ Item {
     }
 
     readonly property real topHeight: Math.max(28, Math.round(height * 0.095))
-    readonly property real hotcueHeight: Math.max(12, Math.round(height * 0.035))
-    readonly property real waveformHeight: Math.round(height * 0.27)
+    // Space below the top bar.
+    readonly property real contentHeight: height - topHeight
+    // CDJ view (like the CDJ-3000 screen): per deck one tall panel with the title on top,
+    // the big waveform below it, then time / tempo / BPM and the overview.
+    // The parts of the panel keep the size they have in the XDJ view.
+    readonly property real cdjLayoutHeight: Math.round(height * 0.33)
+    readonly property real cdjPanelHeight: contentHeight - hotcueHeight - 4
+    readonly property real cdjGap: cdjPanelHeight - cdjLayoutHeight
+    // Height of the title row of the panel (same formula as DeckPanel).
+    // Plus a little space so that the DECK number in the left column stays visible
+    // above the side buttons.
+    readonly property real cdjPad: 12
+    readonly property real cdjTitleHeight: Math.round(3.2 * Math.max(8, cdjLayoutHeight / 14)) + cdjPad
+    readonly property real hotcueHeight: cdjView
+            ? Math.max(12, Math.round(contentHeight * 0.11))
+            : Math.max(12, Math.round(height * 0.035))
+    // Height of ONE waveform in the XDJ view; in the CDJ view half of the (side by side)
+    // waveforms, so that the side buttons (two per edge) keep their size.
+    readonly property real waveformHeight: cdjView
+            ? Math.round((cdjGap - cdjPad) / 2)
+            : Math.round(height * 0.27)
 
     Rectangle {
         anchors.fill: parent
@@ -387,11 +424,14 @@ Item {
         id: waveArea
 
         height: root.waveformHeight * 2
+        // CDJ view: lies over the gap of the deck panels.
+        z: root.cdjView ? 5 : 0
 
         anchors {
             left: parent.left
             right: parent.right
             top: topBar.bottom
+            topMargin: root.cdjView ? root.cdjTitleHeight + 2 : 0
         }
 
         Repeater {
@@ -403,15 +443,36 @@ Item {
                 // No touches for the waveforms below UTILITY / ADVANCED SETTINGS.
                 enabled: !root.advancedOpen && !root.utilityOpen
                 group: "[Channel" + (index + 1) + "]"
-                height: root.waveformHeight
-                width: parent.width
-                y: index * root.waveformHeight
+                // XDJ view: stacked, full width. CDJ view: side by side, full height.
+                height: (root.cdjView ? root.waveformHeight * 2 : root.waveformHeight) - root.beatMatchReserved
+                width: root.cdjView ? Math.round(parent.width / 2) - 1 : parent.width
+                x: root.cdjView ? index * (Math.round(parent.width / 2) + 1) : 0
+                y: (root.cdjView ? 0 : index * root.waveformHeight) + root.beatMatchReserved
             }
         }
-        // Two fingers: spread = zoom in, pinch = zoom out (both decks).
+        // Beat-matching aid: strokes at the beats of the other deck above each waveform.
+        Repeater {
+            // No strip objects (and no control connections) at all when the aid is off.
+            model: root.beatMatchEffective > 0 ? 2 : 0
+
+            DJ.BeatMatchStrip {
+                required property int index
+
+                group: "[Channel" + (index + 1) + "]"
+                height: root.beatMatchHeight
+                mode: root.beatMatchEffective
+                otherGroup: "[Channel" + (2 - index) + "]"
+                width: root.cdjView ? Math.round(parent.width / 2) - 1 : parent.width
+                x: root.cdjView ? index * (Math.round(parent.width / 2) + 1) : 0
+                y: root.cdjView ? 0 : index * root.waveformHeight
+            }
+        }
+        // Two fingers: spread = zoom in, pinch = zoom out. Only the deck whose waveform
+        // lies under the fingers when they touch down is zoomed.
         PinchHandler {
             id: pinch
 
+            property int deck: 0
             property real startZoom: 3
 
             enabled: !root.advancedOpen && !root.utilityOpen
@@ -420,16 +481,19 @@ Item {
             target: null
 
             onActiveChanged: {
-                if (active)
-                    startZoom = pinchZoom1.value;
+                if (!active)
+                    return;
+                const p = centroid.position;
+                deck = root.cdjView ? (p.x < waveArea.width / 2 ? 0 : 1)
+                                    : (p.y < root.waveformHeight ? 0 : 1);
+                startZoom = (deck === 0 ? pinchZoom1 : pinchZoom2).value;
             }
             onActiveScaleChanged: {
                 if (!active)
                     return;
                 // Smaller zoom value = more detail (like the zoom buttons).
                 const zoom = Math.max(AdvSettings.values.zoomMin, Math.min(AdvSettings.values.zoomMax, startZoom / activeScale));
-                pinchZoom1.value = zoom;
-                pinchZoom2.value = zoom;
+                (deck === 0 ? pinchZoom1 : pinchZoom2).value = zoom;
             }
         }
         Mixxx.ControlProxy { id: pinchZoom1; group: "[Channel1]"; key: "waveform_zoom" }
@@ -537,11 +601,12 @@ Item {
         height: root.hotcueHeight
         visible: root.fxPresetMode
 
+        // XDJ view: below the waveforms; CDJ view: at the bottom edge of the screen.
+        y: root.cdjView ? root.height - height : waveArea.y + waveArea.height + 2
+
         anchors {
             left: parent.left
             right: parent.right
-            top: waveArea.bottom
-            topMargin: 2
         }
     }
     // Beat FX: the name of the selected one stands vertically at the right edge
@@ -569,11 +634,11 @@ Item {
         spacing: 2
         visible: !root.fxPresetMode
 
+        y: root.cdjView ? root.height - height : waveArea.y + waveArea.height + 2
+
         anchors {
             left: parent.left
             right: parent.right
-            top: waveArea.bottom
-            topMargin: 2
         }
 
         Repeater {
@@ -606,21 +671,25 @@ Item {
     Row {
         id: deckRow
 
+        // XDJ view: from below the hotcues to the bottom edge. CDJ view: tall panels from the
+        // top bar to the hotcues; the waveforms lie over their middle part.
+        height: root.cdjView ? root.cdjPanelHeight : root.height - (hotcueBand.y + hotcueBand.height + 2) - 2
         spacing: 2
 
         anchors {
-            bottom: parent.bottom
             left: parent.left
             right: parent.right
-            top: hotcueBand.bottom
+            top: root.cdjView ? topBar.bottom : hotcueBand.bottom
             topMargin: 2
         }
 
         DJ.DeckPanel {
             accent: "#27a8e0"
+            cdjGap: root.cdjView ? root.cdjGap : 0
             deckNumber: 1
             group: "[Channel1]"
             height: parent.height
+            layoutHeight: root.cdjView ? root.cdjLayoutHeight : height
             keyCamelot: root.keyCamelot
             isMaster: root.masterDeck === 1
             quantizeBeat: root.quantizeBeat
@@ -632,9 +701,11 @@ Item {
         }
         DJ.DeckPanel {
             accent: "#e0a027"
+            cdjGap: root.cdjView ? root.cdjGap : 0
             deckNumber: 2
             group: "[Channel2]"
             height: parent.height
+            layoutHeight: root.cdjView ? root.cdjLayoutHeight : height
             isMaster: root.masterDeck === 2
             keyCamelot: root.keyCamelot
             quantizeBeat: root.quantizeBeat
@@ -649,6 +720,8 @@ Item {
         id: utilityMenu
 
         autoCue: root.autoCue
+        beatMatchMode: root.beatMatchMode
+        cdjView: root.cdjView
         keyCamelot: root.keyCamelot
         quantizeBeat: root.quantizeBeat
         showRemain: root.showRemain
@@ -657,6 +730,8 @@ Item {
         z: 30
 
         onAutoCueSelected: on => root.autoCue = on
+        onCdjViewSelected: on => root.cdjView = on
+        onBeatMatchModeSelected: mode => root.beatMatchMode = mode
         onKeyCamelotSelected: camelot => root.keyCamelot = camelot
         onQuantizeBeatSelected: beat => root.quantizeBeat = beat
         onShowRemainSelected: remain => root.showRemain = remain

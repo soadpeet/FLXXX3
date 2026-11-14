@@ -18,6 +18,8 @@ QuantizeControl::QuantizeControl(const QString& group,
     m_pCOPrevBeat = new ControlObject(ConfigKey(group, "beat_prev"));
     m_pCOPrevBeat->setKbdRepeatable(true);
     m_pCOPrevBeat->set(mixxx::audio::kInvalidFramePos.toEngineSamplePosMaybeInvalid());
+    m_pCOBeatInBar = new ControlObject(ConfigKey(group, "beat_in_bar"));
+    m_pCOBeatInBar->set(0);
     m_pCOClosestBeat = new ControlObject(ConfigKey(group, "beat_closest"));
     m_pCOClosestBeat->set(mixxx::audio::kInvalidFramePos.toEngineSamplePosMaybeInvalid());
 }
@@ -26,6 +28,7 @@ QuantizeControl::~QuantizeControl() {
     delete m_pCOQuantizeEnabled;
     delete m_pCONextBeat;
     delete m_pCOPrevBeat;
+    delete m_pCOBeatInBar;
     delete m_pCOClosestBeat;
 }
 
@@ -102,6 +105,13 @@ void QuantizeControl::lookupBeatPositions(mixxx::audio::FramePos position) {
         // FIXME: -1.0 is a valid frame position, should we set the COs to NaN?
         m_pCOPrevBeat->set(prevBeatPosition.toEngineSamplePosMaybeInvalid());
         m_pCONextBeat->set(nextBeatPosition.toEngineSamplePosMaybeInvalid());
+        const mixxx::audio::FramePos firstBeat = pBeats->firstBeat();
+        if (firstBeat.isValid() && prevBeatPosition.isValid()) {
+            int idx = prevBeatPosition >= firstBeat
+                    ? pBeats->numBeatsInRange(firstBeat, prevBeatPosition)
+                    : -pBeats->numBeatsInRange(prevBeatPosition, firstBeat);
+            m_pCOBeatInBar->set(((idx % 4) + 4) % 4);
+        }
     }
 }
 

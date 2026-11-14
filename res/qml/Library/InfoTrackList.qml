@@ -44,7 +44,12 @@ Rectangle {
     function loadSelected(group) {
         if (root.selectedIndex < 0 || root.selectedIndex >= root.count)
             return;
+        root.notePosition(group, root.selectedIndex);
         Mixxx.PlayerManager.getPlayer(group).loadTrackFromLocationUrl(root.entries[root.selectedIndex].url, false);
+    }
+    // The deck shows the position in the list as TRACK (like the CDJ): remember it before loading.
+    function notePosition(group, index) {
+        Mixxx.Config.setAndroidSetting("listPos" + group, String(index + 1));
     }
 
     color: "#101010"
@@ -308,6 +313,7 @@ Rectangle {
 
                         onTapped: {
                             menu.close();
+                            root.notePosition("[Channel" + loadButton.modelData.deck + "]", root.menuIndex);
                             Mixxx.PlayerManager.getPlayer("[Channel" + loadButton.modelData.deck + "]")
                                     .loadTrackFromLocationUrl(root.entries[root.menuIndex].url, false);
                         }

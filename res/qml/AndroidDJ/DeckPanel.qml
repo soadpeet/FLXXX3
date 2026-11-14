@@ -93,10 +93,18 @@ Rectangle {
     readonly property var player: Mixxx.PlayerManager.getPlayer(group)
     readonly property var track: player ? player.currentTrack : null
     readonly property bool loaded: player ? player.isLoaded : false
+    // Position of the loaded track in the list it was loaded from (shown as TRACK).
+    property string listPos: ""
+    onTrackChanged: listPos = Mixxx.Config.androidSetting("listPos" + group, "")
     readonly property real elapsed: durationControl.value * playPositionControl.value
     readonly property real remaining: durationControl.value - elapsed
     readonly property real tempoPercent: (rateRatioControl.value - 1) * 100
-    readonly property real unit: Math.max(8, root.height / 14)
+    // Height the text sizes and the overview are based on. CDJ view: the panel is taller
+    // (the main waveform lies in a gap below the title row), but its parts keep the size.
+    property real layoutHeight: height
+    // CDJ view: height of the gap between the title row and the metrics row.
+    property real cdjGap: 0
+    readonly property real unit: Math.max(8, root.layoutHeight / 14)
 
     // "mm:ss" and ".mmm" are shown in different sizes, like on the RX3.
     function formatTime(seconds) {
@@ -167,6 +175,9 @@ Rectangle {
             bottom: parent.bottom
             left: parent.left
             top: parent.top
+            // CDJ view (cdjGap > 0): only as high as the info box below the waveform,
+            // like the PLAYER box of the CDJ-3000.
+            topMargin: root.cdjGap > 0 ? titleRow.height + root.cdjGap : 0
         }
 
         Text {
@@ -213,7 +224,7 @@ Rectangle {
                 color: "#ffffff"
                 font.bold: true
                 font.pixelSize: Math.round(root.unit * 1.1)
-                text: root.loaded && root.track && root.track.trackNumber ? root.track.trackNumber : "--"
+                text: root.loaded && root.listPos !== "" ? root.listPos : "--"
             }
             Item { height: Math.round(root.unit * 0.3); width: 1 }
             Text {
@@ -238,8 +249,8 @@ Rectangle {
         height: Math.round(root.unit * 3.2)
 
         anchors {
-            left: deckColumn.right
-            leftMargin: 6
+            left: parent.left
+            leftMargin: (root.cdjGap > 0 ? 0 : deckColumn.width) + 6
             right: parent.right
             rightMargin: 4
             top: parent.top
@@ -310,6 +321,7 @@ Rectangle {
             right: parent.right
             rightMargin: 4
             top: titleRow.bottom
+            topMargin: root.cdjGap
         }
 
         Column {
@@ -617,7 +629,7 @@ Rectangle {
         id: overview
 
         group: root.group
-        height: Math.round(root.height * 0.28)
+        height: Math.round(root.layoutHeight * 0.28)
 
         anchors {
             bottom: parent.bottom
