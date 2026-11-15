@@ -2135,6 +2135,14 @@ void RekordboxFeature::onMountedVolumesRead() {
     m_mountedVolumes = mounted;
     m_volumesChecked = true;
 
+    // A stick was plugged in or removed: the waveform previews and Rekordbox data that were read
+    // from it are dropped, so that they are read again (the stick may have been exported anew).
+    {
+        QMutexLocker locker(&s_trackCacheMutex);
+        s_trackCache.clear();
+        s_previewCache.clear();
+    }
+
     // Tracks of volumes that are not mounted (any more): delete them from the
     // library, including their cues, beats and waveforms.
     static const QRegularExpression volumePath(
