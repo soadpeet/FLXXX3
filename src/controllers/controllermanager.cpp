@@ -4,6 +4,7 @@
 #include <QSet>
 #include <QThread>
 
+#include "control/controlobject.h"
 #include "controllers/controller.h"
 #include "controllers/controllerlearningeventfilter.h"
 #include "controllers/controllermappinginfoenumerator.h"
@@ -111,6 +112,12 @@ ControllerManager::ControllerManager(UserSettingsPointer pConfig)
           m_skipPoll(false) {
     qRegisterMetaType<std::shared_ptr<LegacyControllerMapping>>(
             "std::shared_ptr<LegacyControllerMapping>");
+
+#ifdef __ANDROID__
+    m_pAndroidShiftDeck = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("shift_deck")));
+    m_pAndroidShiftDeck->set(0);
+#endif
 
     // Create controller mapping paths in the user's home directory.
     QString userMappings = userMappingsPath(m_pConfig);

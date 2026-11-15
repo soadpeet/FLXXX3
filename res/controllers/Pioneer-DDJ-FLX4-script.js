@@ -1136,6 +1136,15 @@ PioneerDDJFLX4.jogTouch = function(channel, _control, value) {
 
 PioneerDDJFLX4.shiftPressed = function(channel, _control, value, _status, _group) {
     PioneerDDJFLX4.shiftButtonDown[channel] = value === 0x7F;
+    // Android edition: tells the main window which SHIFT is held (0 = none, 1 = deck 1,
+    // 2 = deck 2); SHIFT + BROWSE knob zooms only the waveform of that deck (CDJ view).
+    let shiftDeck = 0;
+    if (PioneerDDJFLX4.shiftButtonDown[0]) {
+        shiftDeck = 1;
+    } else if (PioneerDDJFLX4.shiftButtonDown[1]) {
+        shiftDeck = 2;
+    }
+    engine.setValue("[AndroidDJ]", "shift_deck", shiftDeck);
 };
 
 

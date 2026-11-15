@@ -10,6 +10,8 @@
 #include "preferences/usersettings.h"
 #include "util/duration.h"
 
+class ControlObject;
+
 // Forward declaration(s)
 class Controller;
 class ControllerLearningEventFilter;
@@ -78,6 +80,12 @@ class ControllerManager : public QObject {
   private:
 #ifdef __ANDROID_MIDI__
     bool m_androidSetupDone = false;
+#endif
+#ifdef __ANDROID__
+    // Android edition: which SHIFT button of the controller is held (0 = none, 1 = deck 1,
+    // 2 = deck 2). The mapping sets it, the main window reads it (SHIFT + BROWSE knob zooms
+    // the waveform of that deck only).
+    std::unique_ptr<ControlObject> m_pAndroidShiftDeck;
 #endif
     void updateControllerList();
     void startPolling();

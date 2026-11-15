@@ -20,6 +20,8 @@ Item {
     // main.qml reads this property; there is no menu bar on Android.
     readonly property var menuBar: null
     property bool browserOpen: false
+    // Which part of the screen the library covers: 0 = all, 1 = left half, 2 = right half.
+    property int browserSide: 0
     // Top button that opened the library ("BROWSE", "SOURCE", ...).
     property string browserMode: "BROWSE"
     // Utility ("SHORTCUT") screen open.
@@ -287,7 +289,9 @@ Item {
             root.activateSource(1);
         }
     }
-    function openBrowser() {
+    // side: 0 = the whole screen, 1 / 2 = only the half of deck 1 / 2 (CDJ view).
+    function openBrowser(side) {
+        root.browserSide = root.cdjView && side ? side : 0;
         root.utilityOpen = false;
         root.browserOpen = true;
         browserIdle.interval = Math.round(AdvSettings.values.menuIdleSec * 1000);
@@ -351,15 +355,21 @@ Item {
         onValueChanged: {
             if (root.browserOpen) {
                 root.keepBrowserOpen();
-            } else if (value > 0) {
-                zoomIn1.trigger();
-                zoomIn2.trigger();
-            } else if (value < 0) {
-                zoomOut1.trigger();
-                zoomOut2.trigger();
+            } else if (value !== 0) {
+                // CDJ view, SHIFT of a deck held: only the waveform of that deck zooms.
+                const only = root.cdjView ? shiftDeck.value : 0;
+                const zoomIn = value > 0;
+                if (only !== 2) {
+                    (zoomIn ? zoomIn1 : zoomOut1).trigger();
+                }
+                if (only !== 1) {
+                    (zoomIn ? zoomIn2 : zoomOut2).trigger();
+                }
             }
         }
     }
+    // Which SHIFT button of the controller is held: 0 = none, 1 = deck 1, 2 = deck 2.
+    Mixxx.ControlProxy { id: shiftDeck; group: "[AndroidDJ]"; key: "shift_deck" }
     Mixxx.ControlProxy { id: zoomIn1; group: "[Channel1]"; key: "waveform_zoom_down" }
     Mixxx.ControlProxy { id: zoomOut1; group: "[Channel1]"; key: "waveform_zoom_up" }
     Mixxx.ControlProxy { id: zoomIn2; group: "[Channel2]"; key: "waveform_zoom_down" }
@@ -385,17 +395,31 @@ Item {
             }
         }
     }
+    // LOAD of a deck: library open = it loads (the library closes soon after); library closed in
+    // the CDJ view = the library opens on the side of that deck only.
+    function loadPressed(deck) {
+        if (root.browserOpen) {
+            root.closeBrowserSoon();
+        } else if (root.cdjView) {
+            root.browserMode = "BROWSE";
+            root.openBrowser(deck);
+            const lib = browser.item ? browser.item.library : null;
+            if (lib) {
+                lib.mode = "BROWSE";
+            }
+        }
+    }
     Mixxx.ControlProxy {
         group: "[Channel1]"
         key: "LoadSelectedTrack"
 
-        onValueChanged: if (value > 0) root.closeBrowserSoon()
+        onValueChanged: if (value > 0) root.loadPressed(1)
     }
     Mixxx.ControlProxy {
         group: "[Channel2]"
         key: "LoadSelectedTrack"
 
-        onValueChanged: if (value > 0) root.closeBrowserSoon()
+        onValueChanged: if (value > 0) root.loadPressed(2)
     }
     Timer {
         id: browserIdle
@@ -800,11 +824,12 @@ Item {
         // Above the side buttons (z 20) of the waveforms.
         z: 30
 
-        // Like the XDJ-RX3 browse screen: fills everything below the top bar.
+        // Like the XDJ-RX3 browse screen: fills everything below the top bar. In the CDJ view
+        // LOAD of a deck opens it on that deck's half only.
         anchors {
             bottom: parent.bottom
-            left: parent.left
-            right: parent.right
+            left: root.browserSide === 2 ? parent.horizontalCenter : parent.left
+            right: root.browserSide === 1 ? parent.horizontalCenter : parent.right
             top: topBar.bottom
         }
 
