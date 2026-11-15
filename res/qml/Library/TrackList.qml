@@ -127,6 +127,37 @@ Rectangle {
         if (root.previewActive)
             previewPlay.value = 1;
     }
+    // Android edition: when a list is shown, the waveform previews of its first rows are read in
+    // the background one after the other (the files of a Rekordbox stick are slow), so that
+    // scrolling later finds them ready. At most three requests wait at a time, so that the
+    // rows that are on screen come first.
+    property int preloadRow: 0
+    property int preloadPending: 0
+    readonly property int preloadMax: 300
+    onModelChanged: preloadRow = 0
+
+    Timer {
+        interval: 80
+        repeat: true
+        running: Qt.platform.os === "android" && !!root.model && root.preloadRow < root.preloadMax
+                 && root.preloadRow < view.rows && root.visible && !view.moving
+
+        onTriggered: {
+            if (root.preloadPending >= 3)
+                return;
+            const row = root.preloadRow++;
+            if (!root.model.hasPreview(row) && !root.model.prefetch(row))
+                root.preloadPending++;
+        }
+    }
+    Connections {
+        function onTrackPrefetched() {
+            if (root.preloadPending > 0)
+                root.preloadPending--;
+        }
+
+        target: root.model
+    }
     Connections {
         function onTrackLoaded() {
             root.previewStart();
@@ -688,10 +719,17 @@ Rectangle {
                 return String(liteCell.row + 1);
             }
 
-            Component.onCompleted: {
-                if (liteCell.isTitle)
+            // A preview that was made before is shown at once (nothing is read for that);
+            // otherwise it is requested a moment after the row came to rest.
+            function showWave() {
+                if (!liteCell.isTitle)
+                    return;
+                if (view.model.hasPreview(liteCell.row))
+                    liteCell.waveReady = true;
+                else
                     waveTimer.restart();
             }
+            Component.onCompleted: liteCell.showWave()
             Timer {
                 id: waveTimer
 
@@ -699,7 +737,25 @@ Rectangle {
                 // load in the same frame.
                 interval: 200 + (liteCell.row % 12) * 45
 
-                onTriggered: liteCell.waveReady = true
+                // Not while the list is flicked: loading the waveform reads the stick and the
+                // list would lag. The timer tries again until the list stands still.
+                onTriggered: {
+                    if (view.moving)
+                        waveTimer.restart();
+                    else if (view.model.prefetch(liteCell.row))
+                        liteCell.waveReady = true;
+                    // else: the files are read on a worker thread, onTrackPrefetched follows.
+                }
+            }
+            Connections {
+                enabled: liteCell.isTitle && !liteCell.waveReady
+                target: view.model
+
+                // Any finished track: ask again for this row (cheap when it is not ready).
+                function onTrackPrefetched() {
+                    if (!view.moving && view.model.prefetch(liteCell.row))
+                        liteCell.waveReady = true;
+                }
             }
             TableView.onPooled: {
                 liteCell.waveReady = false;
@@ -707,8 +763,7 @@ Rectangle {
             }
             TableView.onReused: {
                 liteCell.waveReady = false;
-                if (liteCell.isTitle)
-                    waveTimer.restart();
+                liteCell.showWave();
             }
 
             // The track number (left), the waveform of the track follows.
@@ -760,7 +815,7 @@ Rectangle {
                             minuteMarkers: false
                             normalized: true
                             stereo: false
-                            track: view.model.getTrack(liteCell.row)
+                            track: view.model.getPreviewTrack(liteCell.row)
                         }
                     }
                 }

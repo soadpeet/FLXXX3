@@ -155,16 +155,9 @@ bool MixxxApplication::notify(QObject* pTarget, QEvent* pEvent) {
         debug << "Processing"
               << pEvent->type()
               << "for object";
-        if (pEvent->type() == QEvent::DeferredDelete ||
-                pEvent->type() == QEvent::ChildRemoved ||
-                pEvent->type() == QEvent::Timer) {
-            // pTarget can be already dangling in case of DeferredDelete
-            debug << static_cast<void*>(pTarget); // will print dangling address
-        } else {
-            debug << pTarget // will print address, class and object name
-                  << "running in thread:"
-                  << pTarget->thread()->objectName();
-        }
+        // Android edition: pTarget can be dangling after any event (e.g. a QML item deleted by
+        // the event), so it is never dereferenced here: only its address is printed.
+        debug << static_cast<void*>(pTarget);
         debug << "took"
               << time.elapsed().debugMillisWithUnit();
     }

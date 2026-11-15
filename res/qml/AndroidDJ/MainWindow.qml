@@ -322,7 +322,7 @@ Item {
     readonly property real cdjPad: 12
     readonly property real cdjTitleHeight: Math.round(3.2 * Math.max(8, cdjLayoutHeight / 14)) + cdjPad
     readonly property real hotcueHeight: cdjView
-            ? Math.max(12, Math.round(contentHeight * 0.11))
+            ? Math.max(12, Math.round(contentHeight * 0.06))
             : Math.max(12, Math.round(height * 0.035))
     // Height of ONE waveform in the XDJ view; in the CDJ view half of the (side by side)
     // waveforms, so that the side buttons (two per edge) keep their size.

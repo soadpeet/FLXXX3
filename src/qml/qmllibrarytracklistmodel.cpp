@@ -1,5 +1,7 @@
 #include "qml/qmllibrarytracklistmodel.h"
 
+#include "library/rekordbox/rekordboxfeature.h"
+
 #include <QCollator>
 #include <algorithm>
 
@@ -222,6 +224,53 @@ QmlTrackProxy* QmlLibraryTrackListModel::getTrack(int row) const {
         return {};
     }
     return make_qml_owned<QmlTrackProxy>(pTrackModel->getTrack(sourceModel()->index(row, 0)));
+}
+
+bool QmlLibraryTrackListModel::prefetch(int row) {
+#ifdef __ANDROID__
+    auto* const pRekordbox = dynamic_cast<RekordboxPlaylistModel*>(sourceModel());
+    if (pRekordbox) {
+        connect(pRekordbox,
+                &RekordboxPlaylistModel::trackPrefetched,
+                this,
+                &QmlLibraryTrackListModel::slotTrackPrefetched,
+                Qt::UniqueConnection);
+        return pRekordbox->prefetchTrack(sourceModel()->index(row, 0));
+    }
+#else
+    Q_UNUSED(row);
+#endif
+    return true;
+}
+
+bool QmlLibraryTrackListModel::hasPreview(int row) const {
+#ifdef __ANDROID__
+    auto* const pRekordbox = dynamic_cast<RekordboxPlaylistModel*>(sourceModel());
+    if (pRekordbox) {
+        return pRekordbox->hasPreview(sourceModel()->index(row, 0));
+    }
+#else
+    Q_UNUSED(row);
+#endif
+    return false;
+}
+
+void QmlLibraryTrackListModel::slotTrackPrefetched() {
+    emit trackPrefetched();
+}
+
+QmlTrackProxy* QmlLibraryTrackListModel::getPreviewTrack(int row) const {
+#ifdef __ANDROID__
+    auto* const pRekordbox = dynamic_cast<RekordboxPlaylistModel*>(sourceModel());
+    if (pRekordbox) {
+        const TrackPointer pTrack = pRekordbox->previewTrack(sourceModel()->index(row, 0));
+        if (!pTrack) {
+            return nullptr;
+        }
+        return make_qml_owned<QmlTrackProxy>(pTrack);
+    }
+#endif
+    return getTrack(row);
 }
 
 QVariantMap QmlLibraryTrackListModel::trackInfo(int row) const {

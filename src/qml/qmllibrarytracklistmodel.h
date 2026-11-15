@@ -68,6 +68,13 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
     int columnCount(const QModelIndex& index = QModelIndex()) const override;
     Q_INVOKABLE QUrl getUrl(int row) const;
     Q_INVOKABLE mixxx::qml::QmlTrackProxy* getTrack(int row) const;
+    /// Android edition: true if the Rekordbox data of the track of `row` is ready; otherwise it
+    /// is read on a worker thread and trackPrefetched() follows.
+    Q_INVOKABLE bool prefetch(int row);
+    /// Android edition: true if the preview of `row` is ready already (reads nothing).
+    Q_INVOKABLE bool hasPreview(int row) const;
+    /// Android edition: the temporary track for the waveform preview of `row` (see prefetch()).
+    Q_INVOKABLE mixxx::qml::QmlTrackProxy* getPreviewTrack(int row) const;
     Q_INVOKABLE TrackModel::Capabilities getCapabilities() const;
     Q_INVOKABLE bool hasCapabilities(TrackModel::Capabilities caps) const;
     Q_INVOKABLE void search(const QString& searchText);
@@ -86,6 +93,13 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
             Qt::Orientation orientation,
             int role = Qt::DisplayRole) const override;
     Q_INVOKABLE void sort(int column, Qt::SortOrder order) override;
+
+  signals:
+    /// Android edition: the Rekordbox data of the track at this URL was read in the background.
+    void trackPrefetched();
+
+  private slots:
+    void slotTrackPrefetched();
 
   private:
     std::vector<parented_ptr<QmlLibraryTrackListColumn>> m_columns;

@@ -43,9 +43,14 @@
 #ifdef __ANDROID__
 #include "util/androidtrackcache.h"
 #endif
+#include <QCoreApplication>
 #include <QFileInfo>
 #include <QHash>
 #include <QMutex>
+#include <QPointer>
+#include <QSet>
+#include <QThreadPool>
+#include <QtConcurrent>
 
 #include "track/keyfactory.h"
 #include "track/keyutils.h"
@@ -1759,6 +1764,33 @@ static void applyRekordboxTrackData(const TrackPointer& track,
     track->setColor(mixxx::RgbColor::fromQVariant(colorValue));
 }
 
+#ifdef __ANDROID__
+namespace {
+// Android edition: the Rekordbox data of a track (MP3 scan, ANLZ files, waveform) is read
+// from the stick only once. The list asks for the track of every visible row again after
+// each sort or filter; without this every row would read from the stick again.
+QMutex s_trackCacheMutex;
+QHash<QString, TrackPointer> s_trackCache;
+// One reader at a time: the worker thread of prefetchTrack() and the GUI thread must not
+// read the same track twice.
+QMutex s_applyMutex;
+QSet<QString> s_prefetchRunning;
+
+TrackPointer cachedTrack(const QString& location) {
+    QMutexLocker locker(&s_trackCacheMutex);
+    return s_trackCache.value(location);
+}
+
+void rememberTrack(const QString& location, const TrackPointer& track) {
+    QMutexLocker locker(&s_trackCacheMutex);
+    if (s_trackCache.size() >= 500) {
+        s_trackCache.erase(s_trackCache.begin());
+    }
+    s_trackCache.insert(location, track);
+}
+} // namespace
+#endif
+
 TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
     qDebug() << "RekordboxTrackModel::getTrack";
 
@@ -1766,17 +1798,8 @@ TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
             index, ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)
                                .toString();
 #ifdef __ANDROID__
-    // Android edition: the Rekordbox data of a track (MP3 scan, ANLZ files, waveform) is read
-    // from the stick only once. The list asks for the track of every visible row again after
-    // each sort or filter; without this every row would read from the stick again.
-    static QMutex s_trackCacheMutex;
-    static QHash<QString, TrackPointer> s_trackCache;
-    {
-        QMutexLocker locker(&s_trackCacheMutex);
-        const auto it = s_trackCache.constFind(location);
-        if (it != s_trackCache.constEnd()) {
-            return it.value();
-        }
+    if (const TrackPointer pCached = cachedTrack(location)) {
+        return pCached;
     }
 #endif
     TrackPointer track = BaseExternalPlaylistModel::getTrack(index);
@@ -1785,22 +1808,130 @@ TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
         return track;
     }
 
-    applyRekordboxTrackData(track,
-            location,
-            getFieldVariant(index, ColumnCache::COLUMN_REKORDBOX_ANALYZE_PATH).toString(),
-            getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_KEY).toString(),
-            getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_COLOR));
 #ifdef __ANDROID__
-    if (track) {
-        QMutexLocker locker(&s_trackCacheMutex);
-        if (s_trackCache.size() >= 500) {
-            s_trackCache.erase(s_trackCache.begin());
+    {
+        QMutexLocker applyLocker(&s_applyMutex);
+        // The worker thread may have finished this track while we waited.
+        if (const TrackPointer pCached = cachedTrack(location)) {
+            return pCached;
         }
-        s_trackCache.insert(location, track);
+#endif
+        applyRekordboxTrackData(track,
+                location,
+                getFieldVariant(index, ColumnCache::COLUMN_REKORDBOX_ANALYZE_PATH).toString(),
+                getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_KEY).toString(),
+                getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_COLOR));
+#ifdef __ANDROID__
+        if (track) {
+            rememberTrack(location, track);
+        }
     }
 #endif
     return track;
 }
+
+#ifdef __ANDROID__
+namespace {
+// The waveform previews of the list rows: temporary tracks, kept for the rows that were shown.
+QHash<QString, TrackPointer> s_previewCache;
+} // namespace
+
+TrackPointer RekordboxPlaylistModel::previewTrack(const QModelIndex& index) const {
+    const QString location = getFieldVariant(
+            index, ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)
+                                     .toString();
+    QMutexLocker locker(&s_trackCacheMutex);
+    return s_previewCache.value(location);
+}
+
+bool RekordboxPlaylistModel::hasPreview(const QModelIndex& index) const {
+    const QString location = getFieldVariant(
+            index, ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)
+                                     .toString();
+    QMutexLocker locker(&s_trackCacheMutex);
+    return s_previewCache.contains(location);
+}
+
+bool RekordboxPlaylistModel::prefetchTrack(const QModelIndex& index) const {
+    const QString location = getFieldVariant(
+            index, ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)
+                                     .toString();
+    {
+        QMutexLocker locker(&s_trackCacheMutex);
+        if (s_previewCache.contains(location)) {
+            return true;
+        }
+        if (s_prefetchRunning.contains(location)) {
+            return false;
+        }
+        s_prefetchRunning.insert(location);
+    }
+    // Everything the worker thread needs is taken from the model here; the worker thread
+    // touches neither the model nor the library database (the tags of the file are not read,
+    // the duration comes from the Rekordbox export).
+    const QString anlzPath = getFieldVariant(index, ColumnCache::COLUMN_REKORDBOX_ANALYZE_PATH).toString();
+    const QString keyText = getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_KEY).toString();
+    const QVariant color = getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_COLOR);
+    // The model may deliver the duration as seconds or as text like "3:45" / "1:02:03".
+    double durationSeconds = 0.0;
+    {
+        const QVariant v = getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_DURATION);
+        bool ok = false;
+        durationSeconds = v.toDouble(&ok);
+        if (!ok) {
+            durationSeconds = 0.0;
+            const QStringList parts = v.toString().split(QLatin1Char(':'));
+            for (const QString& part : parts) {
+                durationSeconds = durationSeconds * 60.0 + part.toDouble();
+            }
+        }
+    }
+
+    static QThreadPool* const pPool = [] {
+        auto* pool = new QThreadPool();
+        pool->setMaxThreadCount(1);
+        return pool;
+    }();
+    QPointer<const RekordboxPlaylistModel> pModel(this);
+    QtConcurrent::run(pPool, [pModel, location, anlzPath, keyText, color, durationSeconds]() {
+        if (QFile(location).exists() && durationSeconds > 0.0) {
+            TrackPointer track = Track::newTemporary(location);
+            track->setAudioProperties(
+                    mixxx::audio::ChannelCount(2),
+                    mixxx::audio::SampleRate(44100),
+                    mixxx::audio::Bitrate(),
+                    mixxx::Duration::fromSeconds(durationSeconds));
+            {
+                QMutexLocker applyLocker(&s_applyMutex);
+                applyRekordboxTrackData(track, location, anlzPath, keyText, color);
+            }
+            // The track lives on the GUI thread from now on (QML uses it there).
+            track->moveToThread(QCoreApplication::instance()->thread());
+            QMutexLocker locker(&s_trackCacheMutex);
+            if (s_previewCache.size() >= 500) {
+                s_previewCache.erase(s_previewCache.begin());
+            }
+            s_previewCache.insert(location, track);
+        } else {
+            // Nothing to show (file missing, no duration): remember it as done, otherwise the
+            // rows ask again after every signal and that never ends.
+            QMutexLocker locker(&s_trackCacheMutex);
+            s_previewCache.insert(location, TrackPointer());
+        }
+        {
+            QMutexLocker locker(&s_trackCacheMutex);
+            s_prefetchRunning.remove(location);
+        }
+        if (RekordboxPlaylistModel* pM = const_cast<RekordboxPlaylistModel*>(pModel.data())) {
+            QMetaObject::invokeMethod(
+                    pM,
+                    [pM, location]() { emit pM->trackPrefetched(location); },
+                    Qt::QueuedConnection);
+        }
+    });
+    return false;
+}
+#endif
 
 bool RekordboxPlaylistModel::isColumnHiddenByDefault(int column) {
     if (column == fieldIndex(ColumnCache::COLUMN_LIBRARYTABLE_BITRATE)) {
@@ -1845,11 +1976,17 @@ void RekordboxFeature::importDataForTrack(const TrackPointer& pTrack) {
     if (!query.exec() || !query.next()) {
         return;
     }
-    applyRekordboxTrackData(pTrack,
-            location,
-            query.value(0).toString(),
-            query.value(1).toString(),
-            query.value(2));
+    {
+        QMutexLocker applyLocker(&s_applyMutex);
+        if (pTrack->getWaveform() && pTrack->getWaveformSummary()) {
+            return; // the worker thread of the list was faster
+        }
+        applyRekordboxTrackData(pTrack,
+                location,
+                query.value(0).toString(),
+                query.value(1).toString(),
+                query.value(2));
+    }
 
     // "TRACK" number of the player display: the position of the track in the
     // list of the stick (the first playlist that contains it).

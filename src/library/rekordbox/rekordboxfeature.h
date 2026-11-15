@@ -48,11 +48,28 @@ class RekordboxPlaylistModel : public BaseExternalPlaylistModel {
             TrackCollectionManager* pTrackCollectionManager,
             QSharedPointer<BaseTrackCache> trackSource);
     TrackPointer getTrack(const QModelIndex& index) const override;
+#ifdef __ANDROID__
+    /// Android edition: reads the Rekordbox data of the track (MP3 scan, analysis files,
+    /// waveform) on a worker thread, so that a flicked list does not block the GUI thread.
+    /// Returns true if the data is there already; otherwise trackPrefetched() follows.
+    bool prefetchTrack(const QModelIndex& index) const;
+    /// The track object made by prefetchTrack() for the waveform preview of a list row (a
+    /// temporary track: not in the library database, no tags read). Null if not ready.
+    TrackPointer previewTrack(const QModelIndex& index) const;
+    /// True if the preview of the row was made before (no file is read to find out).
+    bool hasPreview(const QModelIndex& index) const;
+#endif
     bool isColumnHiddenByDefault(int column) override;
     bool isColumnInternal(int column) override;
 
   protected:
     void initSortColumnMapping() override;
+
+#ifdef __ANDROID__
+  signals:
+    /// The Rekordbox data of the track at `location` was read by prefetchTrack().
+    void trackPrefetched(const QString& location);
+#endif
 };
 
 class RekordboxFeature : public BaseExternalLibraryFeature {
