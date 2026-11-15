@@ -75,6 +75,7 @@ bool AndroidUsbAudio::open() {
     }
     m_renderThread = std::thread(&AndroidUsbAudio::renderLoop, this);
     m_superThread = std::thread(&AndroidUsbAudio::superviseLoop, this);
+    ++s_activeCount;
     m_latencyMs = 1000.0 *
             (m_chunkFrames + m_transferCount * m_packetsPerTransfer * (m_sampleRate / 1000)) /
             m_sampleRate;
@@ -396,6 +397,7 @@ void AndroidUsbAudio::close() {
             m_renderThread.join();
         }
         disconnectUsb();
+        --s_activeCount;
         ULOG("closed, underruns %d", m_underruns.load());
     }
 }

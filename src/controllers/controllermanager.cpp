@@ -21,7 +21,11 @@
 #endif
 
 #ifdef __ANDROID_MIDI__
+#include <QDateTime>
+#include <QJniObject>
+
 #include "controllers/midi/androidmidienumerator.h"
+#include "soundio/androidusbaudio.h"
 #endif
 
 #ifdef __HSS1394__
@@ -202,6 +206,34 @@ void ControllerManager::slotInitialize() {
 }
 
 #ifdef __ANDROID_MIDI__
+// The FLX4 was plugged in after the app started: Android does not list its audio side then,
+// the sound would stay on the tablet speaker. The app starts again once (the sound goes to the
+// FLX4 from the start then). Not twice within a few minutes, so that it can never loop.
+void ControllerManager::androidRestartForLateController() {
+    if (AndroidUsbAudio::isActive()) {
+        return; // the sound is on the FLX4 already
+    }
+    bool anyOpen = false;
+    for (Controller* pController : std::as_const(m_controllers)) {
+        if (pController->isOpen()) {
+            anyOpen = true;
+        }
+    }
+    if (!anyOpen) {
+        return; // no permission yet: the hot plug check will come again
+    }
+    const ConfigKey lastKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("last_auto_restart"));
+    const qint64 now = QDateTime::currentSecsSinceEpoch();
+    const qint64 last = m_pConfig->getValue(lastKey, QStringLiteral("0")).toLongLong();
+    if (now - last < 300) {
+        return;
+    }
+    m_pConfig->setValue(lastKey, QString::number(now));
+    m_pConfig->save();
+    qInfo() << "Android: the DDJ-FLX4 came after the start, starting the app again";
+    QJniObject::callStaticMethod<void>("de/biggo/flxxx3/MainActivity", "restartApp", "()V");
+}
+
 void ControllerManager::androidHotplugCheck() {
     DEBUG_ASSERT_THIS_QOBJECT_THREAD_AFFINITY();
     if (!m_androidSetupDone) {
@@ -230,6 +262,7 @@ void ControllerManager::androidHotplugCheck() {
     if (present && !anyOpen) {
         qInfo() << "Android: the DDJ-FLX4 is there, setting it up";
         slotSetUpDevices();
+        androidRestartForLateController();
     } else if (!present && anyOpen) {
         qInfo() << "Android: the DDJ-FLX4 was unplugged, closing it";
         for (Controller* pController : std::as_const(m_controllers)) {

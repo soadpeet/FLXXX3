@@ -31,6 +31,10 @@ class AndroidUsbAudio {
 
     bool open();
     void close();
+    /// True while an instance of the USB audio output is open.
+    static bool isActive() {
+        return s_activeCount.load() > 0;
+    }
     double latencyMs() const {
         return m_latencyMs;
     }
@@ -39,6 +43,8 @@ class AndroidUsbAudio {
     void transferDone(libusb_transfer* pTransfer);
 
   private:
+    static inline std::atomic<int> s_activeCount{0};
+
     struct Slot {
         libusb_transfer* pTransfer = nullptr;
         std::vector<unsigned char> buffer;

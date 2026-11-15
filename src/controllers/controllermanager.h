@@ -72,6 +72,7 @@ class ControllerManager : public QObject {
 #ifdef __ANDROID_MIDI__
     /// Android edition: notices the controller being plugged in or unplugged.
     void androidHotplugCheck();
+    void androidRestartForLateController();
 #endif
 
   private:

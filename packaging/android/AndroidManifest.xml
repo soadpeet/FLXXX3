@@ -62,6 +62,13 @@
                 android:value="--new-ui --log-level debug --developer" />
         </activity>
 
+        <activity
+            android:name="de.biggo.flxxx3.RestartActivity"
+            android:process=":restart"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.qtprovider"
