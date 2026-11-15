@@ -101,36 +101,6 @@ void QmlAndroidStatusProxy::readBattery() {
     m_batteryCharging = status == 2 || status == 5;
 }
 
-// The output of Mixxx must not depend on the phone's media volume (Android
-// applies it in software to USB audio devices): while the app is in the
-// foreground and the controller is connected the music volume is kept at the maximum.
-void QmlAndroidStatusProxy::keepMaxVolume() {
-    if (QGuiApplication::applicationState() != Qt::ApplicationActive) {
-        return;
-    }
-    // Without the controller the tablet speaker / headphones are used: the user's
-    // volume stays as it is.
-    if (!m_controllerConnected) {
-        return;
-    }
-    constexpr jint kStreamMusic = 3;
-    QJniObject context = QNativeInterface::QAndroidApplication::context();
-    if (!context.isValid()) {
-        return;
-    }
-    const QJniObject audio = context.callObjectMethod("getSystemService",
-            "(Ljava/lang/String;)Ljava/lang/Object;",
-            QJniObject::fromString(QStringLiteral("audio")).object<jstring>());
-    if (audio.isValid()) {
-        const jint maxVolume = audio.callMethod<jint>("getStreamMaxVolume", "(I)I", kStreamMusic);
-        const jint volume = audio.callMethod<jint>("getStreamVolume", "(I)I", kStreamMusic);
-        if (maxVolume > 0 && volume < maxVolume) {
-            audio.callMethod<void>("setStreamVolume", "(III)V", kStreamMusic, maxVolume, jint(0));
-        }
-    }
-    QJniEnvironment().checkAndClearExceptions();
-}
-
 namespace {
 // The name of a removable volume as Android shows it (the label of the stick,
 // e.g. "BIGGO 2"), looked up by the uuid of the volume (e.g. "181B-156E").
@@ -228,7 +198,6 @@ QStringList QmlAndroidStatusProxy::subDirectories(const QString& path) const {
 }
 
 void QmlAndroidStatusProxy::update() {
-    keepMaxVolume();
     if (!m_idsWatcher.isRunning()) {
         m_idsWatcher.setFuture(QtConcurrent::run(removableVolumeIds));
     }

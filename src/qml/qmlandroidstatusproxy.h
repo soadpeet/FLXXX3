@@ -96,7 +96,6 @@ class QmlAndroidStatusProxy : public QObject {
   private:
     void refreshState();
     void readBattery();
-    void keepMaxVolume();
 
     QTimer m_timer;
     // /proc/self/mountinfo takes 6-10 ms to read: done off the GUI thread.
