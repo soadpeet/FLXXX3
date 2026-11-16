@@ -130,7 +130,11 @@ class QmlWaveformOverview : public QQuickPaintedItem {
     QColor getRgbPenColor(ConstWaveformPointer pWaveform, int completion) const;
     QColor getRgbPenColor(qreal low, qreal mid, qreal high) const;
     QString m_group;
-    QmlTrackProxy* m_pTrack;
+    // Android edition: the proxy is owned by QML and may be deleted while this item lives on
+    // (list rows keep their overview and only change the track): a guarded pointer, and the
+    // track itself is held here.
+    QPointer<QmlTrackProxy> m_pTrack;
+    TrackPointer m_pTrackHold;
     std::unique_ptr<ControlProxy> m_pReplayGain;
     std::unique_ptr<ControlProxy> m_pReplayGainEnabled;
     std::unique_ptr<ControlProxy> m_pReplayGainBoost;

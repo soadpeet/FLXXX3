@@ -85,7 +85,7 @@ void QmlWaveformOverview::setGroup(const QString& group) {
 }
 
 QmlTrackProxy* QmlWaveformOverview::getTrack() const {
-    return m_pTrack;
+    return m_pTrack.data();
 }
 
 void QmlWaveformOverview::setTrack(QmlTrackProxy* pTrack) {
@@ -93,14 +93,15 @@ void QmlWaveformOverview::setTrack(QmlTrackProxy* pTrack) {
         return;
     }
 
-    if (m_pTrack != nullptr && m_pTrack->internal() != nullptr) {
-        m_pTrack->internal()->disconnect(this);
+    if (m_pTrackHold) {
+        m_pTrackHold->disconnect(this);
     }
 
     m_pTrack = pTrack;
+    m_pTrackHold = pTrack ? pTrack->internal() : TrackPointer();
 
-    if (m_pTrack != nullptr && pTrack->internal() != nullptr) {
-        connect(pTrack->internal().get(),
+    if (m_pTrackHold) {
+        connect(m_pTrackHold.get(),
                 &Track::waveformSummaryUpdated,
                 this,
                 &QmlWaveformOverview::slotWaveformUpdated);
@@ -175,10 +176,7 @@ void QmlWaveformOverview::slotWaveformUpdated() {
 
 
 void QmlWaveformOverview::paint(QPainter* pPainter) {
-    if (!m_pTrack) {
-        return;
-    }
-    TrackPointer pTrack = m_pTrack->internal();
+    TrackPointer pTrack = m_pTrackHold;
     if (!pTrack) {
         return;
     }
@@ -297,7 +295,7 @@ void QmlWaveformOverview::paint(QPainter* pPainter) {
     pPainter->restore();
 
     if (m_minuteMarkers) {
-        drawMinuteMarkers(pPainter, m_pTrack->getDuration());
+        drawMinuteMarkers(pPainter, pTrack->getDuration());
     }
 }
 

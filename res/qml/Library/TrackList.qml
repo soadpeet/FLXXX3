@@ -46,6 +46,17 @@ Rectangle {
             // stick) while the library is closed.
             if (Qt.platform.os === "android" && !root.scrollEnabled)
                 return;
+            // The BROWSE knob sends many steps per second; each one moves the selection and lays
+            // the table out again. The steps are collected and applied at most every 40 ms.
+            if (Qt.platform.os === "android") {
+                if (moveTimer.running) {
+                    root.pendingMove += offset;
+                } else {
+                    view.selectionModel.moveSelectionVertical(offset);
+                    moveTimer.start();
+                }
+                return;
+            }
             view.selectionModel.moveSelectionVertical(offset);
         }
     }
@@ -131,9 +142,28 @@ Rectangle {
     // the background one after the other (the files of a Rekordbox stick are slow), so that
     // scrolling later finds them ready. At most three requests wait at a time, so that the
     // rows that are on screen come first.
+    property int pendingMove: 0
+    Timer {
+        id: moveTimer
+
+        interval: 40
+
+        onTriggered: {
+            const steps = root.pendingMove;
+            root.pendingMove = 0;
+            if (steps !== 0) {
+                view.selectionModel.moveSelectionVertical(steps);
+                moveTimer.start();
+            }
+        }
+    }
+    // Time of the last scroll movement (finger or BROWSE knob: the knob moves the view without
+    // "moving" being set). Waveform previews are only requested when the list rested for a moment.
+    property double lastScrollMs: 0
+    readonly property bool scrolledRecently: Date.now() - lastScrollMs < 350
     property int preloadRow: 0
     property int preloadPending: 0
-    readonly property int preloadMax: 300
+    readonly property int preloadMax: 120
     onModelChanged: preloadRow = 0
 
     Timer {
@@ -141,9 +171,10 @@ Rectangle {
         repeat: true
         running: Qt.platform.os === "android" && !!root.model && root.preloadRow < root.preloadMax
                  && root.preloadRow < view.rows && root.visible && !view.moving
+                 && Mixxx.AndroidStatus.cacheCopies === 0
 
         onTriggered: {
-            if (root.preloadPending >= 3)
+            if (root.preloadPending >= 3 || Date.now() - root.lastScrollMs < 350)
                 return;
             const row = root.preloadRow++;
             if (!root.model.hasPreview(row) && !root.model.prefetch(row))
@@ -286,7 +317,7 @@ Rectangle {
     property bool menuLock2: false
 
     function openTrackMenu(row) {
-        const track = view.model.getTrack ? view.model.getTrack(row) : null;
+        const track = view.model.rowInfo ? view.model.rowInfo(row) : null;
         root.menuRow = row;
         root.menuTitle = track && track.title ? track.title : "";
         root.menuArtist = track && track.artist ? track.artist : "";
@@ -724,7 +755,9 @@ Rectangle {
             function showWave() {
                 if (!liteCell.isTitle)
                     return;
-                if (view.model.hasPreview(liteCell.row))
+                // Ready ones are drawn at once only while the list rests; while it scrolls every
+                // preview that is drawn costs time (about 6 ms each, 50 per second at the knob).
+                if (view.model.hasPreview(liteCell.row) && !view.moving && !root.scrolledRecently)
                     liteCell.waveReady = true;
                 else
                     waveTimer.restart();
@@ -740,7 +773,7 @@ Rectangle {
                 // Not while the list is flicked: loading the waveform reads the stick and the
                 // list would lag. The timer tries again until the list stands still.
                 onTriggered: {
-                    if (view.moving)
+                    if (view.moving || Date.now() - root.lastScrollMs < 350)
                         waveTimer.restart();
                     else if (view.model.prefetch(liteCell.row))
                         liteCell.waveReady = true;
@@ -806,7 +839,10 @@ Rectangle {
                     z: 5
                 }
                 Loader {
-                    active: liteCell.isTitle && liteCell.waveReady
+                    // The overview item stays while the row is reused for other tracks: only its
+                    // track changes (creating and deleting it on every step of the knob was the
+                    // main cost of scrolling).
+                    active: liteCell.isTitle
                     anchors.fill: parent
 
                     sourceComponent: Component {
@@ -815,7 +851,7 @@ Rectangle {
                             minuteMarkers: false
                             normalized: true
                             stereo: false
-                            track: view.model.getPreviewTrack(liteCell.row)
+                            track: liteCell.waveReady ? view.model.getPreviewTrack(liteCell.row) : null
                         }
                     }
                 }
@@ -869,6 +905,26 @@ Rectangle {
     TableView {
         id: view
 
+        // Not further than the first / last row and column (no black area beyond the list).
+        boundsBehavior: Flickable.StopAtBounds
+        onContentYChanged: root.lastScrollMs = Date.now()
+        // Sideways only as far as the columns reach (the width of the content can be stale right
+        // after the list was shown in a new width).
+        // The real width of all columns: view.contentWidth can still be the one of an earlier,
+        // wider layout (the list was scrollable far into the empty area then).
+        function columnsTotal() {
+            let total = 0;
+            for (let c = 0; c < view.columns; ++c)
+                total += Math.max(0, view.columnWidthProvider(c));
+            return total + Math.max(0, view.columns - 1) * view.columnSpacing;
+        }
+        onContentXChanged: {
+            const maxX = Math.max(0, Math.min(view.contentWidth, view.columnsTotal()) - view.width);
+            if (view.contentX > maxX)
+                view.contentX = maxX;
+            else if (view.contentX < 0)
+                view.contentX = 0;
+        }
         property int dynamicColumnCount: 0
         property int usedWidth: 0
         // Android edition: the columns of the track number and of the stars.
@@ -1035,6 +1091,20 @@ Rectangle {
             if (view.updateColumnSize()) {
                 // forceLayout is costly - only invoke if there was a change in the column layouts
                 view.forceLayout();
+            }
+        }
+        // Shown (maybe in another width than last time): fit the columns once, then clamp.
+        Connections {
+            target: root
+
+            function onVisibleChanged() {
+                if (root.visible) {
+                    Qt.callLater(() => {
+                        view.updateColumnSize();
+                        view.forceLayout();
+                        view.contentX = 0;
+                    });
+                }
             }
         }
     }

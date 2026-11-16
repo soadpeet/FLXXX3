@@ -265,7 +265,21 @@ Item {
             root.activeSourceRow = row;
         }
     }
-    function topButton(name) {
+    // CDJ view: the side on which a library button opens the library. Both decks empty: left;
+    // one deck loaded: the empty one; both loaded: the side that is not the MASTER.
+    function autoBrowserSide() {
+        const loaded1 = masterLoaded1.value > 0;
+        const loaded2 = masterLoaded2.value > 0;
+        if (loaded1 && !loaded2)
+            return 2;
+        if (!loaded1 && loaded2)
+            return 1;
+        if (loaded1 && loaded2 && root.masterDeck === 1)
+            return 2;
+        return 1;
+    }
+    // side: 0 / undefined = by the rules above (CDJ view), 1 / 2 = chosen by a long press.
+    function topButton(name, side) {
         root.advancedOpen = false;
         if (name === "UTILITY") {
             browserIdle.stop();
@@ -274,13 +288,16 @@ Item {
             return;
         }
         root.utilityOpen = false;
-        if (root.browserOpen && root.browserMode === name) {
+        const wanted = root.cdjView ? (side ? side : root.autoBrowserSide()) : 0;
+        // The same button again closes the library, whichever side it is on (a long press chooses
+        // the side and opens it again there).
+        if (root.browserOpen && root.browserMode === name && !side) {
             browserIdle.stop();
             root.browserOpen = false;
             return;
         }
         root.browserMode = name;
-        root.openBrowser();
+        root.openBrowser(wanted);
         const lib = browser.item ? browser.item.library : null;
         if (lib) {
             lib.mode = name;
@@ -441,7 +458,20 @@ Item {
         activeButton: root.utilityOpen ? "UTILITY" : (root.browserOpen ? root.browserMode : "")
 
         onButtonClicked: name => root.topButton(name)
+        onButtonLongPressed: name => {
+            if (root.cdjView && name !== "UTILITY") {
+                sidePicker.buttonName = name;
+                sidePicker.open();
+            }
+        }
         onCloseRequested: quitDialog.open()
+    }
+    // A deck whose waveform lies behind the library or a menu is not drawn at all: hidden
+    // waveforms still cost GUI time (scene graph sync), which made the library lag.
+    function waveCovered(deckIndex) {
+        if (root.utilityOpen || root.advancedOpen)
+            return true;
+        return root.browserOpen && (root.browserSide === 0 || root.browserSide === deckIndex + 1);
     }
     // Waveforms of both decks stacked on the left, FX panel on the right.
     Item {
@@ -466,6 +496,9 @@ Item {
 
                 // No touches for the waveforms below UTILITY / ADVANCED SETTINGS.
                 enabled: !root.advancedOpen && !root.utilityOpen
+                // The waveform next to an open library redraws more slowly: browsing gets the time.
+                frameRateOverride: root.browserOpen ? 20 : 0
+                visible: !root.waveCovered(index)
                 group: "[Channel" + (index + 1) + "]"
                 // XDJ view: stacked, full width. CDJ view: side by side, full height.
                 height: (root.cdjView ? root.waveformHeight * 2 : root.waveformHeight) - root.beatMatchReserved
@@ -483,6 +516,7 @@ Item {
                 required property int index
 
                 group: "[Channel" + (index + 1) + "]"
+                visible: !root.waveCovered(index) && mode > 0 && otherActive
                 height: root.beatMatchHeight
                 mode: root.beatMatchEffective
                 otherGroup: "[Channel" + (2 - index) + "]"
@@ -791,10 +825,11 @@ Item {
         // Above the side buttons (z 20) of the waveforms.
         z: 30
 
+        // CDJ view: only on the side that was chosen for the library, like the library itself.
         anchors {
             bottom: parent.bottom
-            left: parent.left
-            right: parent.right
+            left: root.browserSide === 2 ? parent.horizontalCenter : parent.left
+            right: root.browserSide === 1 ? parent.horizontalCenter : parent.right
             top: topBar.bottom
         }
 
@@ -953,6 +988,66 @@ Item {
         color: "#ff6a00"
         opacity: Math.round(brightnessProxy.value) === 0 ? 0.10 : 0
         visible: opacity > 0
+    }
+    // Long press on a library button (CDJ view): on which side should it open?
+    Popup {
+        id: sidePicker
+
+        property string buttonName: ""
+
+        anchors.centerIn: parent
+        modal: true
+        padding: 16
+        z: 20000
+
+        background: Rectangle {
+            border.color: "#5a5a5a"
+            color: "#141414"
+        }
+
+        Column {
+            spacing: 12
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                color: "#e0e0e0"
+                font.bold: true
+                font.pixelSize: Math.round(root.height * 0.04)
+                text: sidePicker.buttonName + " ON"
+            }
+            Row {
+                spacing: 14
+
+                Repeater {
+                    model: [1, 2]
+
+                    Rectangle {
+                        required property int modelData
+
+                        border.color: "#cfcfcf"
+                        color: pickTap.pressed ? "#3a3a3a" : "#202020"
+                        height: Math.round(root.height * 0.1)
+                        width: Math.round(root.height * 0.3)
+
+                        Text {
+                            anchors.centerIn: parent
+                            color: "#e0e0e0"
+                            font.bold: true
+                            font.pixelSize: Math.round(root.height * 0.04)
+                            text: "DECK " + parent.modelData
+                        }
+                        TapHandler {
+                            id: pickTap
+
+                            onTapped: {
+                                sidePicker.close();
+                                root.topButton(sidePicker.buttonName, parent.modelData);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     Popup {
         id: quitDialog

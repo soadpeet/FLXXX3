@@ -14,6 +14,8 @@ Rectangle {
     readonly property var disabledButtons: []
 
     signal buttonClicked(string name)
+    // Held for a moment: the library asks on which side it should open (CDJ view).
+    signal buttonLongPressed(string name)
     signal closeRequested
 
     color: "#161616"
@@ -62,6 +64,7 @@ Rectangle {
 
                     enabled: button.enabledButton
 
+                    onLongPressed: root.buttonLongPressed(button.modelData)
                     onTapped: root.buttonClicked(button.modelData)
                 }
             }

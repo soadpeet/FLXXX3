@@ -493,6 +493,7 @@ Rectangle {
             }
             ListView {
                 boundsBehavior: Flickable.StopAtBounds
+                flickableDirection: Flickable.VerticalFlick
                 clip: true
                 flickDeceleration: 2500
                 height: 340

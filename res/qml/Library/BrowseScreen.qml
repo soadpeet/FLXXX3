@@ -795,6 +795,7 @@ Rectangle {
         id: valueList
 
         boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.VerticalFlick
         clip: true
         model: root.values
         visible: root.mode === "BROWSE" && !root.browseTracks && !root.historyView
@@ -897,6 +898,7 @@ Rectangle {
         ListView {
             anchors.fill: parent
             boundsBehavior: Flickable.StopAtBounds
+            flickableDirection: Flickable.VerticalFlick
             clip: true
             model: root.treeItems
             spacing: 2
@@ -1306,7 +1308,7 @@ Rectangle {
         id: infoPanel
 
         readonly property var track: trackList.selectedRow >= 0 && root.tracklist
-                ? root.tracklist.getTrack(trackList.selectedRow) : null
+                ? root.tracklist.rowInfo(trackList.selectedRow) : null
 
         border.color: "#3a3a3a"
         color: "#141414"

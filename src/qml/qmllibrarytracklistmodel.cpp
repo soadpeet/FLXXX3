@@ -273,6 +273,43 @@ QmlTrackProxy* QmlLibraryTrackListModel::getPreviewTrack(int row) const {
     return getTrack(row);
 }
 
+QVariantMap QmlLibraryTrackListModel::rowInfo(int row) const {
+    QVariantMap info;
+    auto* const pTrackModel = dynamic_cast<TrackModel*>(sourceModel());
+    if (pTrackModel == nullptr || row < 0 || row >= sourceModel()->rowCount()) {
+        return info;
+    }
+    const auto text = [&](const QString& field) {
+        const int column = pTrackModel->fieldIndex(field);
+        if (column < 0) {
+            return QString();
+        }
+        return sourceModel()->data(sourceModel()->index(row, column), Qt::DisplayRole).toString();
+    };
+    // The duration may arrive as seconds or as "3:45" / "1:02:03".
+    double seconds = 0.0;
+    {
+        const QString duration = text(QStringLiteral("duration"));
+        bool ok = false;
+        seconds = duration.toDouble(&ok);
+        if (!ok) {
+            seconds = 0.0;
+            for (const QString& part : duration.split(QLatin1Char(':'))) {
+                seconds = seconds * 60.0 + part.toDouble();
+            }
+        }
+    }
+    info.insert(QStringLiteral("title"), text(QStringLiteral("title")));
+    info.insert(QStringLiteral("artist"), text(QStringLiteral("artist")));
+    info.insert(QStringLiteral("album"), text(QStringLiteral("album")));
+    info.insert(QStringLiteral("genre"), text(QStringLiteral("genre")));
+    info.insert(QStringLiteral("keyText"), text(QStringLiteral("key")));
+    info.insert(QStringLiteral("duration"), seconds);
+    info.insert(QStringLiteral("year"), text(QStringLiteral("year")));
+    info.insert(QStringLiteral("comment"), text(QStringLiteral("comment")));
+    return info;
+}
+
 QVariantMap QmlLibraryTrackListModel::trackInfo(int row) const {
     QVariantMap info;
     auto* const pTrackModel = dynamic_cast<TrackModel*>(sourceModel());

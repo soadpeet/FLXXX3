@@ -99,6 +99,7 @@ Rectangle {
 
         anchors.fill: parent
         boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.VerticalFlick
         clip: true
         model: root.count
 

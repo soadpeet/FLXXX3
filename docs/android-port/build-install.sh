@@ -37,4 +37,5 @@ echo "Signierte APK: $SIGNED"
 
 if [ "${1:-}" = "--no-install" ]; then exit 0; fi
 if [ -n "${ADB_TARGET:-}" ]; then "$ADB" connect "$ADB_TARGET"; fi
-"$ADB" install -r "$SIGNED"
+# No incremental install: the app started right after it could crash (files not complete yet).
+"$ADB" install -r --no-incremental "$SIGNED"

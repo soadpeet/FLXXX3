@@ -79,6 +79,15 @@ class Waveform {
         m_description = description;
     }
 
+    // Android edition: built from the 3-band detail waveform of Rekordbox (not saved). Kept in the
+    // waveform itself: a list of pointers elsewhere lost entries when it was cleared.
+    bool isRekordbox3Band() const {
+        return m_rekordbox3Band.loadAcquire() != 0;
+    }
+    void setRekordbox3Band(bool threeBand) {
+        m_rekordbox3Band.storeRelease(threeBand ? 1 : 0);
+    }
+
     QByteArray toByteArray() const;
 
     SaveState saveState() const {
@@ -181,6 +190,7 @@ class Waveform {
     // For performance, completion is shared as a QAtomicInt and does not lock
     // the mutex. The completion of the waveform calculation.
     QAtomicInt m_completion;
+    QAtomicInt m_rekordbox3Band;
 
     // The number of stem contained in waveform samples. 0 if not a stem waveform
     int m_stemCount;

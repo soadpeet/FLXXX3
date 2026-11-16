@@ -267,7 +267,7 @@ Rectangle {
         }
         Item { height: root.u * 0.4; width: 1 }
     }
-    // Right column: folders, waveform colour, mixer.
+    // Right column: waveform colour, mixer. (Library folders are added on the SOURCE screen.)
     Column {
         id: rightColumn
 
@@ -281,60 +281,6 @@ Rectangle {
             topMargin: root.u * 2.6
         }
 
-        // Folders that are read in addition to the USB stick.
-        Rectangle {
-            border.color: "#2a2a2a"
-            color: "#111111"
-            height: root.u * 5.6
-            width: parent.width
-
-            Text {
-                color: "#ffffff"
-                font.bold: true
-                font.pixelSize: root.u * 1.1
-                text: "LIBRARY FOLDERS"
-
-                anchors {
-                    left: parent.left
-                    leftMargin: root.u * 0.6
-                    top: parent.top
-                    topMargin: root.u * 0.4
-                }
-            }
-            Text {
-                color: "#9a9a9a"
-                font.pixelSize: root.u * 0.9
-                text: "USB stick (automatic)"
-
-                anchors {
-                    left: parent.left
-                    leftMargin: root.u * 0.6
-                    verticalCenter: parent.verticalCenter
-                    verticalCenterOffset: root.u * 0.4
-                }
-            }
-            Rectangle {
-                border.color: "#cfcfcf"
-                color: "#2a2a2a"
-                height: root.u * 2.2
-                width: root.u * 8
-
-                anchors {
-                    bottom: parent.bottom
-                    bottomMargin: root.u * 0.4
-                    right: parent.right
-                    rightMargin: root.u * 0.6
-                }
-
-                Text {
-                    anchors.centerIn: parent
-                    color: "#e0e0e0"
-                    font.bold: true
-                    font.pixelSize: root.u * 0.9
-                    text: "ADD FOLDER"
-                }
-            }
-        }
         DJ.SectionTitle { u: root.u; text: "WAVEFORM COLOR"; width: parent.width }
         Row {
             id: colorRow

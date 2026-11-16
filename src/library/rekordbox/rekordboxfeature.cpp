@@ -44,6 +44,7 @@
 #include "util/androidtrackcache.h"
 #endif
 #include <QCoreApplication>
+#include <atomic>
 #include <QFileInfo>
 #include <QHash>
 #include <QMutex>
@@ -1137,6 +1138,15 @@ RekordboxWaveformColumns readThreeBandColumns(const QString& anlzPath2ex) {
 // Builds Mixxx's waveform and overview waveform from the Rekordbox columns and
 // puts them on the track. AnalyzerWaveform::shouldAnalyze() then skips the
 // (slow, CPU-heavy) audio analysis for this track.
+#ifdef __ANDROID__
+namespace {
+// Set by the worker thread that makes the waveform previews of the list rows: only the small
+// summary waveform is built then (the full waveform of a track is 1 to 2 MB; 300 preloaded rows
+// made the app grow by several hundred MB and the system swapped).
+thread_local bool t_summaryOnly = false;
+} // namespace
+#endif
+
 void applyRekordboxWaveform(const TrackPointer& track,
         mixxx::audio::SampleRate sampleRate,
         int timingOffsetMs,
@@ -1145,6 +1155,11 @@ void applyRekordboxWaveform(const TrackPointer& track,
     constexpr int kMainVisualSampleRate = 441; // same as AnalyzerWaveform
     constexpr int kSummaryVisualSamples = 2 * 1920;
 
+#ifdef __ANDROID__
+    if (t_summaryOnly && track->getWaveformSummary()) {
+        return;
+    }
+#endif
     if (track->getWaveform() && track->getWaveformSummary()) {
         // getTrack() is called several times per track (e.g. once per table
         // cell); build the waveform only once.
@@ -1248,12 +1263,18 @@ void applyRekordboxWaveform(const TrackPointer& track,
         pWaveform->setDescription(WaveformFactory::currentWaveformDescription());
     };
 
-    auto pWaveform = WaveformPointer(new Waveform(
-            sampleRate, frameLength, kMainVisualSampleRate, -1, 0));
     auto pSummary = WaveformPointer(new Waveform(
             sampleRate, frameLength, kMainVisualSampleRate, kSummaryVisualSamples, 0));
-    fill(pWaveform.data(), mainColumns);
     fill(pSummary.data(), summaryColumns);
+#ifdef __ANDROID__
+    if (t_summaryOnly) {
+        track->setWaveformSummary(pSummary);
+        return;
+    }
+#endif
+    auto pWaveform = WaveformPointer(new Waveform(
+            sampleRate, frameLength, kMainVisualSampleRate, -1, 0));
+    fill(pWaveform.data(), mainColumns);
 #ifdef __ANDROID__
     if (useThreeBand) {
         rekordbox3band::mark(pWaveform.data());
@@ -1736,7 +1757,7 @@ static void applyRekordboxTrackData(const TrackPointer& track,
 
     RekordboxWaveformColumns threeBand;
 #ifdef __ANDROID__
-    if (!(track->getWaveform() && track->getWaveformSummary())) {
+    if (!t_summaryOnly && !(track->getWaveform() && track->getWaveformSummary())) {
         threeBand = readThreeBandColumns(anlzPath.left(anlzPath.length() - 3) + "2EX");
     }
 #endif
@@ -1903,7 +1924,9 @@ bool RekordboxPlaylistModel::prefetchTrack(const QModelIndex& index) const {
                     mixxx::Duration::fromSeconds(durationSeconds));
             {
                 QMutexLocker applyLocker(&s_applyMutex);
+                t_summaryOnly = true;
                 applyRekordboxTrackData(track, location, anlzPath, keyText, color);
+                t_summaryOnly = false;
             }
             // The track lives on the GUI thread from now on (QML uses it there).
             track->moveToThread(QCoreApplication::instance()->thread());

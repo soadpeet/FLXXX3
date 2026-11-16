@@ -85,6 +85,11 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
     // Android edition: title, artist, bpm, key, ... and the location URL of a row
     // as a plain map (for the tag list / history that are stored by the app).
     Q_INVOKABLE QVariantMap trackInfo(int row) const;
+    // Android edition: the text fields of a row (title, artist, album, genre, keyText, duration
+    // in seconds, year, comment) straight from the table, WITHOUT loading the track. The full
+    // track reads its Rekordbox files (waveform, cues) from the stick: far too slow for the info
+    // panel, which follows the selection on every step of the BROWSE knob.
+    Q_INVOKABLE QVariantMap rowInfo(int row) const;
     // Distinct values of a track field ("genre", "artist", "album", "key", "bpm",
     // "folder") with their counts, sorted naturally.
     Q_INVOKABLE QVariantList distinctField(const QString& field) const;
