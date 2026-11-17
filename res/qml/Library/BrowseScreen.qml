@@ -169,13 +169,15 @@ Rectangle {
         const other = m[2] === "A" ? "B" : "A";
         return [n + m[2], up + m[2], down + m[2], n + other];
     }
-    // Runs a search; in BROWSE and SEARCH only the ACTIVE folders of the tablet are shown (the
+    // Runs a search; in BROWSE, SEARCH and PLAYLIST only the chosen source is shown (the stick or
+    // the ACTIVE folders of the tablet; the
     // search syntax has no brackets: every OR part gets its own copy of the folder condition).
     function runSearch(text) {
         if (!root.tracklist)
             return;
         const folders = root.library.folderFilter || [];
-        if ((root.mode !== "BROWSE" && root.mode !== "SEARCH") || folders.length === 0) {
+        if ((root.mode !== "BROWSE" && root.mode !== "SEARCH" && root.mode !== "PLAYLIST")
+                || folders.length === 0) {
             root.tracklist.search(text);
             return;
         }

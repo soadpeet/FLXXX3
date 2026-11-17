@@ -521,9 +521,12 @@ void buildPlaylistTree(
         const QString& playlistPath,
         const QString& device);
 
-QString parseDeviceDB(mixxx::DbConnectionPoolPtr dbConnectionPool, TreeItem* deviceItem) {
-    QString device = deviceItem->getLabel();
-    QString devicePath = deviceItem->getData().toList().at(0).toString();
+// Runs on a worker thread: gets copies of the device name and path, and builds the playlist
+// tree into deviceItem, a detached item that only this thread uses (see m_pParseTree).
+QString parseDeviceDB(mixxx::DbConnectionPoolPtr dbConnectionPool,
+        QString device,
+        QString devicePath,
+        TreeItem* deviceItem) {
 
     qDebug() << "parseDeviceDB device: " << device << " devicePath: " << devicePath;
 
@@ -2220,10 +2223,7 @@ void RekordboxFeature::parseNextDevice() {
         QList<QVariant> data = pDevice->getData().toList();
         if (data.size() > 1 && data[1].toString() == IS_RECORDBOX_DEVICE) {
             m_silentParse = true;
-            m_tracksFuture = QtConcurrent::run(parseDeviceDB,
-                    static_cast<Library*>(parent())->dbConnectionPool(),
-                    pDevice);
-            m_tracksFutureWatcher.setFuture(m_tracksFuture);
+            startDeviceParse(pDevice);
             data[1] = QVariant(IS_NOT_RECORDBOX_DEVICE);
             pDevice->setData(QVariant(data));
             return;
@@ -2441,9 +2441,13 @@ void RekordboxFeature::activateChild(const QModelIndex& index) {
     if (doParseDeviceDB) {
         qDebug() << "Parse Rekordbox Device DB: " << playlist;
 
+        // One device at a time (the worker owns m_pParseTree until it is done); the device
+        // stays unread and is read later (parseNextDevice).
+        if (m_tracksFuture.isRunning()) {
+            return;
+        }
         // Let a worker thread do the XML parsing
-        m_tracksFuture = QtConcurrent::run(parseDeviceDB, static_cast<Library*>(parent())->dbConnectionPool(), item);
-        m_tracksFutureWatcher.setFuture(m_tracksFuture);
+        startDeviceParse(item);
 
         // This device is now a playlist element, future activations should treat is
         // as such
@@ -2546,8 +2550,56 @@ void RekordboxFeature::onRekordboxDevicesFound() {
 #endif
 }
 
+void RekordboxFeature::startDeviceParse(TreeItem* pDevice) {
+    // Copies of name and path: the worker must not read the sidebar item (the GUI thread
+    // changes its data right after this call).
+    m_parseDevicePath = pDevice->getData().toList().value(0).toString();
+    m_pParseTree = std::make_unique<TreeItem>();
+    m_tracksFuture = QtConcurrent::run(parseDeviceDB,
+            static_cast<Library*>(parent())->dbConnectionPool(),
+            pDevice->getLabel(),
+            m_parseDevicePath,
+            m_pParseTree.get());
+    m_tracksFutureWatcher.setFuture(m_tracksFuture);
+}
+
+namespace {
+std::unique_ptr<TreeItem> cloneTreeItem(const TreeItem* pItem) {
+    auto pCopy = std::make_unique<TreeItem>(pItem->getLabel(), pItem->getData());
+    for (const TreeItem* pChild : pItem->children()) {
+        pCopy->insertChild(pCopy->childRows(), cloneTreeItem(pChild));
+    }
+    return pCopy;
+}
+} // namespace
+
+// GUI thread, after the worker is done: the playlists of the device into the sidebar.
+void RekordboxFeature::attachParsedTree() {
+    const std::unique_ptr<TreeItem> pTree = std::move(m_pParseTree);
+    if (!pTree || pTree->childRows() == 0) {
+        return;
+    }
+    const TreeItem* pRoot = m_pSidebarModel->getRootItem();
+    for (int i = 0; i < pRoot->childRows(); ++i) {
+        const TreeItem* pDevice = pRoot->child(i);
+        if (pDevice->getData().toList().value(0).toString() != m_parseDevicePath) {
+            continue;
+        }
+        std::vector<std::unique_ptr<TreeItem>> rows;
+        for (const TreeItem* pChild : pTree->children()) {
+            rows.push_back(cloneTreeItem(pChild));
+        }
+        m_pSidebarModel->insertTreeItemRows(std::move(rows),
+                pDevice->childRows(),
+                m_pSidebarModel->index(i, 0));
+        return;
+    }
+    // The device was removed in the meantime: its playlists are dropped.
+}
+
 void RekordboxFeature::onTracksFound() {
     qDebug() << "onTracksFound";
+    attachParsedTree();
     m_pSidebarModel->triggerRepaint();
 
     QString devicePlaylist;

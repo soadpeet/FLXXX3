@@ -398,7 +398,7 @@ void QmlApplication::slotFrameSwapped() {
     }
 #endif
 #if defined(Q_OS_ANDROID)
-    VERIFY_OR_DEBUG_ASSERT(m_perfSession) {
+    if (!m_perfSession) {
         return;
     }
     auto lastFrameDurationNs = m_frameTimer.elapsed().toIntegerNanos();

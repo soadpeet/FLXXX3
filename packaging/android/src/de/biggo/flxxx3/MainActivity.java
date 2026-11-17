@@ -1,7 +1,9 @@
 package de.biggo.flxxx3;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
@@ -51,5 +53,15 @@ public class MainActivity extends QtActivityBase {
         windowInsetsController.setSystemBarsBehavior(
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         windowInsetsController.hide(WindowInsetsCompat.Type.navigationBars());
+
+        // Qt makes the window full screen a few seconds after the start and hides the system
+        // overlays then (QtDisplayManager.setSystemUiVisibility). That changed the insets once
+        // more while Qt was already drawing: the relayout of the surface at that moment crashed
+        // the app now and then in the system graphics (libgui, release callback of the buffer
+        // queue), mostly at the first start after an installation. Hiding them here already makes
+        // Qt's later call a no-op, so the surface is not laid out again.
+        if (Build.VERSION.SDK_INT >= 34) {
+            getWindow().getInsetsController().hide(WindowInsets.Type.systemOverlays());
+        }
     }
 }

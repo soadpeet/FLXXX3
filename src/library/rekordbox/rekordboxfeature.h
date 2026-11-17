@@ -116,6 +116,14 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
     QFuture<QList<TreeItem*>> m_devicesFuture;
     QFutureWatcher<QString> m_tracksFutureWatcher;
     QFuture<QString> m_tracksFuture;
+    // The worker thread that reads a device builds the playlist tree into this detached item,
+    // which nothing else touches; when it is done the GUI thread copies the entries into the
+    // sidebar (attachParsedTree). Before, the worker read and extended the sidebar item itself
+    // while the GUI thread used it: data races that corrupted memory (random crashes).
+    std::unique_ptr<TreeItem> m_pParseTree;
+    QString m_parseDevicePath;
+    void startDeviceParse(TreeItem* pDevice);
+    void attachParsedTree();
     QString m_title;
 
     QSharedPointer<BaseTrackCache> m_trackSource;
