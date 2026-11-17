@@ -333,14 +333,13 @@ Rectangle {
     Mixxx.ControlProxy { id: trackMenuLoad1; group: "[Channel1]"; key: "LoadSelectedTrack" }
     Mixxx.ControlProxy { id: trackMenuLoad2; group: "[Channel2]"; key: "LoadSelectedTrack" }
 
-    Popup {
+    Skin.FitPopup {
         id: trackMenu
 
-        anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        height: 450
+        designHeight: 450
         modal: true
-        width: 520
+        designWidth: 520
 
         background: Rectangle {
             border.color: "#5a5a5a"

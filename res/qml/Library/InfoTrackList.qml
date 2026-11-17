@@ -250,14 +250,13 @@ Rectangle {
         }
     }
 
-    Popup {
+    Skin.FitPopup {
         id: menu
 
-        anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        height: 450
+        designHeight: 450
         modal: true
-        width: 520
+        designWidth: 520
 
         background: Rectangle {
             border.color: "#5a5a5a"

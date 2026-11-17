@@ -8,7 +8,9 @@ Rectangle {
     id: root
 
     // Sized so that both columns (34 u and 28 u wide) fit next to each other.
-    readonly property real u: Math.max(7, Math.floor(Math.min(width / 66, height / 26)))
+    // Size unit: the left column needs about 31 units of height, so that it fits on low screens
+    // (phones) too.
+    readonly property real u: Math.max(7, Math.floor(Math.min(width / 66, height / 31)))
 
     // Shared with the main window (two-way through the signals below).
     property bool showRemain: true
@@ -67,7 +69,8 @@ Rectangle {
     }
     Mixxx.ControlProxy { id: brightnessProxy; group: "[AndroidDJ]"; key: "brightness" }
 
-    // Opens ADVANCED SETTINGS.
+    // Opens ADVANCED SETTINGS: bottom right, below the (shorter) right column, so that it never
+    // covers the left column on low screens (phones).
     Rectangle {
         border.color: advancedTap.pressed ? "#1f8fe0" : "#4a4a4a"
         color: advancedTap.pressed ? "#3a3a3a" : "#202020"
@@ -77,8 +80,8 @@ Rectangle {
         anchors {
             bottom: parent.bottom
             bottomMargin: root.u * 0.8
-            left: parent.left
-            leftMargin: root.u
+            right: parent.right
+            rightMargin: root.u
         }
 
         Text {

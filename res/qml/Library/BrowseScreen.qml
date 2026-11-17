@@ -340,8 +340,12 @@ Rectangle {
             // stick names (the sticks themselves are the first level of the tree).
             const sticksIdx = sb.index(1, 0);
             const sticks = sb.rowCount(sticksIdx);
+            const only = root.library.stickFilter || "";
             for (let k = 0; k < sticks; ++k) {
                 const stickIdx = sb.index(k, 0, sticksIdx);
+                // Only the stick chosen on the SOURCE screen.
+                if (only !== "" && String(sb.data(stickIdx, Qt.DisplayRole)) !== only)
+                    continue;
                 let n = sb.rowCount(stickIdx);
                 if (n === 0) {
                     // the children of a stick are read when it is opened
@@ -453,6 +457,23 @@ Rectangle {
         }
     }
     onModeChanged: root.enterMode()
+    // Another source was chosen on the SOURCE screen.
+    Connections {
+        function onFolderFilterChanged() {
+            if (root.mode === "BROWSE")
+                root.selectCategory("TRACK");
+            else if (root.mode === "SEARCH" && root.tracklist)
+                root.runSearch("");
+        }
+        function onStickFilterChanged() {
+            if (root.mode === "PLAYLIST") {
+                root.treeStack = [];
+                root.treeBuild();
+            }
+        }
+
+        target: root.library
+    }
     // The track list of another source was activated: start at the top again.
     Connections {
         function onTracklistChanged() {

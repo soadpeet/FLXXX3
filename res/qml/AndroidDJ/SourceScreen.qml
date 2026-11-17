@@ -1,10 +1,12 @@
+import "../" as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 
 // SOURCE screen (modelled on the XDJ-RX3): the devices on the left (USB 1,
 // USB 2, TABLET), INFO about the selected device on the right. The own music
-// folders of the tablet are managed here (ADD FOLDER / REMOVE).
+// folders of the tablet are managed here (ADD FOLDER / REMOVE). OPEN chooses the
+// device as the source of BROWSE, PLAYLIST and SEARCH.
 Rectangle {
     id: root
 
@@ -17,6 +19,11 @@ Rectangle {
         onWheel: wheel => wheel.accepted = true
     }
     property int selected: 0
+    // Source that BROWSE shows (set by the main window): "", "USB1", "USB2" or "TABLET".
+    property string chosenSource: ""
+    // The sizes below are made for the tablet (about 540 high): smaller screens (phones)
+    // get the whole screen scaled down, so that nothing is cut off.
+    readonly property real s: Math.max(0.5, Math.min(1.0, root.height / 540, root.width / 480))
     property var info: ({ present: false })
     property var folders: []
     property string pickerPath: "/storage/emulated/0"
@@ -37,9 +44,12 @@ Rectangle {
         root.activeFolders = copy;
     }
 
+    // OPEN: kind is "USB1", "USB2" or "TABLET".
     signal openRequested(string kind, string title)
-    // A stick was selected: the sticks are the shown source again.
-    signal sticksSelected()
+
+    function kindOf(slot) {
+        return slot === 2 ? "TABLET" : "USB" + (slot + 1);
+    }
 
     function formatBytes(bytes) {
         if (!bytes || bytes <= 0)
@@ -111,7 +121,15 @@ Rectangle {
 
     color: "#101010"
     onSelectedChanged: refresh()
-    onVisibleChanged: if (visible) refresh()
+    onVisibleChanged: {
+        if (visible) {
+            // Show the device that is the source now.
+            const slot = ["USB1", "USB2", "TABLET"].indexOf(root.chosenSource);
+            if (slot >= 0)
+                root.selected = slot;
+            refresh();
+        }
+    }
 
     Connections {
         function onChanged() {
@@ -122,12 +140,21 @@ Rectangle {
         target: Mixxx.AndroidStatus
     }
 
+    // Everything except the popups, scaled down on small screens.
+    Item {
+        id: page
+
+        height: root.height / root.s
+        scale: root.s
+        transformOrigin: Item.TopLeft
+        width: root.width / root.s
+
     // ---- Devices ----
     Column {
         id: deviceColumn
 
         spacing: 8
-        width: root.width * 0.38
+        width: page.width * 0.38
 
         anchors {
             left: parent.left
@@ -180,6 +207,30 @@ Rectangle {
                         text: deviceRow.index === 2 ? "T" : "USB"
                     }
                 }
+                // The device that BROWSE shows now.
+                Rectangle {
+                    color: "#ff9a2e"
+                    height: 22
+                    visible: root.chosenSource === root.kindOf(deviceRow.index)
+                    width: inUseText.implicitWidth + 12
+
+                    anchors {
+                        right: parent.right
+                        rightMargin: 8
+                        top: parent.top
+                        topMargin: 8
+                    }
+
+                    Text {
+                        id: inUseText
+
+                        anchors.centerIn: parent
+                        color: "#000000"
+                        font.bold: true
+                        font.pixelSize: 13
+                        text: "SOURCE"
+                    }
+                }
                 Column {
                     anchors {
                         left: parent.left
@@ -206,11 +257,7 @@ Rectangle {
                 TapHandler {
                     gesturePolicy: TapHandler.WithinBounds
 
-                    onTapped: {
-                        root.selected = deviceRow.index;
-                        if (deviceRow.index !== 2)
-                            root.sticksSelected();
-                    }
+                    onTapped: root.selected = deviceRow.index
                 }
             }
         }
@@ -218,6 +265,11 @@ Rectangle {
 
     // ---- INFO ----
     Rectangle {
+        id: infoPanel
+
+        // Width of the two buttons at the bottom (both fit next to each other).
+        readonly property real buttonWidth: Math.min(220, Math.floor((width - 2 * 14 - 12) / 2))
+
         border.color: "#3a3a3a"
         color: "#141414"
 
@@ -305,7 +357,7 @@ Rectangle {
             Text {
                 color: "#8a8a8a"
                 font.pixelSize: 16
-                text: "The tracks of this stick are read automatically and shown in BROWSE."
+                text: "OPEN makes this stick the source: BROWSE, PLAYLIST and SEARCH show its tracks."
                 visible: root.selected !== 2
                 width: parent.width
                 wrapMode: Text.WordWrap
@@ -420,13 +472,13 @@ Rectangle {
                 color: addTap.pressed ? "#10293f" : "#141414"
                 height: 56
                 visible: root.selected === 2
-                width: 220
+                width: infoPanel.buttonWidth
 
                 Text {
                     anchors.centerIn: parent
                     color: "#1fb0f0"
                     font.bold: true
-                    font.pixelSize: 20
+                    font.pixelSize: Math.min(20, Math.floor(infoPanel.buttonWidth / 8))
                     text: "ADD FOLDER"
                 }
                 TapHandler {
@@ -436,38 +488,40 @@ Rectangle {
                 }
             }
             Rectangle {
+                readonly property bool usable: root.selected !== 2 || root.anyFolderActive
+
                 border.color: "#5a5a5a"
-                color: root.anyFolderActive ? (openTap.pressed ? "#1f8fe0" : "#1f6fe0") : "#202020"
+                color: usable ? (openTap.pressed ? "#1f8fe0" : "#1f6fe0") : "#202020"
                 height: 56
-                visible: root.selected === 2
-                width: 220
+                width: infoPanel.buttonWidth
 
                 Text {
                     anchors.centerIn: parent
                     color: "#ffffff"
                     font.bold: true
-                    font.pixelSize: 20
+                    font.pixelSize: Math.min(20, Math.floor(infoPanel.buttonWidth / 8))
                     text: "OPEN"
                 }
                 TapHandler {
                     id: openTap
 
-                    enabled: root.anyFolderActive
-                    onTapped: root.openRequested("TABLET", root.slotTitle(2))
+                    enabled: parent.usable
+                    onTapped: root.openRequested(root.kindOf(root.selected), root.slotTitle(root.selected))
                 }
             }
         }
     }
 
+    }
+
     // ---- Folder picker ----
-    Popup {
+    Skin.FitPopup {
         id: folderPicker
 
-        anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape
-        height: 560
+        designHeight: 500
         modal: true
-        width: 720
+        designWidth: 720
 
         background: Rectangle {
             border.color: "#5a5a5a"
@@ -598,14 +652,13 @@ Rectangle {
     }
 
     // ---- Confirm removing a folder ----
-    Popup {
+    Skin.FitPopup {
         id: confirmRemove
 
-        anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape
-        height: 230
+        designHeight: 230
         modal: true
-        width: 560
+        designWidth: 560
 
         background: Rectangle {
             border.color: "#5a5a5a"

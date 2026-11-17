@@ -255,6 +255,62 @@ Item {
     // The library activates row 1 (the sticks) itself when it is created.
     property int activeSourceRow: 1
 
+    // Source chosen with OPEN on the SOURCE screen: "" (none yet), "USB1", "USB2" or "TABLET".
+    // BROWSE, PLAYLIST and SEARCH show only this source; without one they open SOURCE.
+    property string chosenSource: ""
+
+    // Sets the library to the chosen source: the sticks list (row 1) limited to the files of
+    // that stick, or the tablet folders (row 0) limited to the ACTIVE folders.
+    function applySource() {
+        const lib = browser.item ? browser.item.library : null;
+        if (!lib || root.chosenSource === "")
+            return;
+        let folders = [];
+        let stick = "TABLET";
+        if (root.chosenSource === "TABLET") {
+            root.activateSource(0);
+            folders = Object.keys(sourceScreen.activeFolders);
+        } else {
+            const info = Mixxx.AndroidStatus.stickInfo(root.chosenSource === "USB1" ? 1 : 2);
+            stick = info.present && info.path ? String(info.path).split("/").pop() : "";
+            root.activateSource(1);
+            folders = stick !== "" ? ["/" + stick] : [];
+        }
+        // Only on a change: a new filter starts the list at the top again.
+        if (JSON.stringify(folders) !== JSON.stringify(lib.folderFilter))
+            lib.folderFilter = folders;
+        lib.stickFilter = stick;
+    }
+    function chooseSource(kind, title) {
+        root.chosenSource = kind;
+        root.browserMode = "BROWSE";
+        const lib = browser.item ? browser.item.library : null;
+        if (lib) {
+            root.applySource();
+            lib.mode = "BROWSE";
+            lib.sourceTitle = title;
+            lib.resetBrowse();
+        }
+        root.openBrowser(root.browserSide);
+    }
+    // The chosen stick was pulled out: no source any more.
+    Connections {
+        function onChanged() {
+            if ((root.chosenSource === "USB1" && !Mixxx.AndroidStatus.stick1Present)
+                    || (root.chosenSource === "USB2" && !Mixxx.AndroidStatus.stick2Present)) {
+                root.chosenSource = "";
+                if (root.browserOpen && root.browserMode !== "SOURCE" && root.browserMode !== "TAG LIST")
+                    root.browserMode = "SOURCE";
+            }
+        }
+
+        target: Mixxx.AndroidStatus
+    }
+    // Screens that need a chosen source.
+    function needsSource(name) {
+        return root.chosenSource === "" && (name === "BROWSE" || name === "PLAYLIST" || name === "SEARCH");
+    }
+
     function activateSource(row) {
         // Activating a source rebuilds the whole table: do it only when the
         // source changes.
@@ -283,6 +339,8 @@ Item {
     // side: 0 / undefined = by the rules above (CDJ view), 1 / 2 = chosen by a long press.
     function topButton(name, side) {
         root.advancedOpen = false;
+        if (root.needsSource(name))
+            name = "SOURCE";
         if (name === "UTILITY") {
             browserIdle.stop();
             root.browserOpen = false;
@@ -306,6 +364,8 @@ Item {
         }
         if (name === "PLAYLIST") {
             root.activateSource(1);
+        } else if (name === "BROWSE" || name === "SEARCH") {
+            root.applySource();
         }
     }
     // side: 0 = the whole screen, 1 / 2 = only the half of deck 1 / 2 (CDJ view).
@@ -410,12 +470,16 @@ Item {
                 if (root.browserOpen) {
                     browserIdle.stop();
                     root.browserOpen = false;
+                } else if (root.needsSource("BROWSE")) {
+                    root.browserMode = "SOURCE";
+                    root.openBrowser();
                 } else {
                     root.browserMode = "BROWSE";
                     root.openBrowser();
                     const lib = browser.item ? browser.item.library : null;
                     if (lib) {
                         lib.mode = "BROWSE";
+                        root.applySource();
                     }
                 }
             }
@@ -426,12 +490,16 @@ Item {
     function loadPressed(deck) {
         if (root.browserOpen) {
             root.closeBrowserSoon();
+        } else if (root.cdjView && root.needsSource("BROWSE")) {
+            root.browserMode = "SOURCE";
+            root.openBrowser(deck);
         } else if (root.cdjView) {
             root.browserMode = "BROWSE";
             root.openBrowser(deck);
             const lib = browser.item ? browser.item.library : null;
             if (lib) {
                 lib.mode = "BROWSE";
+                root.applySource();
             }
         }
     }
@@ -682,7 +750,8 @@ Item {
             color: "#c0c0c0"
             elide: Text.ElideRight
             font.bold: true
-            font.pixelSize: Math.round(parent.width * 0.5)
+            // Smaller on low screens (phones), so that the whole word fits.
+            font.pixelSize: Math.round(Math.min(parent.width * 0.5, (parent.height - 8) / (text.length * 0.66)))
             horizontalAlignment: Text.AlignHCenter
             rotation: -90
             text: "JOGWHEEL"
@@ -725,7 +794,8 @@ Item {
             color: "#c0c0c0"
             elide: Text.ElideRight
             font.bold: true
-            font.pixelSize: Math.round(parent.width * 0.5)
+            // Smaller on low screens (phones), so that the whole word fits.
+            font.pixelSize: Math.round(Math.min(parent.width * 0.5, (parent.height - 8) / (text.length * 0.66)))
             horizontalAlignment: Text.AlignHCenter
             rotation: -90
             text: "BRIGHTNESS"
@@ -936,20 +1006,8 @@ Item {
             top: topBar.bottom
         }
 
-        onSticksSelected: root.activateSource(1)
-        onOpenRequested: (kind, title) => {
-            root.browserMode = "BROWSE";
-            root.activateSource(kind === "USB" ? 1 : 0);
-            const lib = browser.item ? browser.item.library : null;
-            if (lib) {
-                lib.mode = "BROWSE";
-                lib.sourceTitle = title;
-                // The tablet list shows only the folders that are ACTIVE in SOURCE.
-                lib.folderFilter = kind === "TABLET" ? Object.keys(sourceScreen.activeFolders) : [];
-                lib.resetBrowse();
-            }
-            root.openBrowser();
-        }
+        chosenSource: root.chosenSource
+        onOpenRequested: (kind, title) => root.chooseSource(kind, title)
     }
     Loader {
         id: browser

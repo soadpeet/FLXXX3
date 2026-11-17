@@ -1,3 +1,4 @@
+import "../" as Skin
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import QtQuick.Controls 2.12
@@ -187,14 +188,13 @@ Item {
     }
 
     // Choose effect and beat for the selected slot.
-    Popup {
+    Skin.FitPopup {
         id: editor
 
-        anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape
-        height: 380
+        designHeight: 380
         modal: true
-        width: 640
+        designWidth: 640
 
         background: Rectangle {
             border.color: "#5a5a5a"
@@ -344,14 +344,13 @@ Item {
     }
 
     // Confirmation before a preset is deleted.
-    Popup {
+    Skin.FitPopup {
         id: confirmDelete
 
-        anchors.centerIn: Overlay.overlay
         closePolicy: Popup.CloseOnEscape
-        height: 190
+        designHeight: 190
         modal: true
-        width: 460
+        designWidth: 460
 
         background: Rectangle {
             border.color: "#5a5a5a"

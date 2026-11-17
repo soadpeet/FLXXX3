@@ -24,6 +24,9 @@ Item {
     property string sourceTitle: ""
     // Android edition: folders of the tablet that are shown (empty = no folder filter).
     property var folderFilter: []
+    // Android edition: PLAYLIST shows only the stick with this id (the source chosen on the
+    // SOURCE screen; "TABLET" = no stick). Empty = all sticks.
+    property string stickFilter: ""
     readonly property bool touchUi: Qt.platform.os === "android"
     // Android edition: shown screen (BROWSE, PLAYLIST, SEARCH, TAG LIST, set by the
     // main window) and the lists that the app keeps (tag list, history, my lists).

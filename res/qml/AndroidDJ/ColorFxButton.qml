@@ -75,7 +75,8 @@ Rectangle {
         color: root.active ? root.activeColor : "#c0c0c0"
         elide: Text.ElideRight
         font.bold: true
-        font.pixelSize: Math.round(root.width * 0.5)
+        // Smaller on low screens (phones), so that the whole name fits.
+        font.pixelSize: Math.round(Math.min(root.width * 0.5, (root.height - 8) / Math.max(1, text.length * 0.66)))
         horizontalAlignment: Text.AlignHCenter
         rotation: -90
         text: root.names[root.selected]
