@@ -47,8 +47,10 @@ Item {
     // other deck, 2 = PHASE METER. The main waveform gets smaller by its height.
     property int beatMatchMode: 1
     readonly property int beatMatchEffective: cdjView ? beatMatchMode : 0
-    readonly property real beatMatchHeight: Math.round(waveformHeight * (beatMatchEffective === 1
-            ? 0.5 : beatMatchEffective === 2 ? 0.3 : 0))
+    // The row above the main waveform (bars, WAVEFORM / PHASE of the other deck or MASTER PLAYER)
+    // exists in the CDJ view in every mode; OFF only shows the bars and the tag.
+    readonly property real beatMatchHeight: cdjView ? Math.round(waveformHeight * (beatMatchMode === 1
+            ? 0.5 : beatMatchMode === 2 ? 0.3 : 0.22)) : 0
     readonly property real beatMatchReserved: beatMatchHeight
     onBeatMatchModeChanged: saveSetting("beatMatchModeV2", beatMatchMode)
     onCdjViewChanged: saveSetting("cdjView", cdjView ? "1" : "0")
@@ -336,7 +338,14 @@ Item {
     // The parts of the panel keep the size they have in the XDJ view.
     readonly property real cdjLayoutHeight: Math.round(height * 0.33)
     readonly property real cdjPanelHeight: contentHeight - hotcueHeight - 4
-    readonly property real cdjGap: cdjPanelHeight - cdjLayoutHeight
+    // CDJ view: height of the block below the main waveform (TRACK, time, tempo, BPM, overview).
+    // About 29 % of the width of a deck (the CDJ screen of the PDF is twice as wide as a deck here).
+    readonly property real cdjLowerHeight: Math.round(width / 2 * 0.29)
+    // The rest of the panel is the main waveform with the beat match row and the loop strip.
+    readonly property real cdjGap: cdjPanelHeight - Math.round(3.2 * Math.max(8, cdjLayoutHeight / 14)) - cdjLowerHeight
+    // Strip under the main waveform for the loop size (CDJ view).
+    // Sizes after page 2 of the layout (relative to the deck width).
+    readonly property real cdjLoopStrip: Math.max(16, Math.round(width / 2 * 0.032))
     // Height of the title row of the panel (same formula as DeckPanel).
     // Plus a little space so that the DECK number in the left column stays visible
     // above the side buttons.
@@ -466,6 +475,32 @@ Item {
         }
         onCloseRequested: quitDialog.open()
     }
+    // Width of the side buttons at the left and right edge of the waveforms.
+    readonly property real sideButtonWidth: 48
+    // CDJ view: the panel that is open over each waveform ("" / "LOOP" / "KEY" / "JUMP") and the
+    // INFO of a track. A panel closes itself after a few seconds without touches.
+    property string popup1: ""
+    property string popup2: ""
+    property int infoDeck: 0
+    function togglePopup(deck, kind) {
+        if (deck === 1)
+            root.popup1 = root.popup1 === kind ? "" : kind;
+        else
+            root.popup2 = root.popup2 === kind ? "" : kind;
+        popupTimer.restart();
+    }
+    function popupActivity(deck) {
+        popupTimer.restart();
+    }
+    Timer {
+        id: popupTimer
+
+        interval: Math.max(5000, Math.round(AdvSettings.values.windowSec * 1000) * 2)
+        onTriggered: {
+            root.popup1 = "";
+            root.popup2 = "";
+        }
+    }
     // A deck whose waveform lies behind the library or a menu is not drawn at all: hidden
     // waveforms still cost GUI time (scene graph sync), which made the library lag.
     function waveCovered(deckIndex) {
@@ -501,7 +536,7 @@ Item {
                 visible: !root.waveCovered(index)
                 group: "[Channel" + (index + 1) + "]"
                 // XDJ view: stacked, full width. CDJ view: side by side, full height.
-                height: (root.cdjView ? root.waveformHeight * 2 : root.waveformHeight) - root.beatMatchReserved
+                height: (root.cdjView ? root.waveformHeight * 2 - root.cdjLoopStrip : root.waveformHeight) - root.beatMatchReserved
                 width: root.cdjView ? Math.round(parent.width / 2) - 1 : parent.width
                 x: root.cdjView ? index * (Math.round(parent.width / 2) + 1) : 0
                 y: (root.cdjView ? 0 : index * root.waveformHeight) + root.beatMatchReserved
@@ -509,20 +544,76 @@ Item {
         }
         // Beat-matching aid: strokes at the beats of the other deck above each waveform.
         Repeater {
-            // No strip objects (and no control connections) at all when the aid is off.
-            model: root.beatMatchEffective > 0 ? 2 : 0
+            // CDJ view only: no strip objects (and no control connections) in the XDJ view.
+            model: root.cdjView ? 2 : 0
 
             DJ.BeatMatchStrip {
                 required property int index
 
                 group: "[Channel" + (index + 1) + "]"
-                visible: !root.waveCovered(index) && mode > 0 && otherActive
+                isMaster: root.masterDeck === index + 1
+                leftInset: index === 0 ? root.sideButtonWidth : 0
+                tagFont: Math.max(9, Math.round(root.width / 2 * 0.016))
+                visible: !root.waveCovered(index) && (isMaster ? ownActive : otherActive)
                 height: root.beatMatchHeight
-                mode: root.beatMatchEffective
+                mode: root.beatMatchMode
                 otherGroup: "[Channel" + (2 - index) + "]"
                 width: root.cdjView ? Math.round(parent.width / 2) - 1 : parent.width
                 x: root.cdjView ? index * (Math.round(parent.width / 2) + 1) : 0
                 y: root.cdjView ? 0 : index * root.waveformHeight
+            }
+        }
+        // CDJ view: the loop size chosen with BEAT LOOP at the bottom of each main waveform
+        // (orange while a loop runs).
+        Repeater {
+            model: root.cdjView ? 2 : 0
+
+            Item {
+                id: loopLabel
+
+                required property int index
+
+                height: loopLabelText.implicitHeight
+                visible: !root.waveCovered(index) && loopLabelLoaded.value > 0
+                width: Math.round(parent.width / 2) - 1
+                x: index * (Math.round(parent.width / 2) + 1)
+                y: parent.height - root.cdjLoopStrip + Math.round((root.cdjLoopStrip - height) / 2)
+
+                Mixxx.ControlProxy { id: loopLabelSize; group: "[Channel" + (loopLabel.index + 1) + "]"; key: "beatloop_size" }
+                Mixxx.ControlProxy { id: loopLabelEnabled; group: "[Channel" + (loopLabel.index + 1) + "]"; key: "loop_enabled" }
+                Mixxx.ControlProxy { id: loopLabelLoaded; group: "[Channel" + (loopLabel.index + 1) + "]"; key: "track_loaded" }
+                Text {
+                    id: loopLabelText
+
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: loopLabelEnabled.value > 0 ? "#ff9a2e" : "#9a9a9a"
+                    font.pixelSize: Math.max(11, Math.round(root.width / 2 * 0.02))
+                    text: loopLabelSize.value === 0.25 ? "1/4" : (loopLabelSize.value === 0.5 ? "1/2" : String(loopLabelSize.value))
+                }
+            }
+        }
+        // CDJ view: the panels of BEAT LOOP / KEY SHIFT / BEAT JUMP over the top of a waveform.
+        Repeater {
+            model: root.cdjView ? 2 : 0
+
+            DJ.DeckPopup {
+                required property int index
+
+                group: "[Channel" + (index + 1) + "]"
+                height: Math.round(root.waveformHeight * 0.5)
+                keyCamelot: root.keyCamelot
+                keyText: (index === 0 ? deckPanel1 : deckPanel2).track ? (index === 0 ? deckPanel1 : deckPanel2).track.keyText : ""
+                kind: (index === 0 ? root.popup1 : root.popup2) || "LOOP"
+                shiftedKey: (index === 0 ? deckPanel1 : deckPanel2).shiftedKey
+                u: Math.round(root.cdjLayoutHeight / 14)
+                visible: (index === 0 ? root.popup1 : root.popup2) !== "" && !root.waveCovered(index)
+                // The side buttons (FILTER / JOGWHEEL left, DELAY / BRIGHTNESS right) keep their room.
+                width: Math.round(parent.width / 2) - 1 - root.sideButtonWidth
+                x: index * (Math.round(parent.width / 2) + 1) + (index === 0 ? root.sideButtonWidth : 0)
+                y: 0
+                z: 6
+
+                onActivity: root.popupActivity(index + 1)
             }
         }
         // Two fingers: spread = zoom in, pinch = zoom out. Only the deck whose waveform
@@ -742,9 +833,13 @@ Item {
         }
 
         DJ.DeckPanel {
+            id: deckPanel1
+
             accent: "#27a8e0"
             cdjGap: root.cdjView ? root.cdjGap : 0
+            cdjLowerHeight: root.cdjLowerHeight
             deckNumber: 1
+            openPopup: root.popup1
             group: "[Channel1]"
             height: parent.height
             layoutHeight: root.cdjView ? root.cdjLayoutHeight : height
@@ -754,13 +849,19 @@ Item {
             showRemain: root.showRemain
             width: (parent.width - 2) / 2
 
+            onInfoRequested: root.infoDeck = 1
             onMasterRequested: root.setMaster(1)
+            onPopupRequested: kind => root.togglePopup(1, kind)
             onTimeModeToggled: root.showRemain = !root.showRemain
         }
         DJ.DeckPanel {
+            id: deckPanel2
+
             accent: "#e0a027"
             cdjGap: root.cdjView ? root.cdjGap : 0
+            cdjLowerHeight: root.cdjLowerHeight
             deckNumber: 2
+            openPopup: root.popup2
             group: "[Channel2]"
             height: parent.height
             layoutHeight: root.cdjView ? root.cdjLayoutHeight : height
@@ -770,7 +871,9 @@ Item {
             showRemain: root.showRemain
             width: (parent.width - 2) / 2
 
+            onInfoRequested: root.infoDeck = 2
             onMasterRequested: root.setMaster(2)
+            onPopupRequested: kind => root.togglePopup(2, kind)
             onTimeModeToggled: root.showRemain = !root.showRemain
         }
     }
@@ -1044,6 +1147,73 @@ Item {
                                 root.topButton(sidePicker.buttonName, parent.modelData);
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+    // INFO of the track of a deck (the "i" in the header of the CDJ view).
+    Popup {
+        id: infoPopup
+
+        readonly property var panel: root.infoDeck === 1 ? deckPanel1 : deckPanel2
+        readonly property var info: panel && panel.track ? panel.track : null
+
+        anchors.centerIn: parent
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        modal: true
+        padding: 20
+        visible: root.infoDeck > 0
+        z: 20000
+
+        onClosed: root.infoDeck = 0
+
+        background: Rectangle {
+            border.color: "#5a5a5a"
+            color: "#141414"
+        }
+
+        Column {
+            spacing: 6
+            width: Math.round(root.width * 0.6)
+
+            Text {
+                color: "#ffffff"
+                elide: Text.ElideRight
+                font.bold: true
+                font.pixelSize: Math.round(root.height * 0.045)
+                text: infoPopup.info ? infoPopup.info.title : ""
+                width: parent.width
+            }
+            Repeater {
+                model: infoPopup.info ? [
+                    { label: "ARTIST", value: infoPopup.info.artist },
+                    { label: "ALBUM", value: infoPopup.info.album },
+                    { label: "GENRE", value: infoPopup.info.genre },
+                    { label: "YEAR", value: infoPopup.info.year },
+                    { label: "KEY", value: infoPopup.panel.formatKey(infoPopup.info.keyText) },
+                    { label: "LENGTH", value: infoPopup.panel.formatTime(infoPopup.info.duration) },
+                    { label: "COMMENT", value: infoPopup.info.comment }
+                ] : []
+
+                Row {
+                    required property var modelData
+
+                    spacing: 12
+                    visible: modelData.value !== undefined && String(modelData.value) !== ""
+
+                    Text {
+                        color: "#8a8a8a"
+                        font.pixelSize: Math.round(root.height * 0.03)
+                        text: parent.modelData.label
+                        width: Math.round(root.width * 0.13)
+                    }
+                    Text {
+                        color: "#e0e0e0"
+                        elide: Text.ElideRight
+                        font.pixelSize: Math.round(root.height * 0.032)
+                        text: String(parent.modelData.value)
+                        width: Math.round(root.width * 0.45)
                     }
                 }
             }

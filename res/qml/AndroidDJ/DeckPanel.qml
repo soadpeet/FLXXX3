@@ -21,6 +21,11 @@ Rectangle {
     signal masterRequested()
     // Quantize beat value from the UTILITY menu (display; "1/8" .. "1").
     property string quantizeBeat: "1/4"
+    // CDJ view: the BEAT LOOP / KEY SHIFT / BEAT JUMP buttons of the header and the INFO symbol
+    // (the panels themselves are shown by the main window); openPopup = the one that is open.
+    property string openPopup: ""
+    signal popupRequested(string kind)
+    signal infoRequested()
 
     readonly property var _camelotMinor: ({"Abm": 1, "G#m": 1, "Ebm": 2, "D#m": 2, "Bbm": 3, "A#m": 3, "Fm": 4, "Cm": 5, "Gm": 6, "Dm": 7, "Am": 8, "Em": 9, "Bm": 10, "F#m": 11, "Gbm": 11, "C#m": 12, "Dbm": 12})
     readonly property var _camelotMajor: ({"B": 1, "Cb": 1, "F#": 2, "Gb": 2, "Db": 3, "C#": 3, "Ab": 4, "G#": 4, "Eb": 5, "D#": 5, "Bb": 6, "A#": 6, "F": 7, "C": 8, "G": 9, "D": 10, "A": 11, "E": 12})
@@ -51,6 +56,49 @@ Rectangle {
         if (major !== undefined)
             return major + "B";
         return rawText;
+    }
+
+    // Key of the track as a Camelot number (1..12) and letter ("A" minor, "B" major); 0 = unknown.
+    function camelotOf(rawText) {
+        if (!rawText)
+            return { n: 0, letter: "A" };
+        const text = rawText.replace(/\u266f/g, "#").replace(/\u266d/g, "b");
+        const m = /^(\d{1,2})([ABab])$/.exec(text);
+        if (m)
+            return { n: parseInt(m[1]), letter: m[2].toUpperCase() };
+        if (root._camelotMinor[text] !== undefined)
+            return { n: root._camelotMinor[text], letter: "A" };
+        if (root._camelotMajor[text] !== undefined)
+            return { n: root._camelotMajor[text], letter: "B" };
+        return { n: 0, letter: "A" };
+    }
+    // The key of the track moved by `semitones` (KEY SHIFT), written in the selected notation.
+    // A semitone up is 7 steps clockwise on the Camelot wheel.
+    function shiftedKey(rawText, semitones) {
+        const c = root.camelotOf(rawText);
+        if (c.n < 1 || c.n > 12)
+            return rawText || "";
+        const steps = (((semitones * 7) % 12) + 12) % 12;
+        const n = ((c.n - 1 + steps) % 12) + 1;
+        if (root.keyCamelot)
+            return n + c.letter;
+        const name = c.letter === "A" ? root._classicMinor[n] : root._classicMajor[n];
+        return name.replace(/#/g, "\u266f").replace(/([A-G])b/g, "$1\u266d");
+    }
+    // Where the track comes from: USB1 / USB2 (the sticks) or TAB (the tablet).
+    readonly property string sourceName: {
+        if (!root.loaded || !root.track)
+            return "";
+        const location = decodeURIComponent(String(root.track.trackLocationUrl)).replace("file://", "");
+        for (let slot = 1; slot <= 2; ++slot) {
+            const info = Mixxx.AndroidStatus.stickInfo(slot);
+            if (info.present && info.path) {
+                const id = String(info.path).split("/").pop();
+                if (location.indexOf("/" + id + "/") >= 0)
+                    return "USB" + slot;
+            }
+        }
+        return "TAB";
     }
 
     // Tap on the BPM shows buttons that correct a wrongly detected tempo
@@ -102,8 +150,13 @@ Rectangle {
     // Height the text sizes and the overview are based on. CDJ view: the panel is taller
     // (the main waveform lies in a gap below the title row), but its parts keep the size.
     property real layoutHeight: height
-    // CDJ view: height of the gap between the title row and the metrics row.
+    // CDJ view: height of the gap between the title row and the metrics row, and the height of the
+    // block below it (metrics row and overview).
     property real cdjGap: 0
+    property real cdjLowerHeight: 0
+    readonly property bool cdj: cdjGap > 0
+    // CDJ view: one step of the type sizes, from the width of a deck (about 10.8 px).
+    readonly property real cdjF: width / 62
     readonly property real unit: Math.max(8, root.layoutHeight / 14)
 
     // "mm:ss" and ".mmm" are shown in different sizes, like on the RX3.
@@ -152,6 +205,8 @@ Rectangle {
     Mixxx.ControlProxy { id: syncControl; group: root.group; key: "sync_enabled" }
     Mixxx.ControlProxy { id: keylockControl; group: root.group; key: "keylock" }
     Mixxx.ControlProxy { id: loopControl; group: root.group; key: "loop_enabled" }
+    Mixxx.ControlProxy { id: fileBpmControl; group: root.group; key: "file_bpm" }
+    Mixxx.ControlProxy { id: pitchAdjustControl; group: root.group; key: "pitch_adjust" }
 
     // Left column: deck number.
     Rectangle {
@@ -203,9 +258,11 @@ Rectangle {
             font.pixelSize: Math.round(root.unit * 2.4)
             text: root.deckNumber
         }
-        // Track number and quantize setting at the bottom of the column.
+        // Track number and quantize setting at the bottom of the column (XDJ view; in the CDJ view
+        // the track number lies in the row next to the switches).
         Column {
             spacing: 0
+            visible: !root.cdj
 
             anchors {
                 bottom: parent.bottom
@@ -247,6 +304,8 @@ Rectangle {
         id: titleRow
 
         height: Math.round(root.unit * 3.2)
+        // CDJ view: replaced by cdjHeader below (this item keeps its place for the anchors).
+        visible: root.cdjGap <= 0
 
         anchors {
             left: parent.left
@@ -310,12 +369,170 @@ Rectangle {
             }
         }
     }
+    // CDJ view header (like the CDJ-3000): source, song name, length / BPM / key, INFO and the
+    // three buttons that open BEAT LOOP, KEY SHIFT and BEAT JUMP.
+    Item {
+        id: cdjHeader
+
+        height: titleRow.height
+        visible: root.cdjGap > 0
+
+        anchors {
+            left: parent.left
+            right: parent.right
+            top: parent.top
+        }
+
+        Rectangle {
+            id: sourceBox
+
+            color: root.sourceName === "USB1" ? "#235f9c" : (root.sourceName === "USB2" ? "#1f7d62" : "#3a4a5e")
+            height: parent.height
+            visible: root.loaded
+            width: parent.height
+
+            Text {
+                anchors.centerIn: parent
+                color: "#ffffff"
+                font.bold: true
+                font.pixelSize: Math.round(root.unit * 0.95)
+                text: root.sourceName
+            }
+        }
+        Text {
+            id: songName
+
+            color: "#ffffff"
+            elide: Text.ElideRight
+            font.bold: true
+            font.pixelSize: Math.round(root.unit * 1.2)
+            text: root.loaded && root.track ? root.track.title : ""
+
+            anchors {
+                left: sourceBox.right
+                leftMargin: Math.round(root.unit * 0.8)
+                right: infoIcon.left
+                rightMargin: 6
+                top: parent.top
+                topMargin: Math.round(root.unit * 0.3)
+            }
+        }
+        Text {
+            id: songDetails
+
+            color: "#cfcfcf"
+            elide: Text.ElideRight
+            font.pixelSize: Math.round(root.unit * 1.0)
+            text: {
+                if (!root.loaded || !root.track)
+                    return "";
+                const bpm = fileBpmControl.value > 0 ? fileBpmControl.value.toFixed(1) : "--";
+                return root.formatTime(durationControl.value) + "   " + bpm + "   "
+                        + root.shiftedKey(root.track.keyText, pitchAdjustControl.value);
+            }
+
+            anchors {
+                left: songName.left
+                right: songName.right
+                top: songName.bottom
+            }
+        }
+        // INFO of the track.
+        Rectangle {
+            id: infoIcon
+
+            border.color: "#cfcfcf"
+            color: infoTap.pressed ? "#3a3a3a" : "transparent"
+            height: width
+            radius: width / 2
+            visible: root.loaded
+            width: Math.round(root.unit * 1.7)
+
+            anchors {
+                right: popupButtons.left
+                rightMargin: Math.round(root.unit * 0.6)
+                verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+                anchors.centerIn: parent
+                color: "#ffffff"
+                font.bold: true
+                font.pixelSize: Math.round(parent.width * 0.65)
+                text: "i"
+            }
+            TapHandler {
+                id: infoTap
+
+                onTapped: root.infoRequested()
+            }
+        }
+        Row {
+            id: popupButtons
+
+            spacing: 4
+
+            anchors {
+                bottom: parent.bottom
+                right: parent.right
+                top: parent.top
+            }
+
+            Repeater {
+                model: [
+                    { kind: "LOOP", line1: "BEAT", line2: "LOOP" },
+                    { kind: "KEY", line1: "KEY", line2: "SHIFT" },
+                    { kind: "JUMP", line1: "BEAT", line2: "JUMP" }
+                ]
+
+                Rectangle {
+                    id: popupButton
+
+                    required property var modelData
+                    // Orange while the function is in use (loop running, key shifted).
+                    readonly property bool inUse: modelData.kind === "LOOP" ? loopControl.value > 0
+                            : (modelData.kind === "KEY" ? Math.abs(pitchAdjustControl.value) > 0.001 : false)
+
+                    border.color: root.openPopup === modelData.kind ? "#ff9a2e" : "transparent"
+                    border.width: 2
+                    color: popupTap.pressed ? "#555555" : (root.openPopup === modelData.kind ? "#4a4a4a" : "#3a3a3a")
+                    height: parent.height
+                    width: Math.round(root.unit * 4.6)
+
+                    Column {
+                        anchors.centerIn: parent
+
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            color: popupButton.inUse ? "#ff9a2e" : "#e8e8e8"
+                            font.pixelSize: Math.round(root.unit * 1.0)
+                            text: popupButton.modelData.line1
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            color: popupButton.inUse ? "#ff9a2e" : "#e8e8e8"
+                            font.pixelSize: Math.round(root.unit * 1.0)
+                            text: popupButton.modelData.line2
+                        }
+                    }
+                    TapHandler {
+                        id: popupTap
+
+                        enabled: root.loaded
+
+                        onTapped: root.popupRequested(popupButton.modelData.kind)
+                    }
+                }
+            }
+        }
+    }
     // Middle row: switches, time, tempo, BPM box.
     Item {
         id: metrics
 
         anchors {
-            bottom: infoRow.top
+            bottom: root.cdj ? overview.top : infoRow.top
+            bottomMargin: root.cdj ? Math.round(root.cdjLowerHeight * 0.03) : 0
             left: deckColumn.right
             leftMargin: 6
             right: parent.right
@@ -324,21 +541,60 @@ Rectangle {
             topMargin: root.cdjGap
         }
 
+        // CDJ view: TRACK and the number of the track in the list.
+        Item {
+            id: trackBlock
+
+            visible: root.cdj
+            width: root.cdj ? Math.round(root.cdjF * 5.8) : 0
+
+            anchors {
+                bottom: parent.bottom
+                left: parent.left
+                top: parent.top
+            }
+
+            Text {
+                id: trackLabel
+
+                color: "#9a9a9a"
+                font.pixelSize: Math.round(root.cdjLowerHeight * 0.06)
+                text: "TRACK"
+
+                anchors {
+                    horizontalCenter: parent.horizontalCenter
+                    top: parent.top
+                    topMargin: Math.round(root.cdjLowerHeight * 0.06)
+                }
+            }
+            Text {
+                color: "#ffffff"
+                font.bold: true
+                font.pixelSize: Math.round(root.cdjLowerHeight * 0.22)
+                text: root.loaded && root.listPos !== "" ? root.listPos : "--"
+
+                anchors {
+                    horizontalCenter: parent.horizontalCenter
+                    top: trackLabel.bottom
+                }
+            }
+        }
         Column {
             id: switchColumn
 
             spacing: 4
 
             anchors {
-                left: parent.left
+                left: root.cdj ? trackBlock.right : parent.left
+                leftMargin: root.cdj ? Math.round(root.cdjF * 0.8) : 0
                 verticalCenter: parent.verticalCenter
             }
 
             DJ.StatusChip {
                 // Skip the silence at the start of a track when loading.
                 active: autoCueControl.value > 0
-                activeColor: "#ff9a2e"
-                fontSize: root.unit * 0.8
+                activeColor: root.cdj ? "#ffffff" : "#ff9a2e"
+                fontSize: root.cdj ? root.cdjLowerHeight * 0.062 : root.unit * 0.8
                 text: "AUTO CUE"
                 width: quantizeChip.width
 
@@ -348,7 +604,8 @@ Rectangle {
                 id: quantizeChip
 
                 active: quantizeControl.value > 0
-                fontSize: root.unit * 0.8
+                activeColor: root.cdj ? "#ff9a2e" : "#ff6a3d"
+                fontSize: root.cdj ? root.cdjLowerHeight * 0.062 : root.unit * 0.8
                 text: "QUANTIZE"
 
                 onClicked: quantizeControl.value = quantizeControl.value > 0 ? 0 : 1
@@ -363,7 +620,7 @@ Rectangle {
             anchors {
                 bottom: parent.bottom
                 left: switchColumn.right
-                leftMargin: 10
+                leftMargin: root.cdj ? Math.round(root.cdjF * 1.6) : 10
                 top: parent.top
             }
 
@@ -376,13 +633,13 @@ Rectangle {
                 Text {
                     color: root.showRemain ? "#ffffff" : "#5a5a5a"
                     font.bold: root.showRemain
-                    font.pixelSize: Math.round(root.unit * 0.75)
+                    font.pixelSize: root.cdj ? Math.round(root.cdjLowerHeight * 0.06) : Math.round(root.unit * 0.75)
                     text: "REMAIN"
                 }
                 Text {
                     color: root.showRemain ? "#5a5a5a" : "#ffffff"
                     font.bold: !root.showRemain
-                    font.pixelSize: Math.round(root.unit * 0.75)
+                    font.pixelSize: root.cdj ? Math.round(root.cdjLowerHeight * 0.06) : Math.round(root.unit * 0.75)
                     text: "/ TIME"
                 }
             }
@@ -391,8 +648,8 @@ Rectangle {
 
                 color: "#ffffff"
                 font.bold: true
-                font.pixelSize: Math.round(Math.min(metrics.height * 0.62,
-                        (metrics.width - switchColumn.width - tempoBlock.width - bpmBox.width - 40) / 4.7))
+                font.pixelSize: Math.round(Math.min(root.cdj ? root.cdjLowerHeight * 0.29 : metrics.height * 0.62,
+                        (metrics.width - trackBlock.width - switchColumn.width - tempoBlock.width - bpmBox.width - 40) / (root.cdj ? 4.3 : 4.7)))
                 text: root.loaded ? root.formatTime(root.showRemain ? root.remaining : root.elapsed) : "00:00"
 
                 anchors {
@@ -427,21 +684,21 @@ Rectangle {
             border.color: root.isMaster ? "#ff9a2e" : "#cfcfcf"
             border.width: 2
             color: "transparent"
-            width: Math.round(root.unit * 7.6)
+            width: root.cdj ? Math.round(root.cdjF * 9.4) : Math.round(root.unit * 7.6)
 
             anchors {
                 // With a track the info row below is collapsed and the middle row grows
                 // by its height: the BPM box keeps the size it has without a track.
                 bottom: parent.bottom
-                bottomMargin: root.loaded && !root.bpmFixOpen ? Math.round(root.unit * 1.9) : 0
+                bottomMargin: root.cdj ? 0 : (root.loaded && !root.bpmFixOpen ? Math.round(root.unit * 1.9) : 0)
                 right: parent.right
                 top: parent.top
-                topMargin: Math.round(root.unit * 0.3)
+                topMargin: root.cdj ? 2 : Math.round(root.unit * 0.3)
             }
 
             Text {
                 color: root.isMaster ? "#ff9a2e" : "#8a8a8a"
-                font.pixelSize: Math.round(root.unit * 0.7)
+                font.pixelSize: root.cdj ? Math.round(root.cdjLowerHeight * 0.06) : Math.round(root.unit * 0.7)
                 text: "BPM"
 
                 anchors {
@@ -455,8 +712,8 @@ Rectangle {
             Text {
                 color: root.isMaster ? "#ff9a2e" : "#27e07a"
                 font.bold: true
-                font.pixelSize: Math.round(root.unit * 0.7)
                 text: root.isMaster ? "MASTER" : "SYNC"
+                font.pixelSize: root.cdj ? Math.round(root.cdjLowerHeight * 0.06) : Math.round(root.unit * 0.7)
                 visible: root.isMaster || syncControl.value > 0
 
                 anchors {
@@ -484,7 +741,7 @@ Rectangle {
                 }
                 color: root.isMaster ? "#ff9a2e" : "#ffffff"
                 font.bold: true
-                font.pixelSize: Math.round(bpmBox.height * 0.46)
+                font.pixelSize: Math.round(Math.min(bpmBox.height * (root.cdj ? 0.62 : 0.46), root.cdj ? bpmBox.width / 3.05 : 1000))
                 text: root.loaded && bpmControl.value > 0 ? bpmControl.value.toFixed(1) : ""
             }
             MouseArea {
@@ -512,19 +769,20 @@ Rectangle {
                 rightMargin: 8
                 top: parent.top
             }
-            width: Math.round(root.unit * 9)
+            width: root.cdj ? Math.round(root.cdjF * 11) : Math.round(root.unit * 9)
 
             Text {
                 id: tempoLabel
 
                 color: "#8a8a8a"
-                font.pixelSize: Math.round(root.unit * 0.75)
+                font.pixelSize: root.cdj ? Math.round(root.cdjLowerHeight * 0.06) : Math.round(root.unit * 0.75)
                 text: "TEMPO"
             }
             DJ.StatusChip {
                 active: true
-                activeColor: "#ff6a3d"
-                fontSize: root.unit * 0.8
+                activeColor: root.cdj ? "#ff7a2e" : "#ff6a3d"
+                filled: root.cdj
+                fontSize: root.cdj ? root.cdjLowerHeight * 0.06 : root.unit * 0.8
                 text: root.tempoRangeText
 
                 anchors {
@@ -540,8 +798,9 @@ Rectangle {
                     bottom: parent.bottom
                     right: parent.right
                 }
-                color: Math.abs(root.tempoPercent) < 0.005 ? "#cfcfcf" : "#7fe0a0"
-                font.pixelSize: Math.round(Math.min(metrics.height * 0.6, tempoBlock.width / 4.6))
+                color: Math.abs(root.tempoPercent) < 0.005 ? (root.cdj ? "#ffffff" : "#cfcfcf") : "#7fe0a0"
+                font.pixelSize: Math.round(root.cdj ? Math.min(root.cdjLowerHeight * 0.22, tempoBlock.width / 3.1)
+                        : Math.min(metrics.height * 0.6, tempoBlock.width / 4.6))
                 text: (root.tempoPercent >= 0 ? "" : "-") + Math.abs(root.tempoPercent).toFixed(2) + "%"
             }
         }
@@ -554,20 +813,26 @@ Rectangle {
         height: root.loaded && !root.bpmFixOpen ? 0 : Math.round(root.unit * 1.9)
 
         anchors {
-            bottom: overview.top
-            bottomMargin: 2
+            bottom: root.cdj ? metrics.bottom : overview.top
+            bottomMargin: root.cdj ? 0 : 2
             left: deckColumn.right
             leftMargin: 6
             right: parent.right
             rightMargin: 4
         }
 
+        // CDJ view: the tempo correction lies over the metrics row.
+        Rectangle {
+            anchors.fill: parent
+            color: "#0c0c0c"
+            visible: root.cdj && root.bpmFixOpen
+        }
         // Like the RX3 without a track: red "Not Loaded." instead of the indicators.
         Text {
             color: "#ff5a4d"
             font.pixelSize: Math.round(root.unit * 1.3)
             text: "Not Loaded."
-            visible: !root.loaded
+            visible: !root.loaded && !root.cdj
 
             anchors {
                 left: parent.left
@@ -629,12 +894,94 @@ Rectangle {
         id: overview
 
         group: root.group
-        height: Math.round(root.layoutHeight * 0.28)
+        height: root.cdj ? Math.round(root.cdjLowerHeight * 0.38) : Math.round(root.layoutHeight * 0.28)
 
         anchors {
             bottom: parent.bottom
+            bottomMargin: root.cdj ? Math.round(root.cdjLowerHeight * 0.13) : 0
             left: deckColumn.right
+            // CDJ view: MT and KEY lie to the right of the overview.
+            right: root.cdjGap > 0 ? mtColumn.left : parent.right
+        }
+    }
+    // CDJ view: "Not Loaded." where the overview is.
+    Text {
+        color: "#ff5a4d"
+        font.pixelSize: Math.round(root.cdjF * 1.8)
+        text: "Not Loaded."
+        visible: root.cdj && !root.loaded
+
+        anchors {
+            horizontalCenter: overview.horizontalCenter
+            verticalCenter: overview.verticalCenter
+        }
+    }
+    // CDJ view: MASTER TEMPO (key lock) and the key of the track (with the KEY SHIFT applied).
+    Item {
+        id: mtColumn
+
+        height: overview.height
+        visible: root.cdjGap > 0
+        width: root.cdjGap > 0 ? Math.round(root.cdjF * 5.6) : 0
+
+        anchors {
+            bottom: parent.bottom
+            bottomMargin: Math.round(root.cdjLowerHeight * 0.13)
             right: parent.right
+        }
+
+        Rectangle {
+            id: mtButton
+
+            border.color: keylockControl.value > 0 ? "#ff9a2e" : "#6a6a6a"
+            border.width: 2
+            color: mtTap.pressed ? "#2a2a2a" : "transparent"
+            height: Math.round(root.cdjLowerHeight * 0.12)
+            width: Math.round(root.cdjLowerHeight * 0.25)
+
+            anchors {
+                horizontalCenter: parent.horizontalCenter
+                top: parent.top
+            }
+
+            Text {
+                anchors.centerIn: parent
+                color: keylockControl.value > 0 ? "#ff9a2e" : "#9a9a9a"
+                font.bold: true
+                font.pixelSize: Math.round(root.cdjLowerHeight * 0.09)
+                text: "MT"
+            }
+            TapHandler {
+                id: mtTap
+
+                enabled: root.loaded
+
+                onTapped: keylockControl.value = keylockControl.value > 0 ? 0 : 1
+            }
+        }
+        Text {
+            id: keyLabel
+
+            color: "#9a9a9a"
+            font.pixelSize: Math.round(root.cdjLowerHeight * 0.07)
+            text: "KEY"
+
+            anchors {
+                horizontalCenter: parent.horizontalCenter
+                top: mtButton.bottom
+                topMargin: Math.round(root.cdjF * 0.2)
+            }
+        }
+        Text {
+            color: Math.abs(pitchAdjustControl.value) > 0.001 ? "#ff9a2e" : "#ffffff"
+            font.bold: true
+            font.pixelSize: Math.round(root.cdjLowerHeight * 0.1)
+            text: root.loaded && root.track ? root.shiftedKey(root.track.keyText, pitchAdjustControl.value) : ""
+
+            anchors {
+                horizontalCenter: parent.horizontalCenter
+                top: keyLabel.bottom
+            }
         }
     }
 

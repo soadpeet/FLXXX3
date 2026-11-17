@@ -17,7 +17,22 @@ Item {
     property string otherGroup: "[Channel2]"
     // 0 = off, 1 = WAVEFORM, 2 = PHASE METER.
     property int mode: 1
+    // This deck is the MASTER: it shows the tag MASTER PLAYER instead of the aid.
+    property bool isMaster: false
     readonly property bool otherActive: otherLoaded.value > 0 && otherBpm.value > 1
+    readonly property bool ownActive: ownLoaded.value > 0
+    // Size of the text of the MASTER PLAYER tag (set by the main window).
+    property real tagFont: 14
+    // Room at the left edge that is covered by the side buttons (deck 1).
+    property real leftInset: 0
+    // Width of the column with the remaining bars on the left.
+    // Sizes after page 2 of the layout: the numbers about 2.4 %, "Bars" 1.4 % of the deck width.
+    readonly property real barsFont: Math.max(11, Math.round(width * 0.024))
+    readonly property real barsUnitFont: Math.max(8, Math.round(width * 0.014))
+    readonly property real barsWidth: Math.round(barsFont * 5.2)
+    // Bars to the next hot cue or memory cue of this deck and of the other deck (the MASTER).
+    readonly property real ownBarsLeft: ownCueBars.bars
+    readonly property real otherBarsLeft: otherCueBars.bars
     // Real seconds per beat of the other deck (BPM of the engine already contains the pitch).
     readonly property real otherBeatSec: otherBpm.value > 1 ? 60 / otherBpm.value : 1
     // Beat distance (0..1) of the other / this deck, advanced between two engine updates.
@@ -28,8 +43,11 @@ Item {
     property int ownBarPos: 0
 
     clip: true
-    visible: mode > 0 && otherActive
+    visible: isMaster ? ownActive : otherActive
 
+    Mixxx.ControlProxy { id: ownLoaded; group: root.group; key: "track_loaded" }
+    NextCueBars { id: ownCueBars; group: root.group }
+    NextCueBars { id: otherCueBars; group: root.otherGroup }
     Mixxx.ControlProxy { id: otherBpm; group: root.otherGroup; key: "bpm" }
     Mixxx.ControlProxy { id: otherLoaded; group: root.otherGroup; key: "track_loaded" }
     Mixxx.ControlProxy { id: otherBar; group: root.otherGroup; key: "beat_in_bar" }
@@ -58,7 +76,7 @@ Item {
         duration: 10000000
         from: 0
         loops: Animation.Infinite
-        running: root.visible && root.mode === 2
+        running: root.visible && root.mode === 2 && !root.isMaster
         to: 10000000
     }
     onClockChanged: {
@@ -77,10 +95,34 @@ Item {
         phaseBar = otherBar.value;
         ownBarPos = ownBar.value;
     }
+    // The MASTER deck: only the tag.
     Rectangle {
         anchors.fill: parent
         color: "#000000"
-        visible: root.mode === 1
+        visible: root.isMaster
+
+        // In the middle of the deck.
+        Rectangle {
+            anchors.centerIn: parent
+            color: "#ff9a2e"
+            height: Math.round(root.tagFont * 1.6)
+            width: masterText.implicitWidth + 16
+
+            Text {
+                id: masterText
+
+                anchors.centerIn: parent
+                color: "#000000"
+                font.bold: true
+                font.pixelSize: root.tagFont
+                text: "MASTER PLAYER"
+            }
+        }
+    }
+    Rectangle {
+        anchors.fill: parent
+        color: "#000000"
+        visible: !root.isMaster && root.mode === 1
 
         Loader {
             active: root.mode === 1
@@ -96,7 +138,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: "#000000"
-        visible: root.mode === 2
+        visible: !root.isMaster && root.mode !== 1
 
         Item {
             id: meter
@@ -105,8 +147,9 @@ Item {
             readonly property real beatPx: width / beatsShown
 
             height: parent.height * 0.86
-            width: parent.width - 24
-            x: 12
+            visible: root.mode === 2
+            width: parent.width - root.barsWidth - root.leftInset - 12
+            x: root.barsWidth + root.leftInset
             y: parent.height * 0.02
 
             Repeater {
@@ -148,6 +191,50 @@ Item {
                 width: 3
                 x: meter.width / 2 - 1.5
                 y: -2
+            }
+        }
+    }
+    // Bars to the next cue: orange = the other deck (the MASTER), blue = this deck.
+    Rectangle {
+        color: "#cc000000"
+        height: parent.height
+        width: root.barsWidth
+        x: root.leftInset
+
+        Column {
+            anchors.centerIn: parent
+
+            Row {
+                spacing: 3
+
+                Text {
+                    color: "#ff9a2e"
+                    font.bold: true
+                    font.pixelSize: root.barsFont
+                    text: root.otherBarsLeft >= 0 ? root.otherBarsLeft.toFixed(1) : "--"
+                }
+                Text {
+                    anchors.baseline: parent.children[0].baseline
+                    color: "#ff9a2e"
+                    font.pixelSize: root.barsUnitFont
+                    text: "Bars"
+                }
+            }
+            Row {
+                spacing: 3
+
+                Text {
+                    color: "#2e8bff"
+                    font.bold: true
+                    font.pixelSize: root.barsFont
+                    text: root.ownBarsLeft >= 0 ? root.ownBarsLeft.toFixed(1) : "--"
+                }
+                Text {
+                    anchors.baseline: parent.children[0].baseline
+                    color: "#2e8bff"
+                    font.pixelSize: root.barsUnitFont
+                    text: "Bars"
+                }
             }
         }
     }

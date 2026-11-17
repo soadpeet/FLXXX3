@@ -8,12 +8,14 @@ Rectangle {
     property color activeColor: "#ff6a3d"
     property string text: ""
     property real fontSize: 10
+    // Filled with the active colour, dark text (tempo range in the CDJ view).
+    property bool filled: false
 
     signal clicked
 
     border.color: active ? activeColor : "#4a4a4a"
     border.width: 1
-    color: active ? Qt.alpha(activeColor, 0.18) : "transparent"
+    color: active ? (filled ? activeColor : Qt.alpha(activeColor, 0.18)) : "transparent"
     implicitHeight: label.implicitHeight + 6
     implicitWidth: label.implicitWidth + 12
     radius: 2
@@ -22,7 +24,7 @@ Rectangle {
         id: label
 
         anchors.centerIn: parent
-        color: root.active ? root.activeColor : "#8a8a8a"
+        color: root.active ? (root.filled ? "#000000" : root.activeColor) : "#8a8a8a"
         font.bold: root.active
         font.pixelSize: root.fontSize
         text: root.text
