@@ -98,7 +98,7 @@ Library::Library(
             Qt::DirectConnection /* signal-to-signal */);
 #endif
 
-#ifndef __ANDROID__
+#ifndef FLXXX3
     // The Android edition has no Auto DJ.
     m_pAutoDJFeature = make_parented<AutoDJFeature>(this, m_pConfig, pPlayerManager);
     addFeature(m_pAutoDJFeature);
@@ -119,7 +119,7 @@ Library::Library(
             Qt::DirectConnection);
 #endif
 
-#ifndef __ANDROID__
+#ifndef FLXXX3
     // The Android edition has no crates.
     m_pCrateFeature = make_parented<CrateFeature>(this, m_pConfig);
     addFeature(m_pCrateFeature);
@@ -162,7 +162,7 @@ Library::Library(
             &PlaylistFeature::analyzeTracks,
             m_pAnalysisFeature,
             &AnalysisFeature::analyzeTracks);
-#ifndef __ANDROID__
+#ifndef FLXXX3
     connect(m_pCrateFeature,
             &CrateFeature::analyzeTracks,
             m_pAnalysisFeature,
@@ -188,7 +188,7 @@ Library::Library(
             this,
             &Library::onTrackAnalyzerProgress);
 
-#ifndef __ANDROID__
+#ifndef FLXXX3
     // iTunes and Rhythmbox should be last until we no longer have an obnoxious
     // messagebox popup when you select them. (This forces you to reach for your
     // mouse or keyboard if you're using MIDI control and you scroll through them...)
@@ -225,7 +225,7 @@ Library::Library(
         addFeature(new RekordboxFeature(this, m_pConfig));
     }
 
-#ifndef __ANDROID__
+#ifndef FLXXX3
     if (m_pConfig->getValue(
                 ConfigKey(kConfigGroup, "ShowSeratoLibrary"), true)) {
         addFeature(new SeratoFeature(this, m_pConfig));

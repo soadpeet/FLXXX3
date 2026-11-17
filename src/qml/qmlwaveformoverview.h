@@ -107,7 +107,7 @@ class QmlWaveformOverview : public QQuickPaintedItem {
     void colorLowChanged(const QColor& color);
 
   private:
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Android edition: same look as the scrolling waveform (BLUE / RGB / 3BAND).
     void drawScheme(QPainter* pPainter,
             ConstWaveformPointer pWaveform,

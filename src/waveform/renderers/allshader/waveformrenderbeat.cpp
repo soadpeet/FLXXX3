@@ -26,7 +26,7 @@ WaveformRenderBeat::WaveformRenderBeat(WaveformWidgetRenderer* waveformWidget,
           m_isSlipRenderer(type == ::WaveformRendererAbstract::Slip) {
     initForRectangles<UniColorMaterial>(0);
     setUsePreprocess(true);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     auto pBarNode = std::make_unique<GeometryNode>();
     m_pBarNode = pBarNode.get();
     m_pBarNode->initForRectangles<RGBMaterial>(0);
@@ -49,7 +49,7 @@ void WaveformRenderBeat::preprocess() {
     if (!preprocessInner()) {
         geometry().allocate(0);
         markDirtyGeometry();
-#ifdef __ANDROID__
+#ifdef FLXXX3
         m_pBarNode->geometry().allocate(0);
         m_pBarNode->markDirtyGeometry();
 #endif
@@ -134,10 +134,10 @@ bool WaveformRenderBeat::preprocessInner() {
     //   int numBearsInRange = trackBeats->numBeatsInRange(startPosition, endPosition);
     // for this, but there have been reports of that method failing with a DEBUG_ASSERT.
     int numBeatsInRange = 0;
-#ifdef __ANDROID__
+#ifdef FLXXX3
     int numBarsInRange = 0;
 #endif
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Index of the first beat: computed once (the difference of two iterators
     // is not free), then counted up.
     const int firstBeatIndex = trackBeats->iteratorFrom(startPosition) - trackBeats->cbegin();
@@ -147,7 +147,7 @@ bool WaveformRenderBeat::preprocessInner() {
             it != trackBeats->cend() && *it <= endPosition;
             ++it) {
         numBeatsInRange++;
-#ifdef __ANDROID__
+#ifdef FLXXX3
         if (beatIndex++ % 4 == 0) {
             numBarsInRange++;
         }
@@ -157,7 +157,7 @@ bool WaveformRenderBeat::preprocessInner() {
     [[maybe_unused]] const int numBoxesPerBeat = (m_isSlipRenderer && splitStemTracks)
             ? mixxx::kMaxSupportedStems
             : 1;
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // RX3 style: only short ticks at the top and at the bottom of the waveform.
     const int reserved = (numBeatsInRange - numBarsInRange) * numVerticesPerLine * 2;
     geometry().allocate(reserved);
@@ -177,7 +177,7 @@ bool WaveformRenderBeat::preprocessInner() {
             ? rendererBreadth / static_cast<float>(mixxx::kMaxSupportedStems)
             : rendererBreadth;
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     beatIndex = firstBeatIndex;
 #endif
     for (auto it = trackBeats->iteratorFrom(startPosition);
@@ -193,7 +193,7 @@ bool WaveformRenderBeat::preprocessInner() {
         const float x1 = static_cast<float>(xBeatPoint);
         const float x2 = x1 + 1.f;
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
         if (beatIndex++ % 4 == 0) {
             barVertexUpdater.addRectangle({x1 - 0.5f, 0.f}, {x2 + 0.5f, tickHeight}, barColor);
             barVertexUpdater.addRectangle({x1 - 0.5f, rendererBreadth - tickHeight},
@@ -218,7 +218,7 @@ bool WaveformRenderBeat::preprocessInner() {
 #endif
     }
     markDirtyGeometry();
-#ifdef __ANDROID__
+#ifdef FLXXX3
     m_pBarNode->markDirtyGeometry();
 #endif
 

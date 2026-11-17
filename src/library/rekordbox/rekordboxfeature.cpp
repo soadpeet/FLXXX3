@@ -15,6 +15,10 @@
 
 #ifdef __ANDROID__
 #include <android/log.h>
+// Diagnostic lines of the Rekordbox import: logcat on Android, the normal log elsewhere.
+#define RB_LOG(tag, ...) __android_log_print(ANDROID_LOG_INFO, tag, __VA_ARGS__)
+#else
+#define RB_LOG(tag, ...) qInfo().noquote() << tag << QString::asprintf(__VA_ARGS__)
 #endif
 
 #include <QDir>
@@ -33,6 +37,7 @@
 #include "library/library.h"
 #include "library/queryutil.h"
 #include "library/rekordbox/rekordboxconstants.h"
+#include "platform/platformservices.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #include "library/treeitem.h"
@@ -920,7 +925,7 @@ void clearDeviceTables(QSqlDatabase& database, TreeItem* child) {
     transaction.commit();
 }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 // Android edition: the colours of the hotcues from Rekordbox are the 16 colours of the
 // Rekordbox palette (the exported values are only close to them): use the nearest one.
 mixxx::RgbColor snapToRekordboxHotcuePalette(int red, int green, int blue) {
@@ -1077,7 +1082,7 @@ RekordboxWaveformColumns decodeMonoScrollWaveform(const std::string& entries) {
     return columns;
 }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 // PWV7 (in the .2EX file): 3 bytes per column, the levels (0..255) of the three
 // bands. The order of the bytes is read from the file ".../files/wf3_order" (a
 // string like "012": byte of low, mid, high) for testing; default low, mid, high.
@@ -1111,7 +1116,7 @@ RekordboxWaveformColumns decodeThreeBandWaveform(const std::string& entries, uin
         // "all" is only used for the automatic height (loudest columns of the track).
         columns.all.push_back(qMax(byteAt(order[0]), qMax(byteAt(order[1]), byteAt(order[2]))));
     }
-    __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "3-band waveform: %d columns, order %d%d%d", count, order[0], order[1], order[2]);
+    RB_LOG("mixxx-wf", "3-band waveform: %d columns, order %d%d%d", count, order[0], order[1], order[2]);
     return columns;
 }
 
@@ -1119,7 +1124,7 @@ RekordboxWaveformColumns decodeThreeBandWaveform(const std::string& entries, uin
 RekordboxWaveformColumns readThreeBandColumns(const QString& anlzPath2ex) {
     RekordboxWaveformColumns columns;
     if (!QFile(anlzPath2ex).exists()) {
-        __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "no .2EX file: %s", anlzPath2ex.toUtf8().constData());
+        RB_LOG("mixxx-wf", "no .2EX file: %s", anlzPath2ex.toUtf8().constData());
         return columns;
     }
     std::ifstream ifs(anlzPath2ex.toStdString(), std::ifstream::binary);
@@ -1132,7 +1137,7 @@ RekordboxWaveformColumns readThreeBandColumns(const QString& anlzPath2ex) {
         }
     }
     if (columns.size() == 0) {
-        __android_log_print(ANDROID_LOG_INFO, "mixxx-wf", "no PWV7 in %s", anlzPath2ex.toUtf8().constData());
+        RB_LOG("mixxx-wf", "no PWV7 in %s", anlzPath2ex.toUtf8().constData());
     }
     return columns;
 }
@@ -1141,7 +1146,7 @@ RekordboxWaveformColumns readThreeBandColumns(const QString& anlzPath2ex) {
 // Builds Mixxx's waveform and overview waveform from the Rekordbox columns and
 // puts them on the track. AnalyzerWaveform::shouldAnalyze() then skips the
 // (slow, CPU-heavy) audio analysis for this track.
-#ifdef __ANDROID__
+#ifdef FLXXX3
 namespace {
 // Set by the worker thread that makes the waveform previews of the list rows: only the small
 // summary waveform is built then (the full waveform of a track is 1 to 2 MB; 300 preloaded rows
@@ -1158,7 +1163,7 @@ void applyRekordboxWaveform(const TrackPointer& track,
     constexpr int kMainVisualSampleRate = 441; // same as AnalyzerWaveform
     constexpr int kSummaryVisualSamples = 2 * 1920;
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     if (t_summaryOnly && track->getWaveformSummary()) {
         return;
     }
@@ -1182,7 +1187,7 @@ void applyRekordboxWaveform(const TrackPointer& track,
     // Mixxx time + offset.
     const double offsetSeconds = timingOffsetMs / 1000.0;
     const int columnCount = columns.size();
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // The Rekordbox columns are coarse (5 bit height, 3 bit per band), which
     // makes the waveform restless. A light [1 2 1] smoothing over neighbouring
     // columns keeps the hits but removes the quantisation noise.
@@ -1269,7 +1274,7 @@ void applyRekordboxWaveform(const TrackPointer& track,
     auto pSummary = WaveformPointer(new Waveform(
             sampleRate, frameLength, kMainVisualSampleRate, kSummaryVisualSamples, 0));
     fill(pSummary.data(), summaryColumns);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     if (t_summaryOnly) {
         track->setWaveformSummary(pSummary);
         return;
@@ -1278,7 +1283,7 @@ void applyRekordboxWaveform(const TrackPointer& track,
     auto pWaveform = WaveformPointer(new Waveform(
             sampleRate, frameLength, kMainVisualSampleRate, -1, 0));
     fill(pWaveform.data(), mainColumns);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     if (useThreeBand) {
         rekordbox3band::mark(pWaveform.data());
     }
@@ -1524,7 +1529,7 @@ void readAnalyze(TrackPointer track,
                             mixxx::audio::kInvalidFramePos,
                             hotCueIndex,
                             fromUtf16BeString(cueExtendedEntry->comment()),
-#ifdef __ANDROID__
+#ifdef FLXXX3
                             snapToRekordboxHotcuePalette(
                                     static_cast<int>(cueExtendedEntry->color_red()),
                                     static_cast<int>(cueExtendedEntry->color_green()),
@@ -1759,7 +1764,7 @@ static void applyRekordboxTrackData(const TrackPointer& track,
     QString anlzPathExt = anlzPath.left(anlzPath.length() - 3) + "EXT";
 
     RekordboxWaveformColumns threeBand;
-#ifdef __ANDROID__
+#ifdef FLXXX3
     if (!t_summaryOnly && !(track->getWaveform() && track->getWaveformSummary())) {
         threeBand = readThreeBandColumns(anlzPath.left(anlzPath.length() - 3) + "2EX");
     }
@@ -1788,7 +1793,7 @@ static void applyRekordboxTrackData(const TrackPointer& track,
     track->setColor(mixxx::RgbColor::fromQVariant(colorValue));
 }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 namespace {
 // Android edition: the Rekordbox data of a track (MP3 scan, ANLZ files, waveform) is read
 // from the stick only once. The list asks for the track of every visible row again after
@@ -1821,7 +1826,7 @@ TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
     QString location = getFieldVariant(
             index, ColumnCache::COLUMN_TRACKLOCATIONSTABLE_LOCATION)
                                .toString();
-#ifdef __ANDROID__
+#ifdef FLXXX3
     if (const TrackPointer pCached = cachedTrack(location)) {
         return pCached;
     }
@@ -1832,7 +1837,7 @@ TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
         return track;
     }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     {
         QMutexLocker applyLocker(&s_applyMutex);
         // The worker thread may have finished this track while we waited.
@@ -1845,7 +1850,7 @@ TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
                 getFieldVariant(index, ColumnCache::COLUMN_REKORDBOX_ANALYZE_PATH).toString(),
                 getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_KEY).toString(),
                 getFieldVariant(index, ColumnCache::COLUMN_LIBRARYTABLE_COLOR));
-#ifdef __ANDROID__
+#ifdef FLXXX3
         if (track) {
             rememberTrack(location, track);
         }
@@ -1854,7 +1859,7 @@ TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
     return track;
 }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 namespace {
 // The waveform previews of the list rows: temporary tracks, kept for the rows that were shown.
 QHash<QString, TrackPointer> s_previewCache;
@@ -1971,7 +1976,7 @@ bool RekordboxPlaylistModel::isColumnInternal(int column) {
             BaseExternalPlaylistModel::isColumnInternal(column);
 }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 namespace {
 TrackCollection* g_pRekordboxCollection = nullptr;
 } // namespace
@@ -1986,15 +1991,15 @@ void RekordboxFeature::importDataForTrack(const TrackPointer& pTrack) {
     if (pTrack->getWaveform() && pTrack->getWaveformSummary()) {
         return; // already imported
     }
+#ifdef __ANDROID__
     mixxx::AndroidTrackCache::instance().noteAccess(pTrack->getLocation());
-    static const QRegularExpression volumePrefix(
-            QStringLiteral("^/(?:mnt/media_rw|storage)/[^/]+"));
+#endif
     const QString location = pTrack->getLocation();
-    if (!location.contains(volumePrefix) || location.startsWith(QStringLiteral("/storage/emulated"))) {
+    // Only files on a stick ("/Contents/..." inside the volume, as in the Rekordbox database).
+    const QString relative = mixxx::platform::removableVolumeRelativePath(location);
+    if (relative.isEmpty()) {
         return;
     }
-    QString relative = location;
-    relative.remove(volumePrefix);
     QSqlQuery query(g_pRekordboxCollection->database());
     query.prepare(QStringLiteral("SELECT analyze_path, key, color FROM ") + kRekordboxLibraryTable +
             QStringLiteral(" WHERE substr(location, -length(:rel)) = :rel LIMIT 1"));
@@ -2077,7 +2082,7 @@ RekordboxFeature::RekordboxFeature(
             this, pLibrary->trackCollectionManager(), m_trackSource);
 
     m_title = tr("Rekordbox");
-#ifdef __ANDROID__
+#ifdef FLXXX3
     g_pRekordboxCollection = m_pTrackCollection;
 #endif
 
@@ -2105,7 +2110,7 @@ RekordboxFeature::RekordboxFeature(
     // initialize the model
     m_pSidebarModel->setRootItem(TreeItem::newRoot(this));
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Android edition: a stick is only read. As soon as it is pulled, its
     // tracks disappear from the library as if it had never been there, and
     // a newly inserted stick is picked up without opening the Rekordbox entry.
@@ -2117,7 +2122,7 @@ RekordboxFeature::RekordboxFeature(
 #endif
 }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 void RekordboxFeature::checkRemovableVolumes() {
     // ADVANCED SETTINGS > START > READ STICKS: with "ON REQUEST" a stick is only read after
     // the READ STICKS NOW button (it sets this key).
@@ -2130,26 +2135,12 @@ void RekordboxFeature::checkRemovableVolumes() {
     if (m_mountedFutureWatcher.isRunning()) {
         return;
     }
-    // Read /proc/self/mountinfo instead of QStorageInfo::mountedVolumes() (which calls
-    // statfs() for every mount and blocked the GUI thread for 12-26 ms every 2 s) and do
-    // it on a worker thread: even the plain read costs 3-10 ms. Field 5 of a line is
-    // the mount point.
+    // The platform layer lists the removable volumes (Android: /proc/self/mountinfo, which is
+    // much cheaper than QStorageInfo::mountedVolumes(); Windows: the drives). On a worker
+    // thread: even that costs some ms.
     m_mountedFutureWatcher.setFuture(QtConcurrent::run([]() {
-        QSet<QString> mounted;
-        QFile mountInfo(QStringLiteral("/proc/self/mountinfo"));
-        if (mountInfo.open(QIODevice::ReadOnly)) {
-            const QList<QByteArray> lines = mountInfo.readAll().split('\n');
-            for (const QByteArray& line : lines) {
-                const QList<QByteArray> fields = line.split(' ');
-                if (fields.size() > 4) {
-                    const QString root = QString::fromUtf8(fields.at(4));
-                    if (root.startsWith(QStringLiteral("/mnt/media_rw/"))) {
-                        mounted.insert(QFileInfo(root).fileName());
-                    }
-                }
-            }
-        }
-        return mounted;
+        const QStringList ids = mixxx::platform::removableVolumeIds();
+        return QSet<QString>(ids.cbegin(), ids.cend());
     }));
 }
 
@@ -2171,8 +2162,6 @@ void RekordboxFeature::onMountedVolumesRead() {
 
     // Tracks of volumes that are not mounted (any more): delete them from the
     // library, including their cues, beats and waveforms.
-    static const QRegularExpression volumePath(
-            QStringLiteral("^/(?:mnt/media_rw|storage)/([^/]+)/"));
     QSqlDatabase database = m_pTrackCollection->database();
     QSqlQuery query(database);
     if (!query.exec(QStringLiteral(
@@ -2183,13 +2172,9 @@ void RekordboxFeature::onMountedVolumesRead() {
     }
     QList<TrackRef> goneTracks;
     while (query.next()) {
-        const QRegularExpressionMatch match = volumePath.match(query.value(1).toString());
-        if (!match.hasMatch()) {
-            continue;
-        }
-        const QString volumeId = match.captured(1);
-        if (volumeId == QStringLiteral("emulated") || volumeId == QStringLiteral("self") ||
-                mounted.contains(volumeId)) {
+        const QString volumeId =
+                mixxx::platform::removableVolumeIdOfPath(query.value(1).toString());
+        if (volumeId.isEmpty() || mounted.contains(volumeId)) {
             continue;
         }
         goneTracks.append(TrackRef::fromFilePath(query.value(1).toString(), TrackId(query.value(0))));
@@ -2205,7 +2190,7 @@ void RekordboxFeature::onMountedVolumesRead() {
 }
 #endif
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 void RekordboxFeature::parseNextDevice() {
     if (m_silentParse || m_tracksFuture.isRunning()) {
         return;
@@ -2404,7 +2389,7 @@ void RekordboxFeature::activate() {
     emit enableCoverArtDisplay(true);
     emit switchToView("REKORDBOXHOME");
     emit disableSearch();
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // BROWSE screen (QML): show the tracks of the stick read so far.
     m_shown = true;
     if (!m_devicePlaylist.isEmpty()) {
@@ -2529,7 +2514,7 @@ void RekordboxFeature::onRekordboxDevicesFound() {
         if (!childrenToAdd.empty()) {
             m_pSidebarModel->insertTreeItemRows(std::move(childrenToAdd), 0);
         }
-#ifdef __ANDROID__
+#ifdef FLXXX3
         // Read the database of every new stick right away (in the background,
         // one after the other), so that the tracks are there without opening
         // anything.
@@ -2540,7 +2525,7 @@ void RekordboxFeature::onRekordboxDevicesFound() {
     // calls a slot in the sidebarmodel such that 'isLoading' is removed from the feature title.
     m_title = tr("Rekordbox");
     emit featureLoadingFinished(this);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // A stick may have been pulled: refresh the combined list.
     rebuildAllSticksList();
     if (m_shown && !m_devicePlaylist.isEmpty()) {
@@ -2610,7 +2595,7 @@ void RekordboxFeature::onTracksFound() {
         return;
     }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     if (m_silentParse) {
         // Read in the background after a stick was found: do not switch views,
         // but remember the stick's list for the QML BROWSE screen.

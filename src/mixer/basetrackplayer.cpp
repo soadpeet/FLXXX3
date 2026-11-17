@@ -1,5 +1,5 @@
 #include "mixer/basetrackplayer.h"
-#ifdef __ANDROID__
+#ifdef FLXXX3
 #include "library/rekordbox/rekordboxfeature.h"
 #endif
 
@@ -557,7 +557,7 @@ void BaseTrackPlayerImpl::slotLoadTrack(TrackPointer pNewTrack,
         bool bPlay) {
 #endif
     //qDebug() << "BaseTrackPlayerImpl::slotLoadTrack" << getGroup() << pNewTrack.get();
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Android edition (LOAD LOCK, on by default): no track can be loaded into
     // a deck that is playing - neither with the touch screen nor with the
     // controller. Switch it off in the UTILITY menu (UNLOCK).
@@ -581,7 +581,7 @@ void BaseTrackPlayerImpl::slotLoadTrack(TrackPointer pNewTrack,
         }
     }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Rekordbox data (waveform, beat grid, cues) of tracks from a stick.
     RekordboxFeature::importDataForTrack(pNewTrack);
 #endif

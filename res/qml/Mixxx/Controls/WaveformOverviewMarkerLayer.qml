@@ -33,7 +33,7 @@ Item {
     property int labelTopMargin: 2
     property int labelHorizontalMargin: 2
     // Android edition (RX3 style): size of the cue symbols, in pixels.
-    readonly property bool rx3Style: Qt.platform.os === "android"
+    readonly property bool rx3Style: Mixxx.Product.ui
     readonly property real symbolSize: Math.max(9, Math.round(root.height * 0.17))
 
     function mapX(position) {

@@ -164,7 +164,7 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
         float* pMidGain,
         float* pHighGain) {
     if (pAllGain) {
-#ifdef __ANDROID__
+#ifdef FLXXX3
         // Android edition: fixed height. The tracks are normalised beforehand,
         // so the loudest points reach just below the beat ticks (5 % of the
         // height at the top and at the bottom).
@@ -182,7 +182,7 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
 
         // Android edition: the waveform does not change with the EQ knobs or
         // kill switches (like on the Pioneer players).
-#ifdef __ANDROID__
+#ifdef FLXXX3
         const bool followEq = false;
 #else
         const bool followEq = !m_pEQEnabled || m_pEQEnabled->get() > 0.0;
@@ -214,7 +214,7 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
             }
         }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
         lowVisualGain *= m_lowVisualGain;
         midVisualGain *= m_midVisualGain;
         highVisualGain *= m_highVisualGain;
@@ -231,7 +231,7 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
     }
 }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 float WaveformRendererSignalBase::trackAutoGain(const Waveform* pWaveform, int dataSize, bool threeBand) {
     // The result is cached per waveform for all renderers (the renderer
     // objects themselves can be recreated).

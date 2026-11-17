@@ -48,7 +48,7 @@ class RekordboxPlaylistModel : public BaseExternalPlaylistModel {
             TrackCollectionManager* pTrackCollectionManager,
             QSharedPointer<BaseTrackCache> trackSource);
     TrackPointer getTrack(const QModelIndex& index) const override;
-#ifdef __ANDROID__
+#ifdef FLXXX3
     /// Android edition: reads the Rekordbox data of the track (MP3 scan, analysis files,
     /// waveform) on a worker thread, so that a flicked list does not block the GUI thread.
     /// Returns true if the data is there already; otherwise trackPrefetched() follows.
@@ -65,7 +65,7 @@ class RekordboxPlaylistModel : public BaseExternalPlaylistModel {
   protected:
     void initSortColumnMapping() override;
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
   signals:
     /// The Rekordbox data of the track at `location` was read by prefetchTrack().
     void trackPrefetched(const QString& location);
@@ -84,7 +84,7 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
             KeyboardEventFilter* keyboard) override;
 
     TreeItemModel* sidebarModel() const override;
-#ifdef __ANDROID__
+#ifdef FLXXX3
     static void importDataForTrack(const TrackPointer& pTrack);
 #endif
 
@@ -97,7 +97,7 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
 
   private slots:
     void htmlLinkClicked(const QUrl& link);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     void checkRemovableVolumes();
     void onMountedVolumesRead();
     void parseNextDevice();
@@ -127,7 +127,7 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
     QString m_title;
 
     QSharedPointer<BaseTrackCache> m_trackSource;
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Android edition: ids of the removable volumes mounted at the last check.
     QSet<QString> m_mountedVolumes;
     // Reading /proc/self/mountinfo takes 3-10 ms, so it runs off the GUI thread.

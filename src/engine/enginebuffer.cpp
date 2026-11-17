@@ -560,7 +560,7 @@ void EngineBuffer::slotTrackLoaded(TrackPointer pTrack,
     if (kLogger.traceEnabled()) {
         kLogger.trace() << "slotTrackLoaded" << getGroup();
     }
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // The duration in the Rekordbox database can differ from the real length
     // of the audio (rounded, different decoder). The time display and the
     // waveform position use it, so take the real length of the file.
@@ -1438,7 +1438,7 @@ void EngineBuffer::processSeek(bool paused) {
         if (kLogger.traceEnabled()) {
             kLogger.trace() << "processSeek" << getGroup() << "Seeking phase";
         }
-#ifdef __ANDROID__
+#ifdef FLXXX3
         // Rekordbox-like quantize: snapping to the beat uses the own beatgrid.
         // Aligning the phase to another deck is part of sync, so it only
         // happens for synchronized decks or on an explicit phase-sync request.

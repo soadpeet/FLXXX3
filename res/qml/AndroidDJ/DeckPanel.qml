@@ -85,20 +85,27 @@ Rectangle {
         const name = c.letter === "A" ? root._classicMinor[n] : root._classicMajor[n];
         return name.replace(/#/g, "\u266f").replace(/([A-G])b/g, "$1\u266d");
     }
-    // Where the track comes from: USB1 / USB2 (the sticks) or TAB (the tablet).
+    // Where the track comes from: USB1 / USB2 (the sticks), else the device's own storage
+    // (TAB on the tablet, PC on Windows).
     readonly property string sourceName: {
         if (!root.loaded || !root.track)
             return "";
         const location = decodeURIComponent(String(root.track.trackLocationUrl)).replace("file://", "");
         for (let slot = 1; slot <= 2; ++slot) {
-            const info = Mixxx.AndroidStatus.stickInfo(slot);
-            if (info.present && info.path) {
-                const id = String(info.path).split("/").pop();
-                if (location.indexOf("/" + id + "/") >= 0)
+            const info = Mixxx.DeviceStatus.stickInfo(slot);
+            if (info.present && info.id) {
+                // Android: the file path contains /<uuid>/ (/storage or /mnt/media_rw);
+                // Windows: it starts with the drive (E:/).
+                const path = String(info.path);
+                const match = path.startsWith("/")
+                        ? location.indexOf("/" + info.id + "/") >= 0
+                        : location.toLowerCase().indexOf(path.toLowerCase()) >= 0;
+                if (match)
                     return "USB" + slot;
             }
         }
-        return "TAB";
+        const own = Mixxx.DeviceStatus.tabletInfo().name;
+        return own === "TABLET" ? "TAB" : own;
     }
 
     // Tap on the BPM shows buttons that correct a wrongly detected tempo

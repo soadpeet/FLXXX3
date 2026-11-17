@@ -2369,6 +2369,14 @@ else()
   message(STATUS "Building without QML")
 endif()
 
+# FLXXX3: the product (touch DJ interface in res/qml/AndroidDJ and its behaviour) on every
+# platform, so that Android and Windows are built from the same code. Code that is about the
+# product checks FLXXX3; only code that talks to the operating system checks the platform.
+option(FLXXX3 "Build the FLXXX3 product interface and behaviour" ON)
+if(FLXXX3)
+  add_compile_definitions(FLXXX3)
+endif()
+
 # qt_add_executable() is the recommended initial call for qt_finalize_target()
 # below that takes care of the correct object order in the resulting binary
 # According to https://doc.qt.io/qt-6/qt-finalize-target.html it is importand for
@@ -3819,6 +3827,14 @@ if(ANDROID)
   )
 endif()
 
+# FLXXX3 platform services (src/platform/platformservices.h): one interface, one
+# implementation per platform; the product code above them is the same everywhere.
+if(ANDROID)
+  target_sources(mixxx-lib PRIVATE src/platform/platformservices_android.cpp)
+else()
+  target_sources(mixxx-lib PRIVATE src/platform/platformservices_desktop.cpp)
+endif()
+
 # Protobuf
 add_subdirectory(src/proto)
 target_link_libraries(mixxx-lib PUBLIC mixxx-proto)
@@ -4077,9 +4093,10 @@ if(QML)
       # needed for qml/qmlautoreload.cpp
       src/util/autofilereloader.cpp
   )
-  if(ANDROID)
-    target_sources(mixxx-qml-lib PRIVATE src/qml/qmlandroidstatusproxy.cpp)
-  endif()
+  # Status of controller, sticks and storage for the FLXXX3 interface (every platform).
+  target_sources(mixxx-qml-lib PRIVATE src/qml/qmldevicestatusproxy.cpp)
+  # The FLXXX3 product switch for QML (Mixxx.Product.ui).
+  target_sources(mixxx-qml-lib PRIVATE src/qml/qmlproductproxy.cpp)
 
   if(STEM)
     target_compile_definitions(mixxx-qml-lib PUBLIC __STEM__)

@@ -341,8 +341,8 @@ CoreServices::CoreServices(const CmdlineArgs& args, QApplication* pApp)
         StatsManager::createInstance();
     }
     QString localeString = m_cmdlineArgs.getLocale();
-#ifdef __ANDROID__
-    // The Android edition's interface is English. A locale set explicitly in
+#ifdef FLXXX3
+    // The FLXXX3 interface is English. A locale set explicitly in
     // the preferences or on the command line still wins.
     if (localeString.isEmpty() &&
             m_pSettingsManager->settings()
@@ -540,8 +540,8 @@ void CoreServices::initialize() {
     // TODO: connect input not configured error dialog slots
     PlayerInfo::create();
 
-#ifndef __ANDROID__
-    // The Android edition has no microphone, auxiliary inputs or samplers.
+#ifndef FLXXX3
+    // FLXXX3 has no microphone, auxiliary inputs or samplers.
     for (int i = 0; i < kMicrophoneCount; ++i) {
         m_pPlayerManager->addMicrophone();
     }
@@ -553,7 +553,7 @@ void CoreServices::initialize() {
 
     m_pPlayerManager->addConfiguredDecks();
 
-#ifndef __ANDROID__
+#ifndef FLXXX3
     for (int i = 0; i < kSamplerCount; ++i) {
         m_pPlayerManager->addSampler();
     }
@@ -662,6 +662,10 @@ void CoreServices::initialize() {
         // Android edition: no default music folder. Own folders are added
         // in the SOURCE screen.
         fd.clear();
+#elif defined(FLXXX3)
+        // FLXXX3 (desktop): no default music folder either, no dialog at the first start.
+        // Own folders are added in the SOURCE screen.
+        QString fd;
 #else
         // TODO(XXX) this needs to be smarter, we can't distinguish between an empty
         // path return value (not sure if this is normally possible, but it is

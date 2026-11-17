@@ -89,7 +89,7 @@ bool WaveformRendererFiltered::preprocessInner() {
     float allGain(1.0);
     float bandGain[3] = {1.0, 1.0, 1.0};
     getGains(&allGain, &bandGain[0], &bandGain[1], &bandGain[2]);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Built from the 3-band waveform of Rekordbox: real band levels.
     const bool threeBand = rekordbox3band::isMarked(waveform.data());
     // ADVANCED SETTINGS > WAVEFORM HEIGHT arrives as 0.9 * scale from getGains().
@@ -108,7 +108,7 @@ bool WaveformRendererFiltered::preprocessInner() {
     const int numVerticesPerLine = 6; // 2 triangles
 
     // low, mid, high + horizontal axis
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // plus a fourth layer: the darker inner part of the mid band
     int reserved = numVerticesPerLine * (pixelLength * 4 + 1);
 #else
@@ -142,7 +142,7 @@ bool WaveformRendererFiltered::preprocessInner() {
                 static_cast<float>(m_highColor_b));
     }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Rekordbox 3-band look: blue / brown / cream, everywhere (also in the
     // part that was already played).
     // Blue = low, amber = mid (darker brown in its inner part), cream = high.
@@ -168,7 +168,7 @@ bool WaveformRendererFiltered::preprocessInner() {
                     numVerticesPerLine * (1 + pixelLength)},
             {geometry().vertexDataAs<Geometry::RGBColoredPoint2D>() +
                     numVerticesPerLine * (1 + pixelLength * 2)}};
-#ifdef __ANDROID__
+#ifdef FLXXX3
     RGBVertexUpdater innerMidVertexUpdater{geometry().vertexDataAs<Geometry::RGBColoredPoint2D>() +
             numVerticesPerLine * (1 + pixelLength * 3)};
 #endif
@@ -187,13 +187,13 @@ bool WaveformRendererFiltered::preprocessInner() {
         // 3 bands, 2 channels
         float max[3][2]{};
         uchar u8max[3][2]{};
-#ifdef __ANDROID__
+#ifdef FLXXX3
         uchar u8maxAll[2]{};
 #endif
         for (int chn = 0; chn < 2; chn++) {
             for (int i = visualIndexStart + chn; i < visualIndexStop + chn; i += 2) {
                 const WaveformData& waveformData = data[i];
-#ifdef __ANDROID__
+#ifdef FLXXX3
                 u8maxAll[chn] = math_max(u8maxAll[chn], waveformData.filtered.all);
 #endif
 
@@ -207,7 +207,7 @@ bool WaveformRendererFiltered::preprocessInner() {
             max[2][chn] = static_cast<float>(u8max[2][chn]);
         }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
         // The Rekordbox waveform has the column height and the level of each
         // band (3 bit). A band is drawn with its share of the column height.
         for (int chn = 0; chn < 2 && !threeBand; chn++) {
@@ -221,7 +221,7 @@ bool WaveformRendererFiltered::preprocessInner() {
         // + one for the horizontal axis, and uniform color materials,
         // instead of passing constant color as vertex.
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
         // Layers from the back to the front, like the Rekordbox 3-band view:
         // blue (low), orange (mid), brown (inner part of mid), cream (high).
         // From the centre outwards that is cream, brown, orange, blue.
@@ -277,7 +277,7 @@ bool WaveformRendererFiltered::preprocessInner() {
                             halfBreadth - heightFactor * max[bandIndex][0]},
                     {fpos + halfPixelSize,
                             halfBreadth + heightFactor * max[bandIndex][1]},
-#ifdef __ANDROID__
+#ifdef FLXXX3
                     {rgb[bandIndex]});
 #else
                     {rgb[bandIndex]});
@@ -287,7 +287,7 @@ bool WaveformRendererFiltered::preprocessInner() {
         xVisualFrame += visualIncrementPerPixel;
     }
 
-#ifndef __ANDROID__
+#ifndef FLXXX3
     DEBUG_ASSERT(reserved ==
             vertexUpdater[0].index() + vertexUpdater[1].index() +
                     vertexUpdater[2].index() +

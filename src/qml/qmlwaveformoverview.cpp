@@ -227,7 +227,7 @@ void QmlWaveformOverview::paint(QPainter* pPainter) {
 
     pPainter->save();
     if (!m_stereo) {
-#ifdef __ANDROID__
+#ifdef FLXXX3
         // Android edition: the lower part of the overview is kept free for the
         // minute markers below the waveform.
         const double waveHeight = m_minuteMarkers ? height() * 0.8 : height();
@@ -261,7 +261,7 @@ void QmlWaveformOverview::paint(QPainter* pPainter) {
         }
     }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // 0 = BLUE (type Simple), 1 = RGB, 2 = 3BAND (type Filtered): as selected
     // for the scrolling waveform.
     int scheme = 1;
@@ -275,7 +275,7 @@ void QmlWaveformOverview::paint(QPainter* pPainter) {
     for (int currentCompletion = 0;
             currentCompletion < waveformCompletion;
             currentCompletion += 2) {
-#ifdef __ANDROID__
+#ifdef FLXXX3
         if (!m_stereo) {
             drawScheme(pPainter, pWaveform, currentCompletion, scheme);
             continue;
@@ -441,7 +441,7 @@ void QmlWaveformOverview::drawMinuteMarkers(QPainter* pPainter, double duration)
         return;
     }
     pPainter->save();
-#ifdef __ANDROID__
+#ifdef FLXXX3
     if (!m_stereo) {
         // Thick ticks in the strip below the waveform.
         const QColor markerColor(235, 235, 235, 230);
@@ -497,7 +497,7 @@ QColor QmlWaveformOverview::getRgbPenColor(
     return QColor();
 }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 void QmlWaveformOverview::drawScheme(QPainter* pPainter,
         ConstWaveformPointer pWaveform,
         int completion,

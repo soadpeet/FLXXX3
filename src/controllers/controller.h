@@ -61,6 +61,10 @@ class Controller : public QObject {
     inline bool isOpen() const {
         return m_bIsOpen;
     }
+    /// FLXXX3: number of open MIDI controllers (Android MIDI or PortMidi) and the name of the
+    /// last one opened, for the status bar on every platform.
+    static int openControllerCount();
+    static QString lastOpenedControllerName();
     inline bool isOutputDevice() const {
         return m_bIsOutputDevice;
     }
@@ -159,10 +163,7 @@ class Controller : public QObject {
     inline void setInputDevice(bool inputDevice) {
         m_bIsInputDevice = inputDevice;
     }
-    inline void setOpen(bool open) {
-        m_bIsOpen = open;
-        emit openChanged(m_bIsOpen);
-    }
+    void setOpen(bool open);
 
     const QString m_sDeviceName;
     const RuntimeLoggingCategory m_logBase;

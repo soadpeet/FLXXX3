@@ -73,7 +73,7 @@ void WaveformRenderMarkRange::update() {
         }
 
         QColor color = markRange.enabled() ? markRange.m_activeColor : markRange.m_disabledColor;
-#ifdef __ANDROID__
+#ifdef FLXXX3
         // Active loop: orange (like Rekordbox); left loop: see-through white.
         color.setAlphaF(markRange.enabled() ? 0.5f : 0.3f);
 #else

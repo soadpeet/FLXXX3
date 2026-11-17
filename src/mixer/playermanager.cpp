@@ -132,7 +132,7 @@ PlayerManager::PlayerManager(UserSettingsPointer pConfig,
     m_pCONumAuxiliaries->connectValueChangeRequest(this,
             &PlayerManager::slotChangeNumAuxiliaries, Qt::DirectConnection);
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     m_pMasterDeck = std::make_unique<ControlObject>(
             ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("master_deck")),
             false,
@@ -699,7 +699,7 @@ void PlayerManager::slotLoadTrackToPlayer(
         // button repeatedly.
         // AutoDJProcessor is initialized after PlayerManager, so check that the
         // ControlProxy is pointing to the real ControlObject.
-#ifdef __ANDROID__
+#ifdef FLXXX3
         // No Auto DJ in the Android edition (no [AutoDJ] controls).
         const bool autoDjSkipClone = false;
 #else

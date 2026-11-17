@@ -1,7 +1,9 @@
 #include "controllers/controller.h"
 
 #include <QJSEngine>
+#include <QMutex>
 #include <algorithm>
+#include <atomic>
 
 #include "controllers/scripting/legacy/controllerscriptenginelegacy.h"
 #include "moc_controller.cpp"
@@ -14,6 +16,36 @@ QString loggingCategoryPrefix(const QString& deviceName) {
             RuntimeLoggingCategory::removeInvalidCharsFromCategory(deviceName.toLower());
 }
 } // namespace
+
+namespace {
+std::atomic<int> s_openControllers{0};
+QMutex s_lastOpenedMutex;
+QString s_lastOpenedName;
+} // namespace
+
+int Controller::openControllerCount() {
+    return s_openControllers.load();
+}
+
+QString Controller::lastOpenedControllerName() {
+    const QMutexLocker locker(&s_lastOpenedMutex);
+    return s_lastOpenedName;
+}
+
+void Controller::setOpen(bool open) {
+    // Only MIDI controllers count for the status: the DDJ-FLX4 also has a HID port (its name
+    // carries the serial number), which must not replace the name of the controller.
+    if (open != m_bIsOpen &&
+            getDataRepresentationProtocol() == DataRepresentationProtocol::MIDI) {
+        s_openControllers.fetch_add(open ? 1 : -1);
+        if (open) {
+            const QMutexLocker locker(&s_lastOpenedMutex);
+            s_lastOpenedName = getName();
+        }
+    }
+    m_bIsOpen = open;
+    emit openChanged(m_bIsOpen);
+}
 
 Controller::Controller(const QString& deviceName)
         : m_sDeviceName(deviceName),

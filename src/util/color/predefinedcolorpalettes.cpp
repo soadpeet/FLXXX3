@@ -252,7 +252,7 @@ namespace mixxx {
 const ColorPalette PredefinedColorPalettes::kMixxxHotcueColorPalette =
         ColorPalette(
                 QStringLiteral(QT_TRANSLATE_NOOP("PredefinedColorPaletes", "Mixxx Hotcue Colors")),
-#ifdef __ANDROID__
+#ifdef FLXXX3
                 // Android edition: the 16 hotcue colours of Rekordbox, in the order of
                 // the Rekordbox palette (4 x 4 grid).
                 {

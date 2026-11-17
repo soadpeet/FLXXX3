@@ -150,7 +150,7 @@ QVariant QmlLibraryTrackListModel::data(const QModelIndex& proxyIndex, int role)
                                               pColumn->columnIdx()))
                             : pColumn->columnIdx()),
             role);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // The rating column delivers a StarRating object; QML needs the plain star count.
     if (role == Qt::DisplayRole && value.canConvert<StarRating>()) {
         return value.value<StarRating>().starCount();
@@ -227,7 +227,7 @@ QmlTrackProxy* QmlLibraryTrackListModel::getTrack(int row) const {
 }
 
 bool QmlLibraryTrackListModel::prefetch(int row) {
-#ifdef __ANDROID__
+#ifdef FLXXX3
     auto* const pRekordbox = dynamic_cast<RekordboxPlaylistModel*>(sourceModel());
     if (pRekordbox) {
         connect(pRekordbox,
@@ -244,7 +244,7 @@ bool QmlLibraryTrackListModel::prefetch(int row) {
 }
 
 bool QmlLibraryTrackListModel::hasPreview(int row) const {
-#ifdef __ANDROID__
+#ifdef FLXXX3
     auto* const pRekordbox = dynamic_cast<RekordboxPlaylistModel*>(sourceModel());
     if (pRekordbox) {
         return pRekordbox->hasPreview(sourceModel()->index(row, 0));
@@ -260,7 +260,7 @@ void QmlLibraryTrackListModel::slotTrackPrefetched() {
 }
 
 QmlTrackProxy* QmlLibraryTrackListModel::getPreviewTrack(int row) const {
-#ifdef __ANDROID__
+#ifdef FLXXX3
     auto* const pRekordbox = dynamic_cast<RekordboxPlaylistModel*>(sourceModel());
     if (pRekordbox) {
         const TrackPointer pTrack = pRekordbox->previewTrack(sourceModel()->index(row, 0));

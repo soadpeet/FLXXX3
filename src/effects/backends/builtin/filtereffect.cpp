@@ -8,7 +8,7 @@
 namespace {
 constexpr double kMinCorner = 13;    // Hz
 constexpr double kMaxCorner = 22050; // Hz
-#ifdef __ANDROID__
+#ifdef FLXXX3
 constexpr double kAndroidLowestLowPass = 220;     // Hz
 constexpr double kAndroidHighestHighPass = 5500;  // Hz
 #endif
@@ -42,7 +42,7 @@ EffectManifestPointer FilterEffect::getManifest() {
     lpf->setUnitsHint(EffectManifestParameter::UnitsHint::Hertz);
     lpf->setDefaultLinkType(EffectManifestParameter::LinkType::LinkedLeft);
     lpf->setNeutralPointOnScale(1);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Color FX: at the end of the knob the sound must not vanish completely.
     lpf->setRange(kAndroidLowestLowPass, kMaxCorner, kMaxCorner);
 #else
@@ -70,7 +70,7 @@ EffectManifestPointer FilterEffect::getManifest() {
     hpf->setUnitsHint(EffectManifestParameter::UnitsHint::Hertz);
     hpf->setDefaultLinkType(EffectManifestParameter::LinkType::LinkedRight);
     hpf->setNeutralPointOnScale(0.0);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     hpf->setRange(kMinCorner, kMinCorner, kAndroidHighestHighPass);
 #else
     hpf->setRange(kMinCorner, kMinCorner, kMaxCorner);

@@ -26,7 +26,10 @@ Rectangle {
     readonly property real s: Math.max(0.5, Math.min(1.0, root.height / 540, root.width / 480))
     property var info: ({ present: false })
     property var folders: []
-    property string pickerPath: "/storage/emulated/0"
+    property string pickerPath: ""
+    // Root of the device's own storage (Android: internal storage, Windows: the user folder)
+    // and its name (TABLET / PC), from the platform layer.
+    readonly property var ownStorage: Mixxx.DeviceStatus.tabletInfo()
     property var pickerFolders: []
     property string pickerMessage: ""
     property string removePath: ""
@@ -59,22 +62,22 @@ Rectangle {
     }
     function refresh() {
         root.info = root.selected === 2
-                ? Mixxx.AndroidStatus.tabletInfo()
-                : Mixxx.AndroidStatus.stickInfo(root.selected + 1);
+                ? Mixxx.DeviceStatus.tabletInfo()
+                : Mixxx.DeviceStatus.stickInfo(root.selected + 1);
         root.folders = Mixxx.Library.libraryDirectories();
     }
     function slotLabel(slot) {
         if (slot === 2)
-            return "TABLET";
+            return root.ownStorage.name;
         return "USB " + (slot + 1);
     }
     // Name of the device: the label of the stick (e.g. BIGGO 2), else USB 1 / 2.
     function slotTitle(slot) {
         if (slot === 2)
-            return "TABLET";
-        const present = slot === 0 ? Mixxx.AndroidStatus.stick1Present : Mixxx.AndroidStatus.stick2Present;
+            return root.ownStorage.name;
+        const present = slot === 0 ? Mixxx.DeviceStatus.stick1Present : Mixxx.DeviceStatus.stick2Present;
         if (present) {
-            const details = Mixxx.AndroidStatus.stickInfo(slot + 1);
+            const details = Mixxx.DeviceStatus.stickInfo(slot + 1);
             if (details.label)
                 return details.label;
         }
@@ -82,32 +85,34 @@ Rectangle {
     }
     function slotSubtitle(slot) {
         if (slot === 2)
-            return "Internal storage";
-        const present = slot === 0 ? Mixxx.AndroidStatus.stick1Present : Mixxx.AndroidStatus.stick2Present;
+            return root.ownStorage.name === "PC" ? "This computer" : "Internal storage";
+        const present = slot === 0 ? Mixxx.DeviceStatus.stick1Present : Mixxx.DeviceStatus.stick2Present;
         return present ? "USB " + (slot + 1) : "NO DEVICE";
     }
     function enterPicker(name) {
         root.pickerPath = root.pickerPath + "/" + name;
-        root.pickerFolders = Mixxx.AndroidStatus.subDirectories(root.pickerPath);
+        root.pickerFolders = Mixxx.DeviceStatus.subDirectories(root.pickerPath);
         root.pickerMessage = "";
     }
     function pickerUp() {
-        if (root.pickerPath === "/storage/emulated/0" || root.pickerPath === "/storage")
+        if (root.pickerPath === root.ownStorage.path)
             return;
         const cut = root.pickerPath.lastIndexOf("/");
-        root.pickerPath = cut > 0 ? root.pickerPath.substring(0, cut) : "/storage/emulated/0";
-        root.pickerFolders = Mixxx.AndroidStatus.subDirectories(root.pickerPath);
+        root.pickerPath = cut > 0 ? root.pickerPath.substring(0, cut) : root.ownStorage.path;
+        root.pickerFolders = Mixxx.DeviceStatus.subDirectories(root.pickerPath);
         root.pickerMessage = "";
     }
     function openPicker() {
-        root.pickerPath = "/storage/emulated/0";
-        root.pickerFolders = Mixxx.AndroidStatus.subDirectories(root.pickerPath);
+        root.pickerPath = root.ownStorage.path;
+        root.pickerFolders = Mixxx.DeviceStatus.subDirectories(root.pickerPath);
         root.pickerMessage = "";
         folderPicker.open();
     }
     function addCurrentFolder() {
         // Result codes of the library: 0 = ok
-        const result = Mixxx.Library.addSource("file://" + root.pickerPath);
+        // file:// + /storage/... on Android, file:/// + C:/... on Windows.
+        const result = Mixxx.Library.addSource(
+                (root.pickerPath.startsWith("/") ? "file://" : "file:///") + root.pickerPath);
         if (result === 0) {
             Mixxx.Library.rescanLibrary();
             folderPicker.close();
@@ -137,7 +142,7 @@ Rectangle {
                 root.refresh();
         }
 
-        target: Mixxx.AndroidStatus
+        target: Mixxx.DeviceStatus
     }
 
     // Everything except the popups, scaled down on small screens.
@@ -177,7 +182,7 @@ Rectangle {
 
                 required property int index
                 readonly property bool present: index === 2 ||
-                        (index === 0 ? Mixxx.AndroidStatus.stick1Present : Mixxx.AndroidStatus.stick2Present)
+                        (index === 0 ? Mixxx.DeviceStatus.stick1Present : Mixxx.DeviceStatus.stick2Present)
 
                 border.color: root.selected === index ? "#1fb0f0" : "#3a3a3a"
                 border.width: root.selected === index ? 3 : 1

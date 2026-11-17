@@ -1,0 +1,211 @@
+// AI disclaimer: this file was written autonomously by an AI agent (Claude).
+// Android implementation of the platform services (see platformservices.h).
+
+#include <android/log.h>
+
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QHash>
+#include <QJniEnvironment>
+#include <QJniObject>
+#include <QRegularExpression>
+#include <QtCore/private/qandroidextras_p.h>
+
+#include "platform/platformservices.h"
+#include "util/androidtrackcache.h"
+
+namespace mixxx::platform {
+
+// Volume ids (uuid) of the removable volumes. Apps cannot list /storage or
+// /mnt/media_rw; the mount table shows them as /mnt/media_rw/<uuid> (same
+// approach as the Rekordbox scanner).
+QStringList removableVolumeIds() {
+    // Reading the mount table directly is much cheaper than
+    // QStorageInfo::mountedVolumes(), which calls statfs() for every mount.
+    QStringList ids;
+    QFile mountInfo(QStringLiteral("/proc/self/mountinfo"));
+    if (!mountInfo.open(QIODevice::ReadOnly)) {
+        return ids;
+    }
+    // Files in /proc report size 0: atEnd() / readLine() do not work, read it all.
+    const QList<QByteArray> lines = mountInfo.readAll().split('\n');
+    for (const QByteArray& line : lines) {
+        // Format: id parent major:minor root mountpoint options ...
+        const QList<QByteArray> fields = line.split(' ');
+        if (fields.size() < 5) {
+            continue;
+        }
+        const QString root = QString::fromUtf8(fields.at(4));
+        const bool removable = root.startsWith(QStringLiteral("/mnt/media_rw/")) ||
+                (root.startsWith(QStringLiteral("/storage/")) &&
+                        !root.startsWith(QStringLiteral("/storage/emulated")) &&
+                        !root.startsWith(QStringLiteral("/storage/self")));
+        if (removable) {
+            const QString id = QFileInfo(root).fileName();
+            if (!id.isEmpty() && !ids.contains(id)) {
+                ids.append(id);
+            }
+        }
+    }
+    ids.sort();
+    return ids;
+}
+QString removableVolumePath(const QString& id) {
+    const QString path = QStringLiteral("/storage/") + id;
+    if (QDir(path).exists()) {
+        return path;
+    }
+    return QStringLiteral("/mnt/media_rw/") + id;
+}
+
+// The name of a removable volume as Android shows it (the label of the stick,
+// e.g. "BIGGO 2"), looked up by the uuid of the volume (e.g. "181B-156E").
+QString removableVolumeLabel(const QString& uuid) {
+    static QHash<QString, QString> cache;
+    const auto cached = cache.constFind(uuid);
+    if (cached != cache.constEnd()) {
+        return cached.value();
+    }
+    QString result;
+    QJniObject context = QNativeInterface::QAndroidApplication::context();
+    const QJniObject serviceName = QJniObject::fromString(QStringLiteral("storage"));
+    const QJniObject manager = context.callObjectMethod("getSystemService",
+            "(Ljava/lang/String;)Ljava/lang/Object;",
+            serviceName.object<jstring>());
+    if (manager.isValid()) {
+        const QJniObject volumes = manager.callObjectMethod("getStorageVolumes", "()Ljava/util/List;");
+        if (volumes.isValid()) {
+            const int count = volumes.callMethod<jint>("size");
+            for (int i = 0; i < count; ++i) {
+                const QJniObject volume = volumes.callObjectMethod(
+                        "get", "(I)Ljava/lang/Object;", i);
+                const QJniObject volumeUuid = volume.callObjectMethod(
+                        "getUuid", "()Ljava/lang/String;");
+                if (volumeUuid.isValid() &&
+                        volumeUuid.toString().compare(uuid, Qt::CaseInsensitive) == 0) {
+                    const QJniObject description = volume.callObjectMethod("getDescription",
+                            "(Landroid/content/Context;)Ljava/lang/String;",
+                            context.object());
+                    if (description.isValid()) {
+                        result = description.toString();
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    QJniEnvironment().checkAndClearExceptions();
+    if (!result.isEmpty()) {
+        cache.insert(uuid, result);
+    }
+    return result;
+}
+
+QString removableVolumeIdOfPath(const QString& filePath) {
+    static const QRegularExpression volumePath(
+            QStringLiteral("^/(?:mnt/media_rw|storage)/([^/]+)/"));
+    const QRegularExpressionMatch match = volumePath.match(filePath);
+    if (!match.hasMatch()) {
+        return {};
+    }
+    const QString id = match.captured(1);
+    if (id == QStringLiteral("emulated") || id == QStringLiteral("self")) {
+        return {};
+    }
+    return id;
+}
+
+QString removableVolumeRelativePath(const QString& filePath) {
+    static const QRegularExpression volumePrefix(
+            QStringLiteral("^/(?:mnt/media_rw|storage)/[^/]+"));
+    if (removableVolumeIdOfPath(filePath).isEmpty()) {
+        return {};
+    }
+    QString relative = filePath;
+    relative.remove(volumePrefix);
+    return relative;
+}
+
+QString internalStoragePath() {
+    return QStringLiteral("/storage/emulated/0");
+}
+
+QString internalStorageName() {
+    return QStringLiteral("TABLET");
+}
+
+QStringList trackCacheBusyPaths(int recentMs) {
+    return AndroidTrackCache::instance().busyPaths(recentMs);
+}
+
+int trackCachePendingCopies() {
+    return AndroidTrackCache::instance().pendingCopies();
+}
+
+void setScreenBrightness(double value) {
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([value]() {
+        QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (!activity.isValid()) {
+            return;
+        }
+        QJniObject window = activity.callObjectMethod("getWindow", "()Landroid/view/Window;");
+        if (!window.isValid()) {
+            return;
+        }
+        QJniObject attributes = window.callObjectMethod(
+                "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
+        if (!attributes.isValid()) {
+            return;
+        }
+        attributes.setField<jfloat>("screenBrightness", static_cast<jfloat>(value));
+        window.callMethod<void>("setAttributes",
+                "(Landroid/view/WindowManager$LayoutParams;)V",
+                attributes.object());
+    });
+}
+
+void keepScreenOn() {
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() {
+        QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (!activity.isValid()) {
+            return;
+        }
+        QJniObject window = activity.callObjectMethod("getWindow", "()Landroid/view/Window;");
+        if (window.isValid()) {
+            // FLAG_KEEP_SCREEN_ON: the screen stays on while the app is in front.
+            window.callMethod<void>("addFlags", "(I)V", 0x00000080);
+            // Fixed refresh rate: the adaptive (variable) refresh of some phones makes
+            // a still picture flicker when the rate changes.
+            QJniObject attributes = window.callObjectMethod(
+                    "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
+            if (attributes.isValid()) {
+                attributes.setField<jfloat>("preferredRefreshRate", 60.0f);
+                window.callMethod<void>("setAttributes",
+                        "(Landroid/view/WindowManager$LayoutParams;)V",
+                        attributes.object());
+            }
+            QJniObject decor = window.callObjectMethod("getDecorView", "()Landroid/view/View;");
+            if (decor.isValid()) {
+                // IMMERSIVE_STICKY | HIDE_NAVIGATION | FULLSCREEN | LAYOUT_*
+                decor.callMethod<void>("setSystemUiVisibility", "(I)V", 0x1706);
+            }
+        }
+    });
+}
+
+void log(const QString& text) {
+    __android_log_print(ANDROID_LOG_INFO, "mixxx-qml", "%s", text.toUtf8().constData());
+}
+
+void quitApp() {
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() {
+        QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (!activity.isValid()) {
+            return;
+        }
+        activity.callMethod<void>("finishAndRemoveTask", "()V");
+    });
+}
+
+} // namespace mixxx::platform

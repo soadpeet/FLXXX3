@@ -81,7 +81,7 @@ class ControllerManager : public QObject {
 #ifdef __ANDROID_MIDI__
     bool m_androidSetupDone = false;
 #endif
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Android edition: which SHIFT button of the controller is held (0 = none, 1 = deck 1,
     // 2 = deck 2). The mapping sets it, the main window reads it (SHIFT + BROWSE knob zooms
     // the waveform of that deck only).

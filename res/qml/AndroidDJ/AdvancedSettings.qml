@@ -338,7 +338,7 @@ Rectangle {
     }
     function infoLines() {
         const tick = root.infoTick; // re-evaluate
-        const st = Mixxx.AndroidStatus;
+        const st = Mixxx.DeviceStatus;
         const lines = [];
         lines.push("CONTROLLER: " + (st.controllerConnected ? st.controllerName : "not connected"));
         lines.push("BATTERY: " + (st.batteryPercent >= 0 ? st.batteryPercent + " %" + (st.batteryCharging ? " (charging)" : "") : "not available"));

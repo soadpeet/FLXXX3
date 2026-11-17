@@ -22,7 +22,7 @@ Item {
     // the legacy preferences dialog can recreate that stack explicitly.
     property int renderedWaveformType: -1
     // Android edition: fixed gain (the waveform data is already normalised).
-    readonly property real visualGain: Qt.platform.os === "android" ? AdvSettings.values.waveGain : Mixxx.Config.waveformVisualGainAll
+    readonly property real visualGain: Mixxx.Product.ui ? AdvSettings.values.waveGain : Mixxx.Config.waveformVisualGainAll
     // Android edition: small waveform of the other deck (beat match aid) follows the zoom of this deck.
     property string zoomGroupOverride: ""
     property int frameRateOverride: 0
@@ -55,16 +55,16 @@ Item {
 
         anchors.fill: parent
         backgroundColor: "transparent"
-        frameRate: frameRateOverride > 0 ? frameRateOverride : Qt.platform.os === "android" ? AdvSettings.values.waveFps : Mixxx.Config.waveformFrameRate
+        frameRate: frameRateOverride > 0 ? frameRateOverride : Mixxx.Product.ui ? AdvSettings.values.waveFps : Mixxx.Config.waveformFrameRate
         group: root.group
-        options: Qt.platform.os === "android" ? Mixxx.WaveformDisplay.Option.None : Mixxx.Config.waveformOptions
+        options: Mixxx.Product.ui ? Mixxx.WaveformDisplay.Option.None : Mixxx.Config.waveformOptions
         visible: Mixxx.Config.waveformEnabled
         zoom: zoomControl.value
 
         Behavior on zoom {
             SmoothedAnimation {
                 // Android edition: follows the fingers almost directly.
-                duration: Qt.platform.os === "android" ? 60 : 500
+                duration: Mixxx.Product.ui ? 60 : 500
                 velocity: -1
             }
         }
@@ -77,7 +77,7 @@ Item {
         Mixxx.WaveformRendererMarkRange {
             // Loop
             Mixxx.WaveformMarkRange {
-                color: Qt.platform.os === "android" ? '#ff8c1a' : '#00b400'
+                color: Mixxx.Product.ui ? '#ff8c1a' : '#00b400'
                 disabledColor: '#FFFFFF'
                 disabledOpacity: 0.6
                 enabledControl: "loop_enabled"
@@ -111,9 +111,9 @@ Item {
             gainHigh: Mixxx.Config.waveformVisualGainHigh
             gainLow: Mixxx.Config.waveformVisualGainLow
             gainMid: Mixxx.Config.waveformVisualGainMedium
-            highColor: Qt.platform.os === "android" ? '#ffffff' : '#D5C2A2'
-            lowColor: Qt.platform.os === "android" ? '#1e5bff' : '#2154D7'
-            midColor: Qt.platform.os === "android" ? '#ff9a1f' : '#97632D'
+            highColor: Mixxx.Product.ui ? '#ffffff' : '#D5C2A2'
+            lowColor: Mixxx.Product.ui ? '#1e5bff' : '#2154D7'
+            midColor: Mixxx.Product.ui ? '#ff9a1f' : '#97632D'
         }
         Mixxx.WaveformRendererFiltered {
             axesColor: '#a1a1a1a1'
@@ -129,8 +129,8 @@ Item {
         }
         Mixxx.WaveformRendererSimple {
             axesColor: '#a1a1a1a1'
-            color: Qt.platform.os === "android" ? '#1f8fe8' : '#D5C2A2'
-            enabled: Qt.platform.os !== "android" && root.activeWaveformType === Mixxx.WaveformDisplay.Type.Simple
+            color: Mixxx.Product.ui ? '#1f8fe8' : '#D5C2A2'
+            enabled: !Mixxx.Product.ui && root.activeWaveformType === Mixxx.WaveformDisplay.Type.Simple
             gain: root.visualGain
         }
         Mixxx.WaveformRendererHSV {
@@ -143,7 +143,7 @@ Item {
             gainMid: Mixxx.Config.waveformVisualGainMedium
         }
         Mixxx.WaveformRendererRGB {
-            readonly property bool blueScheme: Qt.platform.os === "android" && root.activeWaveformType === Mixxx.WaveformDisplay.Type.Simple
+            readonly property bool blueScheme: Mixxx.Product.ui && root.activeWaveformType === Mixxx.WaveformDisplay.Type.Simple
 
             axesColor: '#a1a1a1a1'
             enabled: root.activeWaveformType === Mixxx.WaveformDisplay.Type.RGB || blueScheme
@@ -165,7 +165,7 @@ Item {
             splitStemTracks: root.splitStemTracks || Mixxx.Config.waveformStemSplitTracks
         }
         Mixxx.WaveformRendererBeat {
-            color: Qt.rgba(161 / 255, 161 / 255, 161 / 255, (Qt.platform.os === "android" ? AdvSettings.values.beatGridAlpha : Mixxx.Config.waveformBeatGridAlpha) / 100)
+            color: Qt.rgba(161 / 255, 161 / 255, 161 / 255, (Mixxx.Product.ui ? AdvSettings.values.beatGridAlpha : Mixxx.Config.waveformBeatGridAlpha) / 100)
         }
         Mixxx.WaveformRendererMark {
             playMarkerBackground: '#D9D9D9'
@@ -180,7 +180,7 @@ Item {
             defaultMark: Mixxx.WaveformMark {
                 // Android edition: hotcue squares / memory cue triangles above
                 // the waveform.
-                align: Qt.platform.os === "android" ? "top|hcenter" : "bottom|right"
+                align: Mixxx.Product.ui ? "top|hcenter" : "bottom|right"
                 color: "#00d9ff"
                 endIcon: Qt.resolvedUrl("images/jump_%1.svg")
                 text: " %1 "
@@ -188,7 +188,7 @@ Item {
             }
 
             Mixxx.WaveformMark {
-                align: Qt.platform.os === "android" ? 'bottom|hcenter' : 'top|right'
+                align: Mixxx.Product.ui ? 'bottom|hcenter' : 'top|right'
                 color: 'red'
                 control: "cue_point"
                 text: 'CUE'
@@ -294,7 +294,7 @@ Item {
         acceptedDevices: PointerDevice.TouchScreen
         // Locked while the track plays (no moving by touch).
         // Locked only while the track plays AND the channel fader is up (20 % or more).
-        enabled: Qt.platform.os === "android" && !(touchPlayControl.value > 0 && touchVolumeControl.value >= 0.2)
+        enabled: Mixxx.Product.ui && !(touchPlayControl.value > 0 && touchVolumeControl.value >= 0.2)
         maximumPointCount: 1
         target: null
 
@@ -315,7 +315,7 @@ Item {
     MouseArea {
         // Android edition: no mouse scratching (it got stuck during pinch
         // zoom and kept the deck from playing).
-        enabled: Qt.platform.os !== "android"
+        enabled: !Mixxx.Product.ui
         property point mouseAnchor: Qt.point(0, 0)
         property int mouseStatus: WaveformDisplay.MouseStatus.Normal
 

@@ -1,4 +1,5 @@
 import Qt5Compat.GraphicalEffects
+import Mixxx 1.0 as Mixxx
 import QtQuick
 import QtQuick.Layouts
 import "../Theme"
@@ -25,7 +26,7 @@ Rectangle {
     Loader {
         id: dragImagePreview
 
-        active: Qt.platform.os !== "android"
+        active: !Mixxx.Product.ui
 
         sourceComponent: Item {
             readonly property alias effect: dragImageEffect

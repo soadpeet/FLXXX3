@@ -636,7 +636,7 @@ void CueControl::trackLoaded(TrackPointer pNewTrack) {
     // Update COs with cues from track.
     loadCuesFromTrack();
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Android edition: without AUTO CUE a loaded track waits on the first beat
     // of its beat grid (the Rekordbox grid, if there is one); AUTO CUE starts
     // at the first sound.
@@ -887,7 +887,7 @@ void CueControl::loadCuesFromTrack() {
 }
 
 void CueControl::trackAnalyzed() {
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // The track waits on the first beat of its grid; a finished analysis must
     // not move it.
     return;
@@ -2408,7 +2408,7 @@ CueControl::TrackAt CueControl::getTrackAt() const {
     return TrackAt::ElseWhere;
 }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 // Android edition: cues, hotcues and loops are never set before the first beat of the
 // beat grid (the first beat of the Rekordbox grid, like the one the track waits on).
 
@@ -2443,7 +2443,7 @@ mixxx::audio::FramePos CueControl::getQuantizedCurrentPosition() {
         return info.currentPosition;
     }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Cues and hotcues snap to the grid of the QUANTIZE BEAT VALUE.
     if (m_pLoadedTrack && info.currentPosition.isValid()) {
         return quantizeCuePoint(info.currentPosition);
@@ -2494,7 +2494,7 @@ mixxx::audio::FramePos CueControl::quantizeCuePoint(mixxx::audio::FramePos posit
         return position;
     }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Android edition: QUANTIZE BEAT VALUE (1/8, 1/4, 1/2, 1 beat) of the
     // UTILITY menu: snap to the nearest step of that grid between two beats.
     const double steps = m_pQuantizeSubdivision
@@ -2532,7 +2532,7 @@ bool CueControl::isTrackAtIntroCue() {
 }
 
 SeekOnLoadMode CueControl::getSeekOnLoadPreference() {
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Without AUTO CUE a loaded track waits on the first beat of its grid
     // (see trackLoaded); with AUTO CUE it starts at the first sound.
     return m_pAutoCue && m_pAutoCue->toBool() ? SeekOnLoadMode::FirstSound

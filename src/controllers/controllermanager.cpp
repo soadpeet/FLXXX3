@@ -113,7 +113,7 @@ ControllerManager::ControllerManager(UserSettingsPointer pConfig)
     qRegisterMetaType<std::shared_ptr<LegacyControllerMapping>>(
             "std::shared_ptr<LegacyControllerMapping>");
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     m_pAndroidShiftDeck = std::make_unique<ControlObject>(
             ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("shift_deck")));
     m_pAndroidShiftDeck->set(0);

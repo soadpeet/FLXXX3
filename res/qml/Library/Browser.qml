@@ -148,7 +148,7 @@ Rectangle {
 
                                     anchors.left: parent.left
                                     // Android: no indicator column for entries without children.
-                                    anchors.leftMargin: (depth == 0 && row == 0) || (Qt.platform.os === "android" && !hasChildren) ? 10 : 34
+                                    anchors.leftMargin: (depth == 0 && row == 0) || (Mixxx.Product.ui && !hasChildren) ? 10 : 34
                                     anchors.verticalCenter: parent.verticalCenter
                                     clip: true
                                     color: Theme.textColor

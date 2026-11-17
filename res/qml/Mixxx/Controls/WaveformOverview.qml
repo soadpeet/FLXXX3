@@ -81,7 +81,7 @@ Mixxx.WaveformOverview {
             color: "#000000"
             height: parent.height * 0.82
             opacity: 0.5
-            visible: Qt.platform.os === "android"
+            visible: Mixxx.Product.ui
             width: parent.width * Math.min(1, Math.max(0, playPositionControl.value))
             x: 0
             y: 0
@@ -89,7 +89,7 @@ Mixxx.WaveformOverview {
         MixxxControls.WaveformOverviewMarkerLayer {
             anchors.fill: parent
             cueColor: root.cueMarkerColor
-            cueText: Qt.platform.os === "android" ? "" : "C"
+            cueText: Mixxx.Product.ui ? "" : "C"
             group: root.group
             introOutroColor: root.introOutroMarkerColor
             introStartText: "IN"
@@ -108,7 +108,7 @@ Mixxx.WaveformOverview {
             color: root.playPositionMarkerColor
             group: root.group
             key: "playposition"
-            lineWidth: Qt.platform.os === "android" ? 3 : 1
+            lineWidth: Mixxx.Product.ui ? 3 : 1
         }
     }
     MouseArea {

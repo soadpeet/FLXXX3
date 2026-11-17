@@ -8,7 +8,7 @@ Mixxx.LibrarySourceTree {
 
     defaultColumns: [
         Mixxx.TrackListColumn {
-            autoHideWidth: Qt.platform.os === "android" ? 1000000 : 750
+            autoHideWidth: Mixxx.Product.ui ? 1000000 : 750
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Album
             preferredWidth: 100
 
@@ -93,7 +93,7 @@ Mixxx.LibrarySourceTree {
         // },
         Mixxx.TrackListColumn {
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Title
-            fillSpan: Qt.platform.os === "android" ? 4 : 3
+            fillSpan: Mixxx.Product.ui ? 4 : 3
             label: qsTr("Title")
 
             delegate: DefaultDelegate {
@@ -108,7 +108,7 @@ Mixxx.LibrarySourceTree {
             }
         },
         Mixxx.TrackListColumn {
-            autoHideWidth: Qt.platform.os === "android" ? 0 : 690
+            autoHideWidth: Mixxx.Product.ui ? 0 : 690
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Album
             fillSpan: 1
             label: qsTr("Album")
@@ -117,7 +117,7 @@ Mixxx.LibrarySourceTree {
             }
         },
         Mixxx.TrackListColumn {
-            autoHideWidth: Qt.platform.os === "android" ? 0 : 750
+            autoHideWidth: Mixxx.Product.ui ? 0 : 750
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Year
             label: qsTr("Year")
             preferredWidth: 80
@@ -145,7 +145,7 @@ Mixxx.LibrarySourceTree {
         // is hidden) and the stars (right of the key). Kept at the end so that the
         // column numbers of the others do not change.
         Mixxx.TrackListColumn {
-            autoHideWidth: Qt.platform.os === "android" ? 1000000 : 1300
+            autoHideWidth: Mixxx.Product.ui ? 1000000 : 1300
             // Position in the playlist (empty in lists without one; the track list then
             // counts the rows).
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Position
@@ -156,7 +156,7 @@ Mixxx.LibrarySourceTree {
             }
         },
         Mixxx.TrackListColumn {
-            autoHideWidth: Qt.platform.os === "android" ? 0 : 1300
+            autoHideWidth: Mixxx.Product.ui ? 0 : 1300
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Rating
             label: "Stars"
             preferredWidth: 110
@@ -165,7 +165,7 @@ Mixxx.LibrarySourceTree {
             }
         },
         Mixxx.TrackListColumn {
-            autoHideWidth: Qt.platform.os === "android" ? 0 : 900
+            autoHideWidth: Mixxx.Product.ui ? 0 : 900
             columnIdx: Mixxx.TrackListColumn.SQLColumns.FileType
             label: qsTr("File Type")
             preferredWidth: 70
@@ -174,7 +174,7 @@ Mixxx.LibrarySourceTree {
             }
         },
         Mixxx.TrackListColumn {
-            autoHideWidth: Qt.platform.os === "android" ? 0 : 1200
+            autoHideWidth: Mixxx.Product.ui ? 0 : 1200
             columnIdx: Mixxx.TrackListColumn.SQLColumns.Bitrate
             label: qsTr("Bitrate")
             preferredWidth: 70

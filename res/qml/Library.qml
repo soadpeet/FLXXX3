@@ -27,7 +27,7 @@ Item {
     // Android edition: PLAYLIST shows only the stick with this id (the source chosen on the
     // SOURCE screen; "TABLET" = no stick). Empty = all sticks.
     property string stickFilter: ""
-    readonly property bool touchUi: Qt.platform.os === "android"
+    readonly property bool touchUi: Mixxx.Product.ui
     // Android edition: shown screen (BROWSE, PLAYLIST, SEARCH, TAG LIST, set by the
     // main window) and the lists that the app keeps (tag list, history, my lists).
     property string mode: "BROWSE"
@@ -156,9 +156,9 @@ Item {
             id: sideBarSplitView
 
             SplitView.maximumWidth: 550
-            SplitView.minimumWidth: Qt.platform.os === "android" ? 125 : 150
+            SplitView.minimumWidth: Mixxx.Product.ui ? 125 : 150
             // Narrow source list on the Android touch UI: more room for titles.
-            SplitView.preferredWidth: root.width * (Qt.platform.os === "android" ? 0.14 : 0.15)
+            SplitView.preferredWidth: root.width * (Mixxx.Product.ui ? 0.14 : 0.15)
             orientation: Qt.Vertical
 
             handle: Rectangle {
@@ -202,7 +202,7 @@ Item {
             }
             Skin.PreviewDeck {
                 // Placeholder only; not shown in the Android touch UI.
-                visible: Qt.platform.os !== "android"
+                visible: !Mixxx.Product.ui
                 SplitView.maximumHeight: 200
                 SplitView.minimumHeight: 100
                 SplitView.preferredHeight: 100

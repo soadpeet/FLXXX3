@@ -44,11 +44,11 @@ Rectangle {
                 return;
             // Android: no scrolling (and no reading of track data from the
             // stick) while the library is closed.
-            if (Qt.platform.os === "android" && !root.scrollEnabled)
+            if (Mixxx.Product.ui && !root.scrollEnabled)
                 return;
             // The BROWSE knob sends many steps per second; each one moves the selection and lays
             // the table out again. The steps are collected and applied at most every 40 ms.
-            if (Qt.platform.os === "android") {
+            if (Mixxx.Product.ui) {
                 if (moveTimer.running) {
                     root.pendingMove += offset;
                 } else {
@@ -75,7 +75,7 @@ Rectangle {
     // Key of the saved list settings: BROWSE and PLAYLIST each have their own.
     property string viewKey: "list_view"
     function saveView() {
-        if (Qt.platform.os !== "android")
+        if (!Mixxx.Product.ui)
             return;
         Mixxx.Config.setAndroidSetting(root.viewKey, JSON.stringify({
             "rowHeight": root.rowHeight,
@@ -84,7 +84,7 @@ Rectangle {
         }));
     }
     function loadView() {
-        if (Qt.platform.os !== "android")
+        if (!Mixxx.Product.ui)
             return;
         // Without settings of its own, a list starts with those of BROWSE.
         let raw = Mixxx.Config.androidSetting(root.viewKey, "");
@@ -169,9 +169,9 @@ Rectangle {
     Timer {
         interval: 80
         repeat: true
-        running: Qt.platform.os === "android" && !!root.model && root.preloadRow < root.preloadMax
+        running: Mixxx.Product.ui && !!root.model && root.preloadRow < root.preloadMax
                  && root.preloadRow < view.rows && root.visible && !view.moving
-                 && Mixxx.AndroidStatus.cacheCopies === 0
+                 && Mixxx.DeviceStatus.cacheCopies === 0
 
         onTriggered: {
             if (root.preloadPending >= 3 || Date.now() - root.lastScrollMs < 350)
@@ -487,11 +487,11 @@ Rectangle {
             required property int index
             // Android: the title cell holds the waveform, the number and the title; the
             // header shows them as three windows of their own.
-            readonly property bool split: Qt.platform.os === "android" && display === "Title"
+            readonly property bool split: Mixxx.Product.ui && display === "Title"
             readonly property real numEnd: 8 + Math.round(34 * root.uiScale) + 2
             readonly property real waveEnd: 8 + Math.round(34 * root.uiScale) + 4 + Math.round(root.waveWidth * root.uiScale) + 4
 
-            implicitHeight: columnName.contentHeight + (Qt.platform.os === "android" ? 18 : 5)
+            implicitHeight: columnName.contentHeight + (Mixxx.Product.ui ? 18 : 5)
             implicitWidth: columnName.contentWidth + 5
 
             // "#": sorts by the number
@@ -540,12 +540,12 @@ Rectangle {
                 anchors.fill: parent
                 // Android: the title column starts with the waveform and the number, the
                 // header "Title" stands over the titles, "#" over the numbers.
-                anchors.leftMargin: (Qt.platform.os === "android" && display === "Title") ? 8 + Math.round(root.waveWidth * root.uiScale) + 4 + Math.round(34 * root.uiScale) + 8 : 15
+                anchors.leftMargin: (Mixxx.Product.ui && display === "Title") ? 8 + Math.round(root.waveWidth * root.uiScale) + 4 + Math.round(34 * root.uiScale) + 8 : 15
                 color: Theme.textColor
                 elide: Text.ElideRight
                 font.capitalization: Font.Capitalize
                 font.family: Theme.fontFamily
-                font.pixelSize: Qt.platform.os === "android" ? Math.round(16 * root.uiScale) : 12
+                font.pixelSize: Mixxx.Product.ui ? Math.round(16 * root.uiScale) : 12
                 font.weight: Font.Medium
                 horizontalAlignment: Text.AlignLeft
                 text: display
@@ -555,13 +555,13 @@ Rectangle {
                 color: Theme.textColor
                 font.capitalization: Font.Capitalize
                 font.family: Theme.fontFamily
-                font.pixelSize: Qt.platform.os === "android" ? Math.round(16 * root.uiScale) : 12
+                font.pixelSize: Mixxx.Product.ui ? Math.round(16 * root.uiScale) : 12
                 font.weight: Font.Medium
                 height: parent.height
                 horizontalAlignment: Text.AlignRight
                 text: "#"
                 verticalAlignment: Text.AlignVCenter
-                visible: Qt.platform.os === "android" && display === "Title"
+                visible: Mixxx.Product.ui && display === "Title"
                 width: Math.round(34 * root.uiScale)
                 x: 8
             }
@@ -611,7 +611,7 @@ Rectangle {
             Text {
                 color: Theme.textColor
                 font.family: Theme.fontFamily
-                font.pixelSize: Qt.platform.os === "android" ? Math.round(16 * root.uiScale) : 12
+                font.pixelSize: Mixxx.Product.ui ? Math.round(16 * root.uiScale) : 12
                 font.weight: Font.Medium
                 height: parent.height
                 text: "Waveform"
@@ -937,7 +937,7 @@ Rectangle {
         // Asking the model for the track does that (and keeps it in the cache
         // for the load that follows).
         function prepareSelectedTrack() {
-            if (Qt.platform.os !== "android")
+            if (!Mixxx.Product.ui)
                 return;
             const selected = this.selectionModel.selectedIndexes;
             if (selected.length > 0 && this.model.getTrack)
@@ -1014,7 +1014,7 @@ Rectangle {
                 return columnDef.preferredWidth;
             }
             const span = columnDef.fillSpan || 1;
-            if (Qt.platform.os !== "android")
+            if (!Mixxx.Product.ui)
                 return span * (view.width - view.usedWidth) / view.dynamicColumnCount;
             // Android: the space left by the fixed columns is shared by the flexible ones
             // (title, artist, album) by weight; the title cell also holds the waveform and
@@ -1030,7 +1030,7 @@ Rectangle {
         keyNavigationEnabled: false
         // Android: fixed row height (SMALL / MEDIUM / LARGE of the list settings).
         rowHeightProvider: function (row) {
-            return Qt.platform.os === "android" ? Math.round(root.rowHeight * root.uiScale) : -1;
+            return Mixxx.Product.ui ? Math.round(root.rowHeight * root.uiScale) : -1;
         }
         model: root.model
         pointerNavigationEnabled: false
@@ -1039,7 +1039,7 @@ Rectangle {
         ScrollBar.vertical: ScrollBar {
             policy: ScrollBar.AlwaysOn
         }
-        delegate: Qt.platform.os === "android" ? liteDelegate : fullDelegate
+        delegate: Mixxx.Product.ui ? liteDelegate : fullDelegate
         selectionModel: ItemSelectionModel {
             onSelectionChanged: {
                 const selection = this.selectedIndexes;
@@ -1065,9 +1065,9 @@ Rectangle {
                 }
                 // Android edition: stay at the first / last track instead of
                 // wrapping around, and keep the selection in view.
-                const newRow = Qt.platform.os === "android" ? Math.max(0, Math.min(rowCount - 1, row)) : Mixxx.MathUtils.positiveModulo(row, rowCount);
+                const newRow = Mixxx.Product.ui ? Math.max(0, Math.min(rowCount - 1, row)) : Mixxx.MathUtils.positiveModulo(row, rowCount);
                 this.select(this.model.index(newRow, 0), ItemSelectionModel.Rows | ItemSelectionModel.Select | ItemSelectionModel.Clear | ItemSelectionModel.Current);
-                if (Qt.platform.os === "android") {
+                if (Mixxx.Product.ui) {
                     view.positionViewAtRow(newRow, TableView.Contain);
                 }
             }

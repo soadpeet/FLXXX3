@@ -204,7 +204,7 @@ Item {
     Mixxx.ControlProxy { id: brightnessProxy; group: "[AndroidDJ]"; key: "brightness" }
     function applyBrightness() {
         const level = Math.round(brightnessProxy.value);
-        Mixxx.AndroidStatus.setScreenBrightness(level === 2 ? 1.0 : -1.0);
+        Mixxx.DeviceStatus.setScreenBrightness(level === 2 ? 1.0 : -1.0);
     }
     Connections {
         function onValueChanged() {
@@ -227,7 +227,7 @@ Item {
         const savedBrightness = parseInt(Mixxx.Config.androidSetting("brightness", "1"));
         brightnessProxy.value = isNaN(savedBrightness) ? 1 : savedBrightness;
         root.applyBrightness();
-        Mixxx.AndroidStatus.lockScreen();
+        Mixxx.DeviceStatus.lockScreen();
         // Mixer: ISO (kill at the end stop) is the default, EQ is saved.
         eqModeProxy.value = Mixxx.Config.androidSetting("eqMode", "0") === "1" ? 1 : 0;
         // 3BAND is the default look: once, a look saved earlier (e.g. RGB) is replaced.
@@ -271,10 +271,13 @@ Item {
             root.activateSource(0);
             folders = Object.keys(sourceScreen.activeFolders);
         } else {
-            const info = Mixxx.AndroidStatus.stickInfo(root.chosenSource === "USB1" ? 1 : 2);
-            stick = info.present && info.path ? String(info.path).split("/").pop() : "";
+            const info = Mixxx.DeviceStatus.stickInfo(root.chosenSource === "USB1" ? 1 : 2);
+            stick = info.present && info.id ? String(info.id) : "";
             root.activateSource(1);
-            folders = stick !== "" ? ["/" + stick] : [];
+            // Location filter: /<uuid>/ on Android (the files are below /storage or
+            // /mnt/media_rw), the drive (E:/) on Windows.
+            const path = String(info.path || "");
+            folders = stick === "" ? [] : [path.startsWith("/") ? "/" + stick : path];
         }
         // Only on a change: a new filter starts the list at the top again.
         if (JSON.stringify(folders) !== JSON.stringify(lib.folderFilter))
@@ -296,15 +299,15 @@ Item {
     // The chosen stick was pulled out: no source any more.
     Connections {
         function onChanged() {
-            if ((root.chosenSource === "USB1" && !Mixxx.AndroidStatus.stick1Present)
-                    || (root.chosenSource === "USB2" && !Mixxx.AndroidStatus.stick2Present)) {
+            if ((root.chosenSource === "USB1" && !Mixxx.DeviceStatus.stick1Present)
+                    || (root.chosenSource === "USB2" && !Mixxx.DeviceStatus.stick2Present)) {
                 root.chosenSource = "";
                 if (root.browserOpen && root.browserMode !== "SOURCE" && root.browserMode !== "TAG LIST")
                     root.browserMode = "SOURCE";
             }
         }
 
-        target: Mixxx.AndroidStatus
+        target: Mixxx.DeviceStatus
     }
     // Screens that need a chosen source.
     function needsSource(name) {
@@ -1056,7 +1059,7 @@ Item {
     // loaded. There is no artificial waiting beyond that.
     property bool appReady: false
     property int startupElapsed: 0
-    readonly property bool startupControllerOk: Mixxx.AndroidStatus.controllerConnected || root.startupElapsed >= 6000
+    readonly property bool startupControllerOk: Mixxx.DeviceStatus.controllerConnected || root.startupElapsed >= 6000
     readonly property bool startupEffectOk: {
         const slot = Mixxx.EffectsManager.getEffectSlot(1, 1);
         return slot && slot.loaded;
@@ -1335,7 +1338,7 @@ Item {
                             onTapped: {
                                 quitDialog.close();
                                 if (parent.modelData === "CLOSE")
-                                    Mixxx.AndroidStatus.quitApp();
+                                    Mixxx.DeviceStatus.quitApp();
                             }
                         }
                     }

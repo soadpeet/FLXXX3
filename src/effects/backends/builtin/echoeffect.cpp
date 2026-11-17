@@ -241,7 +241,7 @@ void EchoEffect::processChannel(
         }
     }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Android edition: the repeats are a bit louder than in the original
     // (the effects of the Pioneer players are stronger).
     SampleUtil::applyGain(pOutput, 1.5f, engineParameters.samplesPerBuffer());

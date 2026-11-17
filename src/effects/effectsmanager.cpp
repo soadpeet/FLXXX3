@@ -29,7 +29,7 @@ const unsigned int kEffectMessagePipeFifoSize = 2048;
 const QString kEffectsXmlFile = QStringLiteral("effects.xml");
 } // anonymous namespace
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 namespace {
 // Owns the two controls of the Color FX and calls applyColorFx() (in the main
 // thread) when one of them changes.
@@ -89,12 +89,12 @@ EffectsManager::EffectsManager(
             new EffectChainPresetManager(pConfig, m_pBackendManager));
 
     m_pVisibleEffectsList = VisibleEffectsListPointer(new VisibleEffectsList());
-#ifdef __ANDROID__
+#ifdef FLXXX3
     m_pColorFxHelper = std::make_unique<AndroidColorFxHelper>(this);
 #endif
 }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
 
 void EffectsManager::applyColorFx() {
     static const QStringList kEffectIds = {

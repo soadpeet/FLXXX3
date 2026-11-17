@@ -12,9 +12,10 @@
 namespace mixxx {
 namespace qml {
 
-/// Android only: values for the status bar of the touch UI (battery, MIDI
-/// controller, removable media, background cache copy). Polled every 2 s.
-class QmlAndroidStatusProxy : public QObject {
+/// FLXXX3, every platform: values for the status bar and the SOURCE screen (controller,
+/// removable media, background cache copy) and a few system functions. The system access
+/// itself is in src/platform (platformservices.h), one implementation per platform.
+class QmlDeviceStatusProxy : public QObject {
     Q_OBJECT
     Q_PROPERTY(int batteryPercent READ batteryPercent NOTIFY changed)
     Q_PROPERTY(bool batteryCharging READ batteryCharging NOTIFY changed)
@@ -29,14 +30,14 @@ class QmlAndroidStatusProxy : public QObject {
     Q_PROPERTY(bool stick2Present READ stick2Present NOTIFY changed)
     Q_PROPERTY(bool stick1Busy READ stick1Busy NOTIFY changed)
     Q_PROPERTY(bool stick2Busy READ stick2Busy NOTIFY changed)
-    QML_NAMED_ELEMENT(AndroidStatus)
+    QML_NAMED_ELEMENT(DeviceStatus)
     QML_SINGLETON
   public:
-    explicit QmlAndroidStatusProxy(QObject* parent = nullptr);
+    explicit QmlDeviceStatusProxy(QObject* parent = nullptr);
 
-    static QmlAndroidStatusProxy* create(
+    static QmlDeviceStatusProxy* create(
             QQmlEngine* pQmlEngine, [[maybe_unused]] QJSEngine* pJsEngine) {
-        return new QmlAndroidStatusProxy(pQmlEngine);
+        return new QmlDeviceStatusProxy(pQmlEngine);
     }
 
     int batteryPercent() const {
@@ -70,18 +71,19 @@ class QmlAndroidStatusProxy : public QObject {
         return m_slotBusy[1];
     }
 
-    // Details of the stick in slot 1 or 2 (present, label, path, total, free).
+    // Details of the stick in slot 1 or 2 (present, id, label, path, total, free).
     Q_INVOKABLE QVariantMap stickInfo(int slot) const;
-    // The internal storage of the tablet (own music folders live here).
+    // The device's own storage (own music folders live here): present, label, path, total,
+    // free and name (TABLET on Android, PC on Windows).
     Q_INVOKABLE QVariantMap tabletInfo() const;
     // Sub folders of `path` (names, sorted, without hidden ones) for the folder picker.
     Q_INVOKABLE QStringList subDirectories(const QString& path) const;
     // Brightness of the screen of this app: 0 - 1, or a negative value for the
     // brightness of the system settings.
     Q_INVOKABLE void setScreenBrightness(double value);
-    // Hides the system bars (no app pinning).
+    // Keeps the screen on and hides the system bars (no app pinning).
     Q_INVOKABLE void lockScreen();
-    // Writes a line to the Android log (tag mixxx-qml), for debugging QML.
+    // Writes a line to the system log (Android: tag mixxx-qml), for debugging QML.
     Q_INVOKABLE void log(const QString& text);
     // Unpins and closes the app.
     Q_INVOKABLE void quitApp();
@@ -95,10 +97,10 @@ class QmlAndroidStatusProxy : public QObject {
 
   private:
     void refreshState();
-    void readBattery();
 
     QTimer m_timer;
-    // /proc/self/mountinfo takes 6-10 ms to read: done off the GUI thread.
+    // Listing the removable volumes takes some ms (Android: /proc/self/mountinfo): done off
+    // the GUI thread.
     QFutureWatcher<QStringList> m_idsWatcher;
     QStringList m_volumeIds;
     int m_batteryPercent = -1;

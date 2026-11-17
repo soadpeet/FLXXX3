@@ -298,7 +298,7 @@ class CueControl : public EngineControl {
     void loadCuesFromTrack();
     mixxx::audio::FramePos quantizeCuePoint(mixxx::audio::FramePos position);
     mixxx::audio::FramePos getQuantizedCurrentPosition();
-#ifdef __ANDROID__
+#ifdef FLXXX3
     mixxx::audio::FramePos getQuantizedCurrentPositionRaw();
 #endif
     TrackAt getTrackAt() const;

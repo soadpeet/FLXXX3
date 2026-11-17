@@ -16,8 +16,9 @@ ApplicationWindow {
     color: Theme.backgroundColor
     height: isMobile ? Screen.height : designHeight
     menuBar: content.item ? content.item.menuBar : null
-    minimumHeight: isMobile ? 0 : 300
-    minimumWidth: isMobile ? 0 : 680
+    // The FLXXX3 interface on the desktop needs room for two decks side by side.
+    minimumHeight: isMobile ? 0 : (Mixxx.Product.ui ? 560 : 300)
+    minimumWidth: isMobile ? 0 : (Mixxx.Product.ui ? 960 : 680)
     visible: true
     width: isMobile ? Screen.width : designWidth
 
@@ -25,9 +26,10 @@ ApplicationWindow {
         if (!Mixxx.Core.ready) {
             return;
         }
+        // FLXXX3 on the desktop (Windows) starts maximized, a phone or tablet full screen.
         root.visibility = Mixxx.Config.configStartInFullscreenKey || isMobile
                 ? Window.FullScreen
-                : Window.Windowed;
+                : (Mixxx.Product.ui ? Window.Maximized : Window.Windowed);
     }
 
     Connections {
@@ -52,8 +54,8 @@ ApplicationWindow {
                 Qt.quit()
             }
         }
-        // Android uses the single-view touch UI (res/qml/AndroidDJ).
-        sourceComponent: root.isMobile ? androidMainWindow : desktopMainWindow
+        // FLXXX3 (Android and Windows) uses the single-view touch UI (res/qml/AndroidDJ).
+        sourceComponent: Mixxx.Product.ui ? androidMainWindow : desktopMainWindow
         Component {
             id: desktopMainWindow
 
@@ -72,7 +74,7 @@ ApplicationWindow {
     Rectangle {
         id: splash
         visible: opacity > 0
-        color: Qt.platform.os === "android" ? "#0b0f14" : Theme.backgroundColor
+        color: Mixxx.Product.ui ? "#0b0f14" : Theme.backgroundColor
         anchors.fill: parent
 
         property bool ready: false
@@ -102,7 +104,7 @@ ApplicationWindow {
         // Android edition: the name instead of the Mixxx logo.
         Row {
             anchors.centerIn: parent
-            visible: Qt.platform.os === "android"
+            visible: Mixxx.Product.ui
 
             Text {
                 color: "#ffffff"
@@ -128,7 +130,7 @@ ApplicationWindow {
         }
         Image {
             id: logo
-            visible: Qt.platform.os !== "android"
+            visible: !Mixxx.Product.ui
             anchors.horizontalCenter: parent.horizontalCenter
             source: "qrc:/images/mixxx-icon-logo-symbolic.svg"
             // height: 64
@@ -145,7 +147,7 @@ ApplicationWindow {
         }
         Text {
             id: text
-            visible: Qt.platform.os !== "android"
+            visible: !Mixxx.Product.ui
             opacity: 0
             y: logo.y + logo.height*2
             anchors.horizontalCenter: parent.horizontalCenter

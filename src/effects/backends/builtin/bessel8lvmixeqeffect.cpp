@@ -32,7 +32,7 @@ EffectManifestPointer Bessel8LVMixEQEffect::getManifest() {
 
 Bessel8LVMixEQEffect::Bessel8LVMixEQEffect()
         : m_pLoFreqCorner(kMixerProfile, kLowEqFrequency),
-#ifdef __ANDROID__
+#ifdef FLXXX3
           m_pHiFreqCorner(kMixerProfile, kHighEqFrequency),
           m_eqMode(QStringLiteral("[AndroidDJ]"), QStringLiteral("eq_mode")) {
 #else
@@ -81,7 +81,7 @@ void Bessel8LVMixEQEffect::processChannel(
         } else {
             fHigh = 0;
         }
-#ifdef __ANDROID__
+#ifdef FLXXX3
         // EQ mode (UTILITY > EQ / ISO): the bands do not kill, they are
         // lowered by at most 26 dB (gain 0.05). ISO mode: kill at the end stop.
         if (m_eqMode.get() > 0.5) {

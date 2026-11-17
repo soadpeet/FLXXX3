@@ -84,19 +84,19 @@ Rectangle {
         // Green while the controller is connected, red while it is not.
         DJ.StatusChip {
             active: true
-            activeColor: Mixxx.AndroidStatus.controllerConnected ? "#27e07a" : "#ff4d4d"
+            activeColor: Mixxx.DeviceStatus.controllerConnected ? "#27e07a" : "#ff4d4d"
             anchors.verticalCenter: parent.verticalCenter
             fontSize: root.height * 0.36
-            text: Mixxx.AndroidStatus.controllerConnected && Mixxx.AndroidStatus.controllerName
-                  ? Mixxx.AndroidStatus.controllerName : "DDJ-FLX4"
+            text: Mixxx.DeviceStatus.controllerConnected && Mixxx.DeviceStatus.controllerName
+                  ? Mixxx.DeviceStatus.controllerName : "DDJ-FLX4"
         }
         // USB1 / USB2: grey = no stick, blue = plugged in, red = being accessed
         // (do not remove); the chip blinks while it is accessed.
         DJ.StatusChip {
             id: usb1Chip
 
-            active: Mixxx.AndroidStatus.stick1Present
-            activeColor: Mixxx.AndroidStatus.stick1Busy ? "#ff4d4d" : "#27a8e0"
+            active: Mixxx.DeviceStatus.stick1Present
+            activeColor: Mixxx.DeviceStatus.stick1Busy ? "#ff4d4d" : "#27a8e0"
             anchors.verticalCenter: parent.verticalCenter
             fontSize: root.height * 0.36
             text: "USB1"
@@ -104,7 +104,7 @@ Rectangle {
             // Blinks while the stick is being accessed.
             SequentialAnimation on opacity {
                 loops: Animation.Infinite
-                running: Mixxx.AndroidStatus.stick1Busy
+                running: Mixxx.DeviceStatus.stick1Busy
 
                 NumberAnimation { duration: 250; to: 0.25 }
                 NumberAnimation { duration: 250; to: 1.0 }
@@ -115,8 +115,8 @@ Rectangle {
         DJ.StatusChip {
             id: usb2Chip
 
-            active: Mixxx.AndroidStatus.stick2Present
-            activeColor: Mixxx.AndroidStatus.stick2Busy ? "#ff4d4d" : "#27a8e0"
+            active: Mixxx.DeviceStatus.stick2Present
+            activeColor: Mixxx.DeviceStatus.stick2Busy ? "#ff4d4d" : "#27a8e0"
             anchors.verticalCenter: parent.verticalCenter
             fontSize: root.height * 0.36
             text: "USB2"
@@ -124,7 +124,7 @@ Rectangle {
             // Blinks while the stick is being accessed.
             SequentialAnimation on opacity {
                 loops: Animation.Infinite
-                running: Mixxx.AndroidStatus.stick2Busy
+                running: Mixxx.DeviceStatus.stick2Busy
 
                 NumberAnimation { duration: 250; to: 0.25 }
                 NumberAnimation { duration: 250; to: 1.0 }

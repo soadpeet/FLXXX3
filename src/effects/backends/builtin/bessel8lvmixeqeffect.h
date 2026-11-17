@@ -50,7 +50,7 @@ class Bessel8LVMixEQEffect : public EffectProcessorImpl<Bessel8LVMixEQEffectGrou
 
     PollingControlProxy m_pLoFreqCorner;
     PollingControlProxy m_pHiFreqCorner;
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // [AndroidDJ] eq_mode: 0 = ISO (kill at the end stop), 1 = EQ (at most -26 dB)
     PollingControlProxy m_eqMode;
 #endif

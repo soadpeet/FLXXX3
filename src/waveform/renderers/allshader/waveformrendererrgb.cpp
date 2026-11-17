@@ -96,7 +96,7 @@ bool WaveformRendererRGB::preprocessInner() {
     float midGain = 1.0f;
     float highGain = 1.0f;
     getGains(&allGain, &lowGain, &midGain, &highGain);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // same height as the Rekordbox look, times ADVANCED SETTINGS > WAVEFORM HEIGHT (0.9 * scale)
     allGain = trackAutoGain(waveform.data(), dataSize) * 1.25f * (allGain / 0.9f);
 #endif
@@ -124,7 +124,7 @@ bool WaveformRendererRGB::preprocessInner() {
 
     const int numVerticesPerLine = 6; // 2 triangles
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Android edition: dense area like Rekordbox, drawn in two layers (darker
     // outer part, brighter inner part), so two bars per pixel column.
     const int reserved = numVerticesPerLine * (pixelLength * 2 + 1);
@@ -139,7 +139,7 @@ bool WaveformRendererRGB::preprocessInner() {
     markDirtyGeometry();
 
     RGBVertexUpdater vertexUpdater{geometry().vertexDataAs<Geometry::RGBColoredPoint2D>()};
-#ifdef __ANDROID__
+#ifdef FLXXX3
     RGBVertexUpdater innerUpdater{geometry().vertexDataAs<Geometry::RGBColoredPoint2D>() +
             numVerticesPerLine * (1 + pixelLength)};
     // BLUE scheme (set in WaveformDisplay.qml): the high colour is white.
@@ -188,7 +188,7 @@ bool WaveformRendererRGB::preprocessInner() {
             }
         }
         float maxAllChn[2]{static_cast<float>(u8maxAllChn[0]), static_cast<float>(u8maxAllChn[1])};
-#ifdef __ANDROID__
+#ifdef FLXXX3
         maxAllChn[0] = expandPeaks(maxAllChn[0]);
         maxAllChn[1] = expandPeaks(maxAllChn[1]);
 #endif
@@ -221,7 +221,7 @@ bool WaveformRendererRGB::preprocessInner() {
             float green = maxLow * low_g + maxMid * mid_g + maxHigh * high_g;
             float blue = maxLow * low_b + maxMid * mid_b + maxHigh * high_b;
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
             {
                 // Rekordbox look: strong colours (contrast between the bands
                 // instead of a mix that ends up white) and a gradient from the
@@ -311,7 +311,7 @@ bool WaveformRendererRGB::preprocessInner() {
         xVisualFrame += visualIncrementPerPixel;
     }
 
-#ifndef __ANDROID__
+#ifndef FLXXX3
     DEBUG_ASSERT(reserved == vertexUpdater.index());
 #endif
 

@@ -122,17 +122,17 @@ Item {
             channels: Mixxx.WaveformOverview.Channels.BothChannels
             minuteMarkers: Mixxx.Config.waveformOverviewMinuteMarkers
             // Android edition: always normalized, so that every track fills the overview the same way.
-            normalized: Qt.platform.os === "android" ? true : Mixxx.Config.waveformOverviewNormalized
+            normalized: Mixxx.Product.ui ? true : Mixxx.Config.waveformOverviewNormalized
             renderer: Mixxx.Config.waveformOverviewType === 0 ? Mixxx.WaveformOverview.Renderer.Filtered : Mixxx.Config.waveformOverviewType === 1 ? Mixxx.WaveformOverview.Renderer.HSV : Mixxx.WaveformOverview.Renderer.RGB
             // Android edition: one upper half instead of mirrored left/right.
-            stereo: Qt.platform.os === "android" ? false : Mixxx.Config.waveformOverviewStereo
+            stereo: Mixxx.Product.ui ? false : Mixxx.Config.waveformOverviewStereo
             colorHigh: Theme.white
             colorMid: Theme.blue
             colorLow: Theme.green
             group: root.group
             // Android edition: no moving by touch while the track plays and the
             // channel fader is up (20 % or more).
-            interactive: Qt.platform.os !== "android" ||
+            interactive: !Mixxx.Product.ui ||
                     !(overviewPlayControl.value > 0 && overviewVolumeControl.value >= 0.2)
         }
     }

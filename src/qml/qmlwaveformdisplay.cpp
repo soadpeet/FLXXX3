@@ -312,7 +312,7 @@ void QmlWaveformDisplay::refreshRenderers() {
 std::chrono::microseconds QmlWaveformDisplay::fromTimerToNextSync(const PerformanceTimer& timer) {
     // TODO @m0dB probably better to use a singleton instead of deriving QmlWaveformDisplay from
     // ISyncTimeProvider and have each keep track of this.
-#ifndef __ANDROID__
+#ifndef FLXXX3
     if (m_pTrack) {
         return m_syncInterval;
     }
@@ -333,7 +333,7 @@ void QmlWaveformDisplay::requestUpdateAtFrameRate() {
         return;
     }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Android edition: a timer that rounds up to whole milliseconds misses the vsync
     // from time to time (a frame is shown twice, the waveform judders). At the frame
     // rate of the display (60 or more) the next frame is requested right away: the swap
