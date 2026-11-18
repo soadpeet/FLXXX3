@@ -135,13 +135,23 @@ void EchoEffect::processChannel(
     double delay_seconds;
     if (groupFeatures.beat_length.has_value()) {
         // period is a number of beats
+#ifdef FLXXX3
+        // FLXXX3: the BEAT values go down to 1/16 beat (like the Pioneer players). Mixxx
+        // rounds to 1/4 beats with at least 1/8, which made 1/16 sound like 1/8 and 1/8
+        // like 1/4.
+        constexpr double kMinBeats = 1 / 16.0;
+        constexpr double kQuantizeFraction = 16;
+#else
+        constexpr double kMinBeats = 1 / 8.0;
+        constexpr double kQuantizeFraction = 4;
+#endif
         if (m_pQuantizeParameter->toBool()) {
-            period = std::max(roundToFraction(period, 4), 1 / 8.0);
+            period = std::max(roundToFraction(period, kQuantizeFraction), kMinBeats);
             if (m_pTripletParameter->toBool()) {
                 period /= 3.0;
             }
-        } else if (period < 1 / 8.0) {
-            period = 1 / 8.0;
+        } else if (period < kMinBeats) {
+            period = kMinBeats;
         }
         delay_seconds = period * groupFeatures.beat_length->seconds;
     } else {

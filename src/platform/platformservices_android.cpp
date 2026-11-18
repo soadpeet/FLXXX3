@@ -240,4 +240,12 @@ void shareLogFiles(const QString& logFilePath) {
     env->DeleteLocalRef(array);
 }
 
+QStringList midiInputNames(bool* pSupported) {
+    // Android: AndroidMidiEnumerator lists the devices itself.
+    if (pSupported) {
+        *pSupported = false;
+    }
+    return {};
+}
+
 } // namespace mixxx::platform

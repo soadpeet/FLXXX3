@@ -545,6 +545,25 @@ SoundDeviceStatus SoundManager::setConfig(const SoundManagerConfig& config) {
     return status;
 }
 
+#ifdef FLXXX3
+void SoundManager::applyPreferredRoutingAgain() {
+#ifndef __ANDROID__
+    // PortAudio knows only the devices of its start: close the devices, restart it and
+    // list them again.
+    closeActiveConfig();
+    m_pEnumerator->deinitialize();
+    queryDevices();
+    SoundManagerConfig config = m_config;
+    if (config.applyPreferredRouting(this)) {
+        qInfo() << "FLXXX3: sound goes to the DDJ-FLX4 now";
+        setConfig(config);
+    } else {
+        setupDevices();
+    }
+#endif
+}
+#endif
+
 void SoundManager::checkConfig() {
     if (!m_config.checkAPI()) {
         m_config.setAPI(SoundManagerConfig::kAPINone);

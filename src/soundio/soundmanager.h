@@ -91,6 +91,11 @@ class SoundManager : public QObject {
     // audio operation till it received the `devicesClosed` signal
     void closeActiveConfig(bool async = false);
     void checkConfig();
+#ifdef FLXXX3
+    /// The DDJ-FLX4 came after the start (desktop): lists the sound devices again and
+    /// routes main and headphones to it (applyPreferredRouting()).
+    void applyPreferredRoutingAgain();
+#endif
 
     void onDeviceOutputCallback(const SINT iFramesPerBuffer);
 

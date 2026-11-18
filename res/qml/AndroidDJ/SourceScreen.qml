@@ -50,6 +50,15 @@ Rectangle {
     // OPEN: kind is "USB1", "USB2" or "TABLET".
     signal openRequested(string kind, string title)
 
+    // FLX4: BROWSE knob turned / pressed while SOURCE is shown.
+    function step(delta) {
+        root.selected = ((root.selected + delta) % 3 + 3) % 3;
+    }
+    function openSelected() {
+        if (root.selected !== 2 || root.anyFolderActive)
+            root.openRequested(root.kindOf(root.selected), root.slotTitle(root.selected));
+    }
+
     function kindOf(slot) {
         return slot === 2 ? "TABLET" : "USB" + (slot + 1);
     }

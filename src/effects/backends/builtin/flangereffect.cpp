@@ -120,7 +120,13 @@ void FlangerEffect::processChannel(
     double lfoPeriodFrames;
     if (groupFeatures.beat_length.has_value()) {
         // lfoPeriodParameter is a number of beats
+#ifdef FLXXX3
+        // FLXXX3: 1/16 beat steps down to 1/16 beat (BEAT values of the Pioneer players);
+        // Mixxx rounds to 1/2 beats with at least 1/4.
+        lfoPeriodParameter = std::max(roundToFraction(lfoPeriodParameter, 16.0), 1 / 16.0);
+#else
         lfoPeriodParameter = std::max(roundToFraction(lfoPeriodParameter, 2.0), kMinLfoBeats);
+#endif
         if (m_pTripletParameter->toBool()) {
             lfoPeriodParameter /= 3.0;
         }

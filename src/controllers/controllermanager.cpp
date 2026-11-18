@@ -1,6 +1,7 @@
 #include "controllers/controllermanager.h"
 
 #include <QMutexLocker>
+#include <algorithm>
 #include <QSet>
 #include <QThread>
 
@@ -10,6 +11,7 @@
 #include "controllers/controllermappinginfoenumerator.h"
 #include "controllers/defs_controllers.h"
 #include "controllers/legacycontrollermappingfilehandler.h"
+#include "platform/platformservices.h"
 #include "moc_controllermanager.cpp"
 #include "preferences/usersettings.h"
 #include "util/cmdlineargs.h"
@@ -201,6 +203,18 @@ void ControllerManager::slotInitialize() {
         m_enumerators.push_back(std::make_unique<HidEnumerator>());
 #endif
     } // Mutex locker released here
+#if defined(FLXXX3) && defined(__PORTMIDI__)
+    {
+        bool supported = false;
+        mixxx::platform::midiInputNames(&supported);
+        if (supported) {
+            auto* pHotplugTimer = new QTimer(this);
+            pHotplugTimer->setInterval(2000);
+            connect(pHotplugTimer, &QTimer::timeout, this, &ControllerManager::desktopHotplugCheck);
+            pHotplugTimer->start();
+        }
+    }
+#endif
 #ifdef __ANDROID_MIDI__
     {
         auto* pHotplugTimer = new QTimer(this);
@@ -277,6 +291,55 @@ void ControllerManager::androidHotplugCheck() {
                 pController->close();
             }
         }
+    }
+}
+#endif
+
+#if defined(FLXXX3) && defined(__PORTMIDI__)
+void ControllerManager::desktopHotplugCheck() {
+    DEBUG_ASSERT_THIS_QOBJECT_THREAD_AFFINITY();
+    if (!m_desktopSetupDone) {
+        return; // the normal start-up setup has not run yet
+    }
+    bool supported = false;
+    const QStringList inputs = mixxx::platform::midiInputNames(&supported);
+    const bool present = std::any_of(inputs.cbegin(), inputs.cend(), [](const QString& name) {
+        return name.contains(QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive);
+    });
+    bool anyOpen = false;
+    for (Controller* pController : std::as_const(m_controllers)) {
+        if (pController->isOpen() &&
+                pController->getDataRepresentationProtocol() ==
+                        DataRepresentationProtocol::MIDI) {
+            anyOpen = true;
+        }
+    }
+    if (present == anyOpen) {
+        return;
+    }
+    // Close every controller first: PortMidi is restarted and its devices are deleted.
+    for (Controller* pController : std::as_const(m_controllers)) {
+        if (pController->isOpen()) {
+            pController->close();
+        }
+    }
+    {
+        auto locker = QMutexLocker(&m_mutex);
+        for (const auto& pEnumerator : m_enumerators) {
+            if (auto* pPortMidi = dynamic_cast<PortMidiEnumerator*>(pEnumerator.get())) {
+                pPortMidi->restartPortMidi();
+            }
+        }
+    }
+    if (present) {
+        qInfo() << "FLXXX3: the DDJ-FLX4 is there, setting it up";
+    } else {
+        qInfo() << "FLXXX3: the DDJ-FLX4 was unplugged";
+    }
+    // Lists the devices again (the old pointers are gone) and opens the configured ones.
+    slotSetUpDevices();
+    if (present) {
+        emit preferredControllerConnected();
     }
 }
 #endif
@@ -369,6 +432,9 @@ void ControllerManager::slotSetUpDevices() {
 
 #ifdef __ANDROID_MIDI__
     m_androidSetupDone = true;
+#endif
+#if defined(FLXXX3) && defined(__PORTMIDI__)
+    m_desktopSetupDone = true;
 #endif
     updateControllerList();
     const QList<Controller*> deviceList = getControllerList(false, true);

@@ -54,6 +54,11 @@ class ControllerManager : public QObject {
     void requestShutdown();
     void requestInitialize();
     void mappingApplied(bool applied);
+#ifdef FLXXX3
+    /// The DDJ-FLX4 was plugged in after the start and is set up now (desktop): the sound
+    /// should go to it (SoundManager::applyPreferredRoutingAgain()).
+    void preferredControllerConnected();
+#endif
 
   public slots:
     void slotApplyMapping(Controller* pController,
@@ -76,10 +81,17 @@ class ControllerManager : public QObject {
     void androidHotplugCheck();
     void androidRestartForLateController();
 #endif
+#if defined(FLXXX3) && defined(__PORTMIDI__)
+    /// FLXXX3 on the desktop: notices the DDJ-FLX4 being plugged in or unplugged.
+    void desktopHotplugCheck();
+#endif
 
   private:
 #ifdef __ANDROID_MIDI__
     bool m_androidSetupDone = false;
+#endif
+#if defined(FLXXX3) && defined(__PORTMIDI__)
+    bool m_desktopSetupDone = false;
 #endif
 #ifdef FLXXX3
     // FLXXX3: which SHIFT button of the controller is held (0 = none, 1 = deck 1,

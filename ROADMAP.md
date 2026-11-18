@@ -1,9 +1,21 @@
 <!-- KI-Disclaimer: Dieser Text wurde autonom von einem KI-Agenten (Claude) erzeugt. -->
 # ROADMAP – Vom Android-Fork zum eigenständigen Produkt für Android und Windows
 
-**Stand:** 2026-11-11. Vorschlag zur Reihenfolge; **nichts davon ist begonnen.** Jede Phase beginnt erst nach Freigabe des Inhabers. Dauerangaben sind grobe Schätzungen für eine Person mit KI-Unterstützung und Gerätetests durch den Inhaber.
+**Stand:** 2026-11-11 (Plan), Fortschritt nachgetragen am 2026-11-18 (siehe „Fortschritt“). Jede Phase beginnt erst nach Freigabe des Inhabers. Dauerangaben sind grobe Schätzungen für eine Person mit KI-Unterstützung und Gerätetests durch den Inhaber.
 
 Zugehörige Dokumente: `PROJECT_ASSESSMENT.md` (Ist-Stand), `LICENSE_AUDIT.md` (Lizenzen, Befunde L1–L8), `ARCHITECTURE_PROPOSAL.md` (Zielbild), `CPP_RUST_MIGRATION.md` (Rust), `OPENDJ_ANALYSIS.md` (Anregungen O1–O11).
+
+---
+
+## Fortschritt (Stand 2026-11-18)
+
+| Phase | Stand | Erledigt | Offen |
+|---|---|---|---|
+| 0 Absichern | weitgehend | Build-Rezept im Repo (`docs/android-port/build/`), Build-Optionen dokumentiert, Arbeit committet und gepusht (Remote `fork`) | Sicherung `~/mixxx-android/` und Keystore außerhalb des Rechners, Probe-Neuaufbau (Inhaber) |
+| 1 Recht/Identität | teilweise | Release v0.1.0 mit eigener App-ID `de.biggo.flxxx3`, Name FLXXX3, `NOTICE.md`, `LICENSE_AUDIT.md` | L1/L2/L7 (Rechtsberatung), minimaler Optionssatz (STEM, BROADCAST, VINYLCONTROL, ENGINEPRIME, LILV, MODPLUG noch an), Lizenzansicht in der App |
+| 2 Schichten | großteils | CMake-Schalter `FLXXX3` (Produktverhalten), QML `Mixxx.Product.ui`, Plattformschicht `src/platform/`, `Mixxx.DeviceStatus` | 61 `__ANDROID__`-Stellen außerhalb der Plattformdateien prüfen, `CMakePresets.json`, automatische Tests (Rekordbox-Import, MIDI-Parser) |
+| 3 Windows | fast fertig | Windows-Build (`tools/windows/`), FLX4 (MIDI, feste Kanäle, WASAPI 22 ms, ASIO falls Treiber), Sticks und Ordner mit Rekordbox-Export, zwei Decks gemischt | WASAPI exklusiv nicht möglich (FLX4 will Kanalmaske 0), Latenz mit ASIO-Treiber messen, MIDI-Hotplug unter Windows |
+| 4 Beta | begonnen | Log und Absturzprotokoll mit SHARE LOG (Android), Vollbild unter Windows | Windows-Installer und Signatur, Android-Release-Signatur/Versionierung, CI, Dauertests, Hilfe/Über-Seite |
 
 ---
 

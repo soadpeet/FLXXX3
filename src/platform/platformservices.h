@@ -41,6 +41,10 @@ void setScreenBrightness(double value);
 void keepScreenOn();
 /// Writes a line to the system log (Android logcat tag mixxx-qml), for debugging QML.
 void log(const QString& text);
+/// Names of the MIDI inputs the system has right now, also for devices plugged in after
+/// the start (PortMidi only knows the list of its start). Windows only; *pSupported is
+/// false elsewhere.
+QStringList midiInputNames(bool* pSupported);
 /// Closes the app.
 void quitApp();
 /// Gives the log files (in the folder of the log) to the user: Android offers them with the

@@ -730,6 +730,14 @@ void CoreServices::initialize() {
     // (long)
     qDebug() << "Creating ControllerManager";
     m_pControllerManager = std::make_shared<ControllerManager>(pConfig);
+#ifdef FLXXX3
+    // Desktop: the FLX4 plugged in after the start gets the sound as well (main thread).
+    connect(m_pControllerManager.get(),
+            &ControllerManager::preferredControllerConnected,
+            m_pSoundManager.get(),
+            &SoundManager::applyPreferredRoutingAgain,
+            Qt::QueuedConnection);
+#endif
 
     // Scan the library for new files and directories
     bool rescan = m_cmdlineArgs.getRescanLibrary() ||

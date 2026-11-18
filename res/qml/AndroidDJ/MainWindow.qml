@@ -486,10 +486,13 @@ Item {
         group: "[Library]"
         key: "MoveFocusForward"
 
-        // Pressing the knob toggles the library overlay.
+        // Pressing the knob toggles the library overlay; on SOURCE it opens the chosen source.
         onValueChanged: {
             if (value > 0) {
-                if (root.browserOpen) {
+                if (root.browserOpen && root.browserMode === "SOURCE") {
+                    browserIdle.stop();
+                    sourceScreen.openSelected();
+                } else if (root.browserOpen) {
                     browserIdle.stop();
                     root.browserOpen = false;
                 } else if (root.needsSource("BROWSE")) {
@@ -505,6 +508,32 @@ Item {
                     }
                 }
             }
+        }
+    }
+    // FLX4: SHIFT + pressing the BROWSE knob opens SOURCE (again: closes it); turning the knob
+    // there chooses USB 1 / USB 2 / own storage, pressing it opens that source (like OPEN).
+    Mixxx.ControlProxy {
+        group: "[Library]"
+        key: "MoveFocusBackward"
+
+        onValueChanged: {
+            if (value <= 0)
+                return;
+            if (root.browserOpen && root.browserMode === "SOURCE") {
+                browserIdle.stop();
+                root.browserOpen = false;
+            } else {
+                root.topButton("SOURCE");
+            }
+        }
+    }
+    Mixxx.ControlProxy {
+        group: "[Library]"
+        key: "MoveVertical"
+
+        onValueChanged: {
+            if (value !== 0 && root.browserOpen && root.browserMode === "SOURCE")
+                sourceScreen.step(value > 0 ? 1 : -1);
         }
     }
     // LOAD of a deck: library open = it loads (the library closes soon after); library closed in

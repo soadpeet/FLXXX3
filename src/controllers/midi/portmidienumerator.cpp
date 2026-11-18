@@ -121,6 +121,21 @@ PortMidiEnumerator::~PortMidiEnumerator() {
     }
 }
 
+void PortMidiEnumerator::restartPortMidi() {
+    for (Controller* pDevice : std::as_const(m_devices)) {
+        delete pDevice;
+    }
+    m_devices.clear();
+    PmError err = Pm_Terminate();
+    if (err != pmNoError) {
+        qWarning() << "PortMidi error:" << Pm_GetErrorText(err);
+    }
+    err = Pm_Initialize();
+    if (err != pmNoError) {
+        qWarning() << "PortMidi error:" << Pm_GetErrorText(err);
+    }
+}
+
 bool shouldLinkInputToOutput(const QString& input_name,
         const QString& output_name) {
     // Early exit.

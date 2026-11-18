@@ -11,6 +11,10 @@ class PortMidiEnumerator : public MidiEnumerator {
     ~PortMidiEnumerator() override;
 
     QList<Controller*> queryDevices() override;
+    /// FLXXX3: PortMidi knows only the devices of its start. Restarts PortMidi so that the
+    /// next queryDevices() sees devices plugged in later. All devices of this enumerator
+    /// must be closed; they are deleted.
+    void restartPortMidi();
 
   private:
     QList<Controller*> m_devices;

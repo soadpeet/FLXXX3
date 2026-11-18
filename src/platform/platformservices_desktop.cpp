@@ -16,6 +16,11 @@
 
 #ifdef Q_OS_WIN
 #include <windows.h>
+// WinMM (MIDI device list), after windows.h
+#include <mmsystem.h>
+#ifdef _MSC_VER
+#pragma comment(lib, "winmm.lib")
+#endif
 #endif
 
 namespace mixxx::platform {
@@ -162,6 +167,28 @@ void quitApp() {
 
 void shareLogFiles(const QString& logFilePath) {
     QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(logFilePath).absolutePath()));
+}
+
+QStringList midiInputNames(bool* pSupported) {
+    QStringList names;
+#ifdef Q_OS_WIN
+    if (pSupported) {
+        *pSupported = true;
+    }
+    // WinMM asks the system each time (PortMidi caches the list of its start).
+    const UINT count = midiInGetNumDevs();
+    for (UINT i = 0; i < count; ++i) {
+        MIDIINCAPSW caps{};
+        if (midiInGetDevCapsW(i, &caps, sizeof(caps)) == MMSYSERR_NOERROR) {
+            names << QString::fromWCharArray(caps.szPname);
+        }
+    }
+#else
+    if (pSupported) {
+        *pSupported = false;
+    }
+#endif
+    return names;
 }
 
 } // namespace mixxx::platform
