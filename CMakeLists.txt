@@ -2397,7 +2397,14 @@ if(ANDROID)
   set_target_properties(mixxx PROPERTIES QT_ANDROID_ABIS "${ANDROID_ABI}")
   set_target_properties(mixxx PROPERTIES QT_ANDROID_PACKAGE_NAME "de.biggo.flxxx3")
   # AMidi (native MIDI API used for MIDI controllers) requires API level 29.
-  set_target_properties(mixxx PROPERTIES QT_ANDROID_MIN_SDK_VERSION 29)
+  # FLXXX3: the prebuilt Mixxx dependencies (Qt and the static libraries) are built for
+  # API 35 and use C library functions of newer Android versions (copy_file_range: API 34,
+  # backtrace: 33, pthread_cond_clockwait: 30). On older versions the app library cannot be
+  # loaded (crash right after the start), so the APK declares the version it really needs.
+  # Lower it again together with dependencies built for a lower API level
+  # (ANDROID_MIN_SDK, see docs/android-port/build/).
+  set(ANDROID_MIN_SDK 34 CACHE STRING "Lowest Android API level of the APK")
+  set_target_properties(mixxx PROPERTIES QT_ANDROID_MIN_SDK_VERSION ${ANDROID_MIN_SDK})
   # Target SDK 35: from 36 on, Android 16 ignores the orientation lock on large
   # screens (tablet), but the app must stay in landscape (both directions).
   set_target_properties(mixxx PROPERTIES QT_ANDROID_TARGET_SDK_VERSION 35)

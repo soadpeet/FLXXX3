@@ -39,6 +39,7 @@
 #include <android/api-level.h>
 #include <android/log.h>
 #include <android/performance_hint.h>
+#include <dlfcn.h>
 
 #include <QDir>
 #include <QFile>
@@ -107,6 +108,43 @@ void copyAssetDir(const QString& src, const QString& dst) {
 }
 #endif
 } // namespace
+
+#if defined(Q_OS_ANDROID)
+namespace {
+// The performance hint API exists from Android 13 (setPreferPowerEfficiency from Android 15).
+// Linked directly, the app library could not be loaded at all on older Android versions
+// (crash right after the start). The functions are looked up at run time instead.
+struct PerformanceHintApi {
+    APerformanceHintManager* (*getManager)() = nullptr;
+    APerformanceHintSession* (*createSession)(
+            APerformanceHintManager*, const int32_t*, size_t, int64_t) = nullptr;
+    int (*reportActualWorkDuration)(APerformanceHintSession*, int64_t) = nullptr;
+    int (*setPreferPowerEfficiency)(APerformanceHintSession*, bool) = nullptr;
+};
+
+const PerformanceHintApi& performanceHintApi() {
+    static const PerformanceHintApi api = []() {
+        PerformanceHintApi result;
+        void* pLibrary = dlopen("libandroid.so", RTLD_NOW);
+        if (!pLibrary) {
+            return result;
+        }
+        result.getManager = reinterpret_cast<decltype(result.getManager)>(
+                dlsym(pLibrary, "APerformanceHint_getManager"));
+        result.createSession = reinterpret_cast<decltype(result.createSession)>(
+                dlsym(pLibrary, "APerformanceHint_createSession"));
+        result.reportActualWorkDuration =
+                reinterpret_cast<decltype(result.reportActualWorkDuration)>(
+                        dlsym(pLibrary, "APerformanceHint_reportActualWorkDuration"));
+        result.setPreferPowerEfficiency =
+                reinterpret_cast<decltype(result.setPreferPowerEfficiency)>(
+                        dlsym(pLibrary, "APerformanceHint_setPreferPowerEfficiency"));
+        return result;
+    }();
+    return api;
+}
+} // namespace
+#endif
 
 namespace mixxx {
 namespace qml {
@@ -365,17 +403,23 @@ QmlApplication::QmlApplication(
             });
 
 #if defined(Q_OS_ANDROID)
-    APerformanceHintManager* manager = APerformanceHint_getManager();
-    VERIFY_OR_DEBUG_ASSERT(manager) {
+    const PerformanceHintApi& hint = performanceHintApi();
+    if (!hint.getManager || !hint.createSession || !hint.reportActualWorkDuration) {
+        qInfo() << "No performance hint API (Android older than 13)";
+        return;
+    }
+    APerformanceHintManager* manager = hint.getManager();
+    if (!manager) {
         return;
     }
     int32_t thread32 = gettid();
-    m_perfSession = APerformanceHint_createSession(manager, &thread32, 1, 1e9 / 60);
-    VERIFY_OR_DEBUG_ASSERT(m_perfSession) {
+    m_perfSession = hint.createSession(manager, &thread32, 1, static_cast<int64_t>(1e9 / 60));
+    if (!m_perfSession) {
         __android_log_print(ANDROID_LOG_WARN, "mixxx", "unable to create a ADPF session!");
-    }
-    else {
-        APerformanceHint_setPreferPowerEfficiency(m_perfSession, false);
+    } else {
+        if (hint.setPreferPowerEfficiency) { // Android 15 and newer
+            hint.setPreferPowerEfficiency(m_perfSession, false);
+        }
         __android_log_print(ANDROID_LOG_VERBOSE, "mixxx", "ADPF session ready");
     }
 #endif
@@ -407,8 +451,7 @@ void QmlApplication::slotFrameSwapped() {
     }
     auto lastFrameDurationNs = m_frameTimer.elapsed().toIntegerNanos();
     auto t = std::chrono::steady_clock::now() - std::chrono::steady_clock::time_point{};
-    APerformanceHint_reportActualWorkDuration(m_perfSession,
-            lastFrameDurationNs);
+    performanceHintApi().reportActualWorkDuration(m_perfSession, lastFrameDurationNs);
     m_frameTimer.restart();
 #endif
 }
