@@ -1,6 +1,6 @@
 #pragma once
 
-// Android edition: tempo based effects that are missing in Mixxx but belong to
+// FLXXX3: tempo based effects that are missing in Mixxx but belong to
 // the Beat FX of the Pioneer players: TRANS, FILTER (sweep with a tempo),
 // SPIRAL and HELIX. All of them have the time of the effect in beats as first
 // parameter (0 - 8 beats, like Delay / Echo), and the second parameter is

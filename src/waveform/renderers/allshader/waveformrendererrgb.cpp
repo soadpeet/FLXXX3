@@ -125,7 +125,7 @@ bool WaveformRendererRGB::preprocessInner() {
     const int numVerticesPerLine = 6; // 2 triangles
 
 #ifdef FLXXX3
-    // Android edition: dense area like Rekordbox, drawn in two layers (darker
+    // FLXXX3: dense area like Rekordbox, drawn in two layers (darker
     // outer part, brighter inner part), so two bars per pixel column.
     const int reserved = numVerticesPerLine * (pixelLength * 2 + 1);
 #else

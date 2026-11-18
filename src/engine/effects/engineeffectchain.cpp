@@ -258,7 +258,7 @@ bool EngineEffectChain::process(const ChannelHandle& inputHandle,
     CSAMPLE lastCallbackMixKnob = channelStatus.oldMixKnob;
 
     bool processingOccured = false;
-    // Android edition: with a part of the bands selected, only that part goes
+    // FLXXX3: with a part of the bands selected, only that part goes
     // through the effects. The rest is added to the result unchanged.
     const CSAMPLE* pOriginalIn = pIn;
     bool bandSplit = false;

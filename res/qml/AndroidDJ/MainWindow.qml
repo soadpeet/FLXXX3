@@ -7,7 +7,7 @@ import QtQuick.Window
 import "../Theme"
 import "." as DJ
 
-// Single-view touch UI for the Android edition, modelled on the XDJ-RX3
+// Single-view touch UI for the FLXXX3, modelled on the XDJ-RX3
 // performance screen: status bar, overview and main waveforms of both decks,
 // a panel per deck. Pressing the controller's BROWSE knob lays the library over
 // the waveform area, pressing it again closes it; turning it scrolls the list.
@@ -268,8 +268,18 @@ Item {
         let folders = [];
         let stick = "TABLET";
         if (root.chosenSource === "TABLET") {
-            root.activateSource(0);
             folders = Object.keys(sourceScreen.activeFolders);
+            // Folders with a Rekordbox export (e.g. a stick copied to the computer) are read like
+            // a stick: if all active folders have one, the stick list shows them (Rekordbox
+            // waveforms, BPM, cues, keys). Otherwise the own library as before.
+            const exportFolders = sourceScreen.folders.filter(f => f.rekordbox).map(f => String(f.path));
+            if (folders.length > 0 && folders.every(f => exportFolders.indexOf(f) >= 0)) {
+                root.activateSource(1);
+                // The device name of such a folder is its path.
+                stick = folders.length === 1 ? folders[0] : "";
+            } else {
+                root.activateSource(0);
+            }
         } else {
             const info = Mixxx.DeviceStatus.stickInfo(root.chosenSource === "USB1" ? 1 : 2);
             stick = info.present && info.id ? String(info.id) : "";

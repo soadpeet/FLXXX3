@@ -5,6 +5,9 @@ import QtQuick 2.12
 import "Theme"
 
 Item {
+    // FLXXX3: the CDJ view draws the overview on black.
+    property color backgroundColor: Theme.deckBackgroundColor
+
     id: root
 
     required property string group
@@ -115,22 +118,22 @@ Item {
         id: waveformContainer
 
         anchors.fill: parent
-        color: Theme.deckBackgroundColor
+        color: root.backgroundColor
 
         MixxxControls.WaveformOverview {
             anchors.fill: parent
             channels: Mixxx.WaveformOverview.Channels.BothChannels
             minuteMarkers: Mixxx.Config.waveformOverviewMinuteMarkers
-            // Android edition: always normalized, so that every track fills the overview the same way.
+            // FLXXX3: always normalized, so that every track fills the overview the same way.
             normalized: Mixxx.Product.ui ? true : Mixxx.Config.waveformOverviewNormalized
             renderer: Mixxx.Config.waveformOverviewType === 0 ? Mixxx.WaveformOverview.Renderer.Filtered : Mixxx.Config.waveformOverviewType === 1 ? Mixxx.WaveformOverview.Renderer.HSV : Mixxx.WaveformOverview.Renderer.RGB
-            // Android edition: one upper half instead of mirrored left/right.
+            // FLXXX3: one upper half instead of mirrored left/right.
             stereo: Mixxx.Product.ui ? false : Mixxx.Config.waveformOverviewStereo
             colorHigh: Theme.white
             colorMid: Theme.blue
             colorLow: Theme.green
             group: root.group
-            // Android edition: no moving by touch while the track plays and the
+            // FLXXX3: no moving by touch while the track plays and the
             // channel fader is up (20 % or more).
             interactive: !Mixxx.Product.ui ||
                     !(overviewPlayControl.value > 0 && overviewVolumeControl.value >= 0.2)

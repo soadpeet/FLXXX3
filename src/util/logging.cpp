@@ -314,7 +314,7 @@ void handleMessage(
         // to avoid flooding the log file.
         // Skip expensive string comparisons if WriteFlag::File is already set.
 #ifndef __ANDROID__
-        // Android edition: debug messages are not written to the log file (the
+        // FLXXX3: debug messages are not written to the log file (the
         // file I/O of the many debug messages cost ~15 % of the GUI thread on
         // the tablet).
         if (!writeFlags.testFlag(WriteFlag::File) && !isControllerLoggingCategory(categoryName)) {

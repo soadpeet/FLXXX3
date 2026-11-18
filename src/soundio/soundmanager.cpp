@@ -92,10 +92,10 @@ SoundManager::SoundManager(
         devicesEnumerated();
     }
 
-#ifdef __ANDROID__
+#ifdef FLXXX3
     // Fixed routing for the DDJ-FLX4 at app start: Main on channels 1-2,
     // Headphones on 3-4. Does nothing if the controller is not connected.
-    m_config.applyAndroidPreferredRouting(this);
+    m_config.applyPreferredRouting(this);
 #endif
 
     checkConfig();

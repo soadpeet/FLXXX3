@@ -133,7 +133,7 @@ SearchQueryParser::SearchQueryParser(TrackCollection* pTrackCollection, QStringL
     m_fieldToSqlColumns["k"] << "key";
     m_fieldToSqlColumns["key"] << "key";
     m_fieldToSqlColumns["key_id"] << "key_id";
-    // Android edition: the key as the text of the key column (exact match with quotes). The
+    // FLXXX3: the key as the text of the key column (exact match with quotes). The
     // Rekordbox library has no key_id column that the key filter above needs.
     m_fieldToSqlColumns["ktxt"] << "key";
     m_fieldToSqlColumns["pl"] << "timesplayed";

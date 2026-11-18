@@ -55,7 +55,7 @@ class EngineEffectChain final : public EffectsRequestHandler {
         EffectEnableState enableState;
     };
 
-    // Android edition: crossover that splits the input into low / mid / high so
+    // FLXXX3: crossover that splits the input into low / mid / high so
     // that the effects only work on the selected bands (two 2nd order low pass
     // filters per channel; the bands add up to the input exactly).
     struct BiquadState {

@@ -558,7 +558,7 @@ void BaseTrackPlayerImpl::slotLoadTrack(TrackPointer pNewTrack,
 #endif
     //qDebug() << "BaseTrackPlayerImpl::slotLoadTrack" << getGroup() << pNewTrack.get();
 #ifdef FLXXX3
-    // Android edition (LOAD LOCK, on by default): no track can be loaded into
+    // FLXXX3 (LOAD LOCK, on by default): no track can be loaded into
     // a deck that is playing - neither with the touch screen nor with the
     // controller. Switch it off in the UTILITY menu (UNLOCK).
     if (pNewTrack && getGroup().startsWith(QStringLiteral("[Channel")) &&

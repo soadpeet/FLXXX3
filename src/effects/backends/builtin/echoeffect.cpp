@@ -50,7 +50,7 @@ EffectManifestPointer EchoEffect::getManifest() {
             "1/16 - 8 seconds if no tempo is detected"));
     delay->setValueScaler(EffectManifestParameter::ValueScaler::Linear);
     delay->setUnitsHint(EffectManifestParameter::UnitsHint::Beats);
-    // Android edition: 1/16 - 8 beats (default 1 beat).
+    // FLXXX3: 1/16 - 8 beats (default 1 beat).
     delay->setRange(0.0, 1.0, 8.0);
 
     EffectManifestParameterPointer feedback = pManifest->addParameter();
@@ -242,7 +242,7 @@ void EchoEffect::processChannel(
     }
 
 #ifdef FLXXX3
-    // Android edition: the repeats are a bit louder than in the original
+    // FLXXX3: the repeats are a bit louder than in the original
     // (the effects of the Pioneer players are stronger).
     SampleUtil::applyGain(pOutput, 1.5f, engineParameters.samplesPerBuffer());
 #endif

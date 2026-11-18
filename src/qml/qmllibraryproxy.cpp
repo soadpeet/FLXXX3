@@ -12,6 +12,7 @@
 #include "library/library.h"
 #include "library/library_prefs.h"
 #include "library/librarytablemodel.h"
+#include "library/rekordbox/rekordboxfeature.h"
 #include "library/trackcollection.h"
 #include "library/trackcollectionmanager.h"
 #ifdef __ENGINEPRIME__
@@ -577,6 +578,10 @@ QVariantList QmlLibraryProxy::libraryDirectories() const {
         QVariantMap entry;
         entry.insert(QStringLiteral("path"), directory.path);
         entry.insert(QStringLiteral("trackCount"), directory.trackCount);
+#ifdef FLXXX3
+        // Holds a Rekordbox export: read like a stick (Rekordbox waveforms, BPM, cues, keys).
+        entry.insert(QStringLiteral("rekordbox"), RekordboxFeature::hasRekordboxExport(directory.path));
+#endif
         result << entry;
     }
     return result;

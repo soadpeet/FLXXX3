@@ -221,7 +221,7 @@ bool dropTable(QSqlDatabase& database, const QString& tableName) {
 // The returned list owns the pointers, but we can't use a unique_ptr because
 // the result is passed by a const reference inside QFuture and than copied
 // to the main thread requiring a copy-able object.
-QList<TreeItem*> findRekordboxDevices() {
+QList<TreeItem*> findRekordboxDevices(const QStringList& libraryFolders) {
     QThread* thisThread = QThread::currentThread();
     thisThread->setPriority(QThread::LowPriority);
 
@@ -329,6 +329,20 @@ QList<TreeItem*> findRekordboxDevices() {
             foundDevices << pFoundDevice;
         }
     }
+#endif
+
+#ifdef FLXXX3
+    // Library folders that hold a Rekordbox export (e.g. a stick copied to the computer) are
+    // read like a stick. The folder path is the name of the device: it is unique and the
+    // BROWSE screen filters by it.
+    for (const QString& folder : libraryFolders) {
+        if (!findRekordboxPdbPath(folder).isEmpty()) {
+            foundDevices << new TreeItem(QString(folder),
+                    QVariant(QList<QString>{folder, IS_RECORDBOX_DEVICE}));
+        }
+    }
+#else
+    Q_UNUSED(libraryFolders);
 #endif
 
     return foundDevices;
@@ -926,7 +940,7 @@ void clearDeviceTables(QSqlDatabase& database, TreeItem* child) {
 }
 
 #ifdef FLXXX3
-// Android edition: the colours of the hotcues from Rekordbox are the 16 colours of the
+// FLXXX3: the colours of the hotcues from Rekordbox are the 16 colours of the
 // Rekordbox palette (the exported values are only close to them): use the nearest one.
 mixxx::RgbColor snapToRekordboxHotcuePalette(int red, int green, int blue) {
     static const unsigned int kPalette[16] = {0xDE44CF, 0xB432FF, 0xAA72FF, 0x6473FF,
@@ -1568,7 +1582,7 @@ void readAnalyze(TrackPointer track,
                 [](const memory_cue_loop_t& a, const memory_cue_loop_t& b)
                         -> bool { return a.startPosition < b.startPosition; });
 
-        // Android edition: memory cues are not hotcues and not the main cue.
+        // FLXXX3: memory cues are not hotcues and not the main cue.
         // The hotcues A..H (index 0..7) stay the ones set in Rekordbox; memory
         // cues and memory loops are stored behind them (index 16 and up, red)
         // so that they never show up on the pads and can be drawn on their own.
@@ -1795,7 +1809,7 @@ static void applyRekordboxTrackData(const TrackPointer& track,
 
 #ifdef FLXXX3
 namespace {
-// Android edition: the Rekordbox data of a track (MP3 scan, ANLZ files, waveform) is read
+// FLXXX3: the Rekordbox data of a track (MP3 scan, ANLZ files, waveform) is read
 // from the stick only once. The list asks for the track of every visible row again after
 // each sort or filter; without this every row would read from the stick again.
 QMutex s_trackCacheMutex;
@@ -1981,7 +1995,7 @@ namespace {
 TrackCollection* g_pRekordboxCollection = nullptr;
 } // namespace
 
-// Android edition: tracks are loaded by file location (FLX4 browse knob), from
+// FLXXX3: tracks are loaded by file location (FLX4 browse knob), from
 // whichever list is shown. Make sure that their Rekordbox data (waveform, beat
 // grid, cues) is read in any case.
 void RekordboxFeature::importDataForTrack(const TrackPointer& pTrack) {
@@ -2111,7 +2125,7 @@ RekordboxFeature::RekordboxFeature(
     m_pSidebarModel->setRootItem(TreeItem::newRoot(this));
 
 #ifdef FLXXX3
-    // Android edition: a stick is only read. As soon as it is pulled, its
+    // FLXXX3: a stick is only read. As soon as it is pulled, its
     // tracks disappear from the library as if it had never been there, and
     // a newly inserted stick is picked up without opening the Rekordbox entry.
     auto* pVolumeTimer = new QTimer(this);
@@ -2131,6 +2145,20 @@ void RekordboxFeature::checkRemovableVolumes() {
         m_pConfig->setValue(scanRequest, QStringLiteral("0"));
         m_manualScan = true;
         parseNextDevice();
+    }
+    // Library folders added or removed (SOURCE > ADD FOLDER): look for Rekordbox exports in them.
+    {
+        QStringList folders;
+        // The same paths as the SOURCE screen lists (QmlLibraryProxy::libraryDirectories()).
+        const auto dirs = m_pTrackCollection->getDirectoryDAO().getRootDirectories();
+        for (const auto& dir : dirs) {
+            folders << dir.path;
+        }
+        folders.sort();
+        if (folders != m_libraryFolders) {
+            m_libraryFolders = folders;
+            startDeviceSearch();
+        }
     }
     if (m_mountedFutureWatcher.isRunning()) {
         return;
@@ -2183,10 +2211,7 @@ void RekordboxFeature::onMountedVolumesRead() {
         static_cast<Library*>(parent())->trackCollectionManager()->purgeTracks(goneTracks);
     }
     // Update the Rekordbox sidebar (removed or new stick).
-    if (!m_devicesFuture.isRunning()) {
-        m_devicesFuture = QtConcurrent::run(findRekordboxDevices);
-        m_devicesFutureWatcher.setFuture(m_devicesFuture);
-    }
+    startDeviceSearch();
 }
 #endif
 
@@ -2376,12 +2401,32 @@ QString RekordboxFeature::formatRootViewHtml() const {
 void RekordboxFeature::refreshLibraryModels() {
 }
 
+void RekordboxFeature::startDeviceSearch() {
+    if (m_devicesFuture.isRunning()) {
+        // A search is running (it was e.g. started by activate() and by the volume check at
+        // the same time): one is enough.
+        return;
+    }
+#ifdef FLXXX3
+    const QStringList folders = m_libraryFolders;
+#else
+    const QStringList folders;
+#endif
+    m_devicesFuture = QtConcurrent::run(findRekordboxDevices, folders);
+    m_devicesFutureWatcher.setFuture(m_devicesFuture);
+}
+
+#ifdef FLXXX3
+bool RekordboxFeature::hasRekordboxExport(const QString& folderPath) {
+    return !findRekordboxPdbPath(folderPath).isEmpty();
+}
+#endif
+
 void RekordboxFeature::activate() {
     qDebug() << "RekordboxFeature::activate()";
 
     // Let a worker thread do the XML parsing
-    m_devicesFuture = QtConcurrent::run(findRekordboxDevices);
-    m_devicesFutureWatcher.setFuture(m_devicesFuture);
+    startDeviceSearch();
     m_title = tr("(loading) Rekordbox");
     //calls a slot in the sidebar model such that 'Rekordbox (isLoading)' is displayed.
     emit featureIsLoading(this, true);

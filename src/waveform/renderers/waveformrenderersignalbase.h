@@ -54,7 +54,7 @@ class WaveformRendererSignalBase : public QObject, public WaveformRendererAbstra
 
   protected:
 #ifdef FLXXX3
-    // Android edition: expands the dynamics of the column height (0..255) so
+    // FLXXX3: expands the dynamics of the column height (0..255) so
     // that single hits (kicks) stand out from the louder level between them.
     // The loudest value stays where it is.
     static float expandPeaks(float value) {
@@ -63,7 +63,7 @@ class WaveformRendererSignalBase : public QObject, public WaveformRendererAbstra
     }
 #endif
 #ifdef FLXXX3
-    // Android edition: fixed gain that scales the loudest point of the whole
+    // FLXXX3: fixed gain that scales the loudest point of the whole
     // track up to just below the beat ticks.
     float trackAutoGain(const Waveform* pWaveform, int dataSize, bool threeBand = false);
 #endif

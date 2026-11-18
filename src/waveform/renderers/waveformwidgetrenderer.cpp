@@ -18,7 +18,7 @@
 #include "waveform/waveform.h"
 
 #ifdef FLXXX3
-// Android edition: a wider range for the pinch zoom (a larger value shows
+// FLXXX3: a wider range for the pinch zoom (a larger value shows
 // more of the track).
 const double WaveformWidgetRenderer::s_waveformMinZoom = 0.3;
 const double WaveformWidgetRenderer::s_waveformMaxZoom = 30.0;
@@ -190,7 +190,7 @@ void WaveformWidgetRenderer::onPreRender(VSyncTimeProvider* vsyncThread) {
 
     double truePos[2]{0};
 #ifdef FLXXX3
-    // Android edition: when no valid position is available for a frame (the
+    // FLXXX3: when no valid position is available for a frame (the
     // audio callbacks of the USB driver arrive late), the old code left the
     // position at 0 and the waveform jumped to the start of the track for one
     // frame. Keep the last valid position of the same track instead.

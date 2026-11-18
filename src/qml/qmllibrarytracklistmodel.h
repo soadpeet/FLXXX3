@@ -68,24 +68,24 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
     int columnCount(const QModelIndex& index = QModelIndex()) const override;
     Q_INVOKABLE QUrl getUrl(int row) const;
     Q_INVOKABLE mixxx::qml::QmlTrackProxy* getTrack(int row) const;
-    /// Android edition: true if the Rekordbox data of the track of `row` is ready; otherwise it
+    /// FLXXX3: true if the Rekordbox data of the track of `row` is ready; otherwise it
     /// is read on a worker thread and trackPrefetched() follows.
     Q_INVOKABLE bool prefetch(int row);
-    /// Android edition: true if the preview of `row` is ready already (reads nothing).
+    /// FLXXX3: true if the preview of `row` is ready already (reads nothing).
     Q_INVOKABLE bool hasPreview(int row) const;
-    /// Android edition: the temporary track for the waveform preview of `row` (see prefetch()).
+    /// FLXXX3: the temporary track for the waveform preview of `row` (see prefetch()).
     Q_INVOKABLE mixxx::qml::QmlTrackProxy* getPreviewTrack(int row) const;
     Q_INVOKABLE TrackModel::Capabilities getCapabilities() const;
     Q_INVOKABLE bool hasCapabilities(TrackModel::Capabilities caps) const;
     Q_INVOKABLE void search(const QString& searchText);
-    // Android edition (BROWSE categories): the distinct non-empty values of a
+    // FLXXX3 (BROWSE categories): the distinct non-empty values of a
     // column (position in `columns`) with their number of tracks, sorted:
     // a list of {value, count}.
     Q_INVOKABLE QVariantList distinctValues(int column) const;
-    // Android edition: title, artist, bpm, key, ... and the location URL of a row
+    // FLXXX3: title, artist, bpm, key, ... and the location URL of a row
     // as a plain map (for the tag list / history that are stored by the app).
     Q_INVOKABLE QVariantMap trackInfo(int row) const;
-    // Android edition: the text fields of a row (title, artist, album, genre, keyText, duration
+    // FLXXX3: the text fields of a row (title, artist, album, genre, keyText, duration
     // in seconds, year, comment) straight from the table, WITHOUT loading the track. The full
     // track reads its Rekordbox files (waveform, cues) from the stick: far too slow for the info
     // panel, which follows the selection on every step of the BROWSE knob.
@@ -100,7 +100,7 @@ class QmlLibraryTrackListModel : public QIdentityProxyModel {
     Q_INVOKABLE void sort(int column, Qt::SortOrder order) override;
 
   signals:
-    /// Android edition: the Rekordbox data of the track at this URL was read in the background.
+    /// FLXXX3: the Rekordbox data of the track at this URL was read in the background.
     void trackPrefetched();
 
   private slots:

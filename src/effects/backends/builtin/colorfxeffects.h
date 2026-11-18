@@ -1,6 +1,6 @@
 #pragma once
 
-// Android edition: the Color FX of the Pioneer players (SPACE, DUB ECHO, CRUSH,
+// FLXXX3: the Color FX of the Pioneer players (SPACE, DUB ECHO, CRUSH,
 // SWEEP, NOISE; FILTER is the filter effect of Mixxx). They run as the quick
 // effect of every channel and are controlled with the channel's filter knob:
 // the centre of the knob is off, the amount grows towards both ends. The only

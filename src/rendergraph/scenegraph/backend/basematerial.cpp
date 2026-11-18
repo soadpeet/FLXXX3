@@ -5,7 +5,7 @@ using namespace rendergraph;
 
 bool BaseMaterial::updateUniformsByteArray(QByteArray* buf) {
     auto pThis = static_cast<Material*>(this);
-    // Android edition: always copy. The byte array that Qt passes in is shared
+    // FLXXX3: always copy. The byte array that Qt passes in is shared
     // by all materials of this type; skipping the copy for a material that is
     // not dirty left the colour of another node in it (flickering loop area).
     pThis->clearUniformsCacheDirty();

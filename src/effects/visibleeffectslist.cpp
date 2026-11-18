@@ -71,7 +71,7 @@ void VisibleEffectsList::readEffectsXml(
         }
     }
 #ifdef FLXXX3
-    // Android edition: fixed list in the order of the Pioneer Beat FX (the
+    // FLXXX3: fixed list in the order of the Pioneer Beat FX (the
     // effects that do not exist yet are added as they get written).
     {
         const QStringList wanted = {

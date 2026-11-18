@@ -165,7 +165,7 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
         float* pHighGain) {
     if (pAllGain) {
 #ifdef FLXXX3
-        // Android edition: fixed height. The tracks are normalised beforehand,
+        // FLXXX3: fixed height. The tracks are normalised beforehand,
         // so the loudest points reach just below the beat ticks (5 % of the
         // height at the top and at the bottom).
         *pAllGain = 0.9f * static_cast<float>(m_allChannelVisualGain);
@@ -180,7 +180,7 @@ void WaveformRendererSignalBase::getGains(float* pAllGain,
         // Per-band gain from the EQ knobs.
         CSAMPLE_GAIN lowVisualGain = 1.0, midVisualGain = 1.0, highVisualGain = 1.0;
 
-        // Android edition: the waveform does not change with the EQ knobs or
+        // FLXXX3: the waveform does not change with the EQ knobs or
         // kill switches (like on the Pioneer players).
 #ifdef FLXXX3
         const bool followEq = false;

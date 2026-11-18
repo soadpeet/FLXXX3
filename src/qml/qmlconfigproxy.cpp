@@ -86,7 +86,7 @@ const QString kStemReorderOnChangeKey = QStringLiteral("stem_reorder_on_change")
 const QString kStemSplitTracksKey = QStringLiteral("stem_split_tracks");
 const QString kEndOfTrackWarningTimeKey = QStringLiteral("EndOfTrackWarningTime");
 const QString kWaveformTypeKey = QStringLiteral("WaveformType");
-// Android edition: 3BAND (type Filtered) is the default waveform look.
+// FLXXX3: 3BAND (type Filtered) is the default waveform look.
 #ifdef FLXXX3
 constexpr mixxx::qml::QmlWaveformDisplay::Type kDefaultWaveformType =
         mixxx::qml::QmlWaveformDisplay::Type::Filtered;

@@ -70,7 +70,7 @@ EffectManifestPointer TransEffect::getManifest() {
     pManifest->setId(getId());
     pManifest->setName(QObject::tr("Trans"));
     pManifest->setShortName(QObject::tr("Trans"));
-    pManifest->setAuthor("Android edition");
+    pManifest->setAuthor("FLXXX3");
     pManifest->setVersion("1.0");
     pManifest->setDescription(QObject::tr(
             "Cuts the sound in the rhythm of the beat (gate)"));
@@ -147,7 +147,7 @@ EffectManifestPointer SweepFilterEffect::getManifest() {
     pManifest->setId(getId());
     pManifest->setName(QObject::tr("Filter"));
     pManifest->setShortName(QObject::tr("Filter"));
-    pManifest->setAuthor("Android edition");
+    pManifest->setAuthor("FLXXX3");
     pManifest->setVersion("1.0");
     pManifest->setDescription(QObject::tr(
             "Low pass filter that sweeps up and down in the rhythm of the beat"));
@@ -225,7 +225,7 @@ EffectManifestPointer SpiralEffect::getManifest() {
     pManifest->setId(getId());
     pManifest->setName(QObject::tr("Spiral"));
     pManifest->setShortName(QObject::tr("Spiral"));
-    pManifest->setAuthor("Android edition");
+    pManifest->setAuthor("FLXXX3");
     pManifest->setVersion("1.0");
     pManifest->setDescription(QObject::tr(
             "Echo whose repeats rise in pitch, so that the sound spirals upwards"));
@@ -362,7 +362,7 @@ EffectManifestPointer HelixEffect::getManifest() {
     pManifest->setId(getId());
     pManifest->setName(QObject::tr("Helix"));
     pManifest->setShortName(QObject::tr("Helix"));
-    pManifest->setAuthor("Android edition");
+    pManifest->setAuthor("FLXXX3");
     pManifest->setVersion("1.0");
     pManifest->setDescription(QObject::tr(
             "Takes in the sound for the length of the effect and repeats it "

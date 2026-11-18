@@ -101,7 +101,7 @@ ApplicationWindow {
                 }
             }
         ]
-        // Android edition: the name instead of the Mixxx logo.
+        // FLXXX3: the name instead of the Mixxx logo.
         Row {
             anchors.centerIn: parent
             visible: Mixxx.Product.ui

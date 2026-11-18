@@ -3,7 +3,7 @@ import QtQuick 2.12
 
 // AI disclaimer: this file was written autonomously by an AI agent (Claude).
 //
-// Lists that the app keeps itself (Android edition, like the XDJ-RX3):
+// Lists that the app keeps itself (FLXXX3, like the XDJ-RX3):
 //   tags     TAG LIST, at most 100 tracks per USB stick
 //   history  the last 100 tracks that were loaded into a deck
 //   myLists  tag lists that were saved as playlists ({ name, tracks })

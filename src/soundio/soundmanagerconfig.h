@@ -59,6 +59,7 @@ class SoundManagerConfig {
     static const QString kAPIOss;
     static const QString kAPIAsio;
     static const QString kAPIDirectSound;
+    static const QString kAPIWasapi;
     static const QString kAPIIosAudio;
     static const QString kAPICoreAudio;
     static const QString kAPIPipewire;
@@ -110,11 +111,13 @@ class SoundManagerConfig {
     bool hasMicInputs();
     bool hasExternalRecordBroadcast();
     void loadDefaults(SoundManager* soundManager, unsigned int flags);
-#ifdef __ANDROID__
+#ifdef FLXXX3
     /// Routes Main to channels 1-2 and Headphones to channels 3-4 of a DDJ-FLX4
     /// if one is connected with at least 4 output channels. Returns false and
     /// leaves the configuration untouched if no such device is present.
-    bool applyAndroidPreferredRouting(SoundManager* soundManager);
+    /// On Windows it also picks the sound API: ASIO if the FLX4 has an ASIO
+    /// driver, otherwise WASAPI.
+    bool applyPreferredRouting(SoundManager* soundManager);
 #endif
 
   private:

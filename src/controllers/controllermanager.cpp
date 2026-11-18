@@ -384,11 +384,15 @@ void ControllerManager::slotSetUpDevices() {
         // The filename for this device name.
         QString deviceName = sanitizeDeviceName(name);
 
-#ifdef __ANDROID_MIDI__
-        // Android: the controller preferences page is hard to use on a
-        // touchscreen, so set up the DDJ-FLX4 automatically the first time it
-        // shows up. Explicit user settings are never overwritten.
-        if (name.contains(QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive)) {
+#ifdef FLXXX3
+        // FLXXX3 has no controller preferences page: set up the DDJ-FLX4
+        // automatically the first time it shows up. Explicit user settings are
+        // never overwritten.
+        // Only the MIDI port: the FLX4 also has a HID port ("DDJ-FLX4 <serial>"),
+        // which the MIDI mapping does not fit.
+        if (name.contains(QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive) &&
+                pController->getDataRepresentationProtocol() ==
+                        DataRepresentationProtocol::MIDI) {
             const ConfigKey enabledKey(QStringLiteral("[Controller]"), deviceName);
             if (!m_pConfig->exists(enabledKey)) {
                 m_pConfig->set(enabledKey, ConfigValue(1));
@@ -396,6 +400,14 @@ void ControllerManager::slotSetUpDevices() {
             const ConfigKey mappingKey(kSettingsGroup, deviceName);
             if (m_pConfig->getValueString(mappingKey).isEmpty()) {
                 m_pConfig->set(mappingKey, ConfigValue(QStringLiteral("Pioneer-DDJ-FLX4.midi.xml")));
+            }
+        } else if (name.contains(QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive)) {
+            // Earlier versions also gave the HID port the MIDI mapping: undo that.
+            const ConfigKey mappingKey(kSettingsGroup, deviceName);
+            if (m_pConfig->getValueString(mappingKey).endsWith(MIDI_MAPPING_EXTENSION)) {
+                m_pConfig->set(mappingKey, ConfigValue(QString()));
+                m_pConfig->set(ConfigKey(QStringLiteral("[Controller]"), deviceName),
+                        ConfigValue(0));
             }
         }
 #endif

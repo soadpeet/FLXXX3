@@ -2,7 +2,7 @@ pragma Singleton
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 
-// Advanced settings of the Android edition (UTILITY -> ADVANCED SETTINGS).
+// Advanced settings of the FLXXX3 (UTILITY -> ADVANCED SETTINGS).
 // One place for all fine settings: the definitions (area, label, range, steps and the
 // FACTORY value, which is how the app behaved before the settings existed), the current
 // values, presets (save / apply / delete) and the reset to the factory state.

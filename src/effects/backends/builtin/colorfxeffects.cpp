@@ -50,7 +50,7 @@ EffectManifestPointer baseManifest(const QString& id, const QString& name, const
     pManifest->setId(id);
     pManifest->setName(name);
     pManifest->setShortName(name);
-    pManifest->setAuthor("Android edition");
+    pManifest->setAuthor("FLXXX3");
     pManifest->setVersion("1.0");
     pManifest->setDescription(description);
     pManifest->setEffectRampsFromDry(true);

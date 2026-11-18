@@ -1,5 +1,7 @@
 #include "library/library.h"
 
+#include "util/cmdlineargs.h"
+
 #include <QApplication>
 #include <QDir>
 #include <QMessageBox>
@@ -99,7 +101,7 @@ Library::Library(
 #endif
 
 #ifndef FLXXX3
-    // The Android edition has no Auto DJ.
+    // The FLXXX3 has no Auto DJ.
     m_pAutoDJFeature = make_parented<AutoDJFeature>(this, m_pConfig, pPlayerManager);
     addFeature(m_pAutoDJFeature);
 #endif
@@ -120,7 +122,7 @@ Library::Library(
 #endif
 
 #ifndef FLXXX3
-    // The Android edition has no crates.
+    // The FLXXX3 has no crates.
     m_pCrateFeature = make_parented<CrateFeature>(this, m_pConfig);
     addFeature(m_pCrateFeature);
 #ifdef __ENGINEPRIME__
@@ -220,8 +222,16 @@ Library::Library(
     // dynamically appear/disappear when correctly prepared removable devices
     // are mounted/unmounted would be to have some form of timed thread to check
     // periodically. Not ideal performance wise.
-    if (m_pConfig->getValue(
-                ConfigKey(kConfigGroup, "ShowRekordboxLibrary"), true)) {
+    bool addRekordbox = m_pConfig->getValue(
+            ConfigKey(kConfigGroup, "ShowRekordboxLibrary"), true);
+#if defined(FLXXX3) && defined(MIXXX_USE_QML)
+    // The QML interface has its own Rekordbox feature (QmlLibrarySource). A second one
+    // here would read every stick a second time at once into the same tables.
+    if (CmdlineArgs::Instance().isQml()) {
+        addRekordbox = false;
+    }
+#endif
+    if (addRekordbox) {
         addFeature(new RekordboxFeature(this, m_pConfig));
     }
 

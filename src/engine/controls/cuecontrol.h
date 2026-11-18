@@ -332,7 +332,7 @@ class CueControl : public EngineControl {
     std::unique_ptr<ControlObject> m_pCuePoint;
     std::unique_ptr<ControlObject> m_pCueMode;
     std::unique_ptr<ControlPushButton> m_pCueSet;
-    // Android edition: skip leading silence on load (Pioneer "AUTO CUE").
+    // FLXXX3: skip leading silence on load (Pioneer "AUTO CUE").
     std::unique_ptr<ControlPushButton> m_pAutoCue;
     // Quantize beat value: grid steps per beat (1, 2, 4 or 8 = 1, 1/2, 1/4, 1/8 beat).
     std::unique_ptr<ControlObject> m_pQuantizeSubdivision;

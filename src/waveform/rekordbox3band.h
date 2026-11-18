@@ -4,7 +4,7 @@
 
 #include "waveform/waveform.h"
 
-// Android edition: marks the main waveforms that were built from the 3-band
+// FLXXX3: marks the main waveforms that were built from the 3-band
 // detail waveform (PWV7) of Rekordbox. Their low / mid / high values are the real
 // band levels (0..255), not shares of the column height, and the renderer draws
 // them like Rekordbox does (nested layers). The mark lives in the Waveform itself.

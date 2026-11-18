@@ -155,7 +155,7 @@ bool MixxxApplication::notify(QObject* pTarget, QEvent* pEvent) {
         debug << "Processing"
               << pEvent->type()
               << "for object";
-        // Android edition: pTarget can be dangling after any event (e.g. a QML item deleted by
+        // FLXXX3: pTarget can be dangling after any event (e.g. a QML item deleted by
         // the event), so it is never dereferenced here: only its address is printed.
         debug << static_cast<void*>(pTarget);
         debug << "took"

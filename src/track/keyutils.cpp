@@ -798,7 +798,7 @@ int KeyUtils::keyToCircleOfFifthsOrder(mixxx::track::io::key::ChromaticKey key,
     }
 
 #ifdef FLXXX3
-    // Android edition: the key column always sorts like the Camelot wheel (1A, 1B, 2A ...).
+    // FLXXX3: the key column always sorts like the Camelot wheel (1A, 1B, 2A ...).
     Q_UNUSED(notation);
     return s_sortKeysCircleOfFifthsLancelot[static_cast<int>(key)];
 #endif

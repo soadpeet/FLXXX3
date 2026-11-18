@@ -49,7 +49,7 @@ class RekordboxPlaylistModel : public BaseExternalPlaylistModel {
             QSharedPointer<BaseTrackCache> trackSource);
     TrackPointer getTrack(const QModelIndex& index) const override;
 #ifdef FLXXX3
-    /// Android edition: reads the Rekordbox data of the track (MP3 scan, analysis files,
+    /// FLXXX3: reads the Rekordbox data of the track (MP3 scan, analysis files,
     /// waveform) on a worker thread, so that a flicked list does not block the GUI thread.
     /// Returns true if the data is there already; otherwise trackPrefetched() follows.
     bool prefetchTrack(const QModelIndex& index) const;
@@ -86,6 +86,9 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
     TreeItemModel* sidebarModel() const override;
 #ifdef FLXXX3
     static void importDataForTrack(const TrackPointer& pTrack);
+    /// True if the folder holds a Rekordbox export (PIONEER/rekordbox/export.pdb).
+    /// Such library folders are read like a stick.
+    static bool hasRekordboxExport(const QString& folderPath);
 #endif
 
   public slots:
@@ -123,12 +126,14 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
     std::unique_ptr<TreeItem> m_pParseTree;
     QString m_parseDevicePath;
     void startDeviceParse(TreeItem* pDevice);
+    // Looks for sticks (and FLXXX3: library folders with a Rekordbox export) on a worker thread.
+    void startDeviceSearch();
     void attachParsedTree();
     QString m_title;
 
     QSharedPointer<BaseTrackCache> m_trackSource;
 #ifdef FLXXX3
-    // Android edition: ids of the removable volumes mounted at the last check.
+    // FLXXX3: ids of the removable volumes mounted at the last check.
     QSet<QString> m_mountedVolumes;
     // Reading /proc/self/mountinfo takes 3-10 ms, so it runs off the GUI thread.
     QFutureWatcher<QSet<QString>> m_mountedFutureWatcher;
@@ -138,5 +143,7 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
     bool m_shown = false;
     QString m_devicePlaylist;
     QStringList m_devicePlaylists;
+    // Library folders at the last check: those with a Rekordbox export are read like a stick.
+    QStringList m_libraryFolders;
 #endif
 };

@@ -700,7 +700,7 @@ void PlayerManager::slotLoadTrackToPlayer(
         // AutoDJProcessor is initialized after PlayerManager, so check that the
         // ControlProxy is pointing to the real ControlObject.
 #ifdef FLXXX3
-        // No Auto DJ in the Android edition (no [AutoDJ] controls).
+        // No Auto DJ in the FLXXX3 (no [AutoDJ] controls).
         const bool autoDjSkipClone = false;
 #else
         if (!m_pAutoDjEnabled) {

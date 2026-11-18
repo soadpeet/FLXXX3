@@ -228,7 +228,7 @@ void QmlWaveformOverview::paint(QPainter* pPainter) {
     pPainter->save();
     if (!m_stereo) {
 #ifdef FLXXX3
-        // Android edition: the lower part of the overview is kept free for the
+        // FLXXX3: the lower part of the overview is kept free for the
         // minute markers below the waveform.
         const double waveHeight = m_minuteMarkers ? height() * 0.8 : height();
         // The cue symbols (size as in WaveformOverviewMarkerLayer.qml) sit half

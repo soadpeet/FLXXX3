@@ -637,7 +637,7 @@ void CueControl::trackLoaded(TrackPointer pNewTrack) {
     loadCuesFromTrack();
 
 #ifdef FLXXX3
-    // Android edition: without AUTO CUE a loaded track waits on the first beat
+    // FLXXX3: without AUTO CUE a loaded track waits on the first beat
     // of its beat grid (the Rekordbox grid, if there is one); AUTO CUE starts
     // at the first sound.
     if (!(m_pAutoCue && m_pAutoCue->toBool())) {
@@ -2409,7 +2409,7 @@ CueControl::TrackAt CueControl::getTrackAt() const {
 }
 
 #ifdef FLXXX3
-// Android edition: cues, hotcues and loops are never set before the first beat of the
+// FLXXX3: cues, hotcues and loops are never set before the first beat of the
 // beat grid (the first beat of the Rekordbox grid, like the one the track waits on).
 
 
@@ -2495,7 +2495,7 @@ mixxx::audio::FramePos CueControl::quantizeCuePoint(mixxx::audio::FramePos posit
     }
 
 #ifdef FLXXX3
-    // Android edition: QUANTIZE BEAT VALUE (1/8, 1/4, 1/2, 1 beat) of the
+    // FLXXX3: QUANTIZE BEAT VALUE (1/8, 1/4, 1/2, 1 beat) of the
     // UTILITY menu: snap to the nearest step of that grid between two beats.
     const double steps = m_pQuantizeSubdivision
             ? std::max(1.0, std::round(m_pQuantizeSubdivision->get()))

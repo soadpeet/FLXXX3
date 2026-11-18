@@ -317,7 +317,7 @@ std::chrono::microseconds QmlWaveformDisplay::fromTimerToNextSync(const Performa
         return m_syncInterval;
     }
 #endif
-    // Android edition: with a constant offset the position only moves when a new audio
+    // FLXXX3: with a constant offset the position only moves when a new audio
     // buffer arrives, so the step per frame jumps by +-20 % (the waveform judders);
     // measure the time from the audio callback to the next vsync instead.
     return m_syncInterval + std::chrono::microseconds(m_timer.difference(timer).toIntegerMicros());
@@ -334,7 +334,7 @@ void QmlWaveformDisplay::requestUpdateAtFrameRate() {
     }
 
 #ifdef FLXXX3
-    // Android edition: a timer that rounds up to whole milliseconds misses the vsync
+    // FLXXX3: a timer that rounds up to whole milliseconds misses the vsync
     // from time to time (a frame is shown twice, the waveform judders). At the frame
     // rate of the display (60 or more) the next frame is requested right away: the swap
     // waits for the vsync by itself, so the frames follow the display exactly.

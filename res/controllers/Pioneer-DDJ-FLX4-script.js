@@ -206,7 +206,7 @@ PioneerDDJFLX4.beta = PioneerDDJFLX4.alpha/32;
 PioneerDDJFLX4.fastSeekScale = 150;
 PioneerDDJFLX4.bendScale = 0.8;
 
-// Android edition: steps like the Pioneer players (+-6 %, 10 %, 16 %, WIDE = +-100 %).
+// FLXXX3: steps like the Pioneer players (+-6 %, 10 %, 16 %, WIDE = +-100 %).
 PioneerDDJFLX4.tempoRanges = [0.06, 0.10, 0.16, 1.0];
 
 PioneerDDJFLX4.shiftButtonDown = [false, false];
@@ -275,7 +275,7 @@ PioneerDDJFLX4.toggleLight = function(midiIn, active) {
 
 PioneerDDJFLX4.init = function() {
     engine.setValue("[EffectRack1_EffectUnit1]", "show_focus", 1);
-    // Android edition: Beat FX works like the Pioneer players, one effect at a
+    // FLXXX3: Beat FX works like the Pioneer players, one effect at a
     // time (slot 1).
     engine.setValue("[EffectRack1_EffectUnit1]", "focused_effect", 1);
 
@@ -373,7 +373,7 @@ PioneerDDJFLX4.init = function() {
 
     // query the controller for current control positions on startup
     PioneerDDJFLX4.sendKeepAlive(); // the query seems to double as a keep alive message
-    // Android edition: the position query of the Rekordbox app (found in its FLX4
+    // FLXXX3: the position query of the Rekordbox app (found in its FLX4
     // section) makes the controller report all knobs, faders and the crossfader.
     // Sent at once and once more after the start-up has settled.
     PioneerDDJFLX4.queryPositions();
@@ -381,7 +381,7 @@ PioneerDDJFLX4.init = function() {
 };
 
 //
-// Color FX (Android edition): SMART CFX switches the Color FX on / off, SMART
+// Color FX (FLXXX3): SMART CFX switches the Color FX on / off, SMART
 // FADER selects the next one (down the list), SHIFT + SMART FADER the previous
 // one. The list: 0 SPACE, 1 DUB ECHO, 2 CRUSH, 3 SWEEP, 4 NOISE, 5 FILTER. The
 // state lives in [AndroidDJ] color_fx / color_fx_on (the screen shows it).
@@ -441,7 +441,7 @@ PioneerDDJFLX4.updateColorFxLight = function() {
 // BROWSE knob
 //
 
-// Android edition: with SHIFT held the knob only zooms. Moving the library as
+// FLXXX3: with SHIFT held the knob only zooms. Moving the library as
 // well would select tracks (and read their data from the stick) on every step.
 PioneerDDJFLX4.browseRotate = function(_channel, _control, value, _status, _group) {
     if (PioneerDDJFLX4.shiftButtonDown[0] || PioneerDDJFLX4.shiftButtonDown[1]) {
@@ -455,7 +455,7 @@ PioneerDDJFLX4.browseRotate = function(_channel, _control, value, _status, _grou
 // Waveform zoom
 //
 
-// Android edition: SHIFT + BROWSE knob scrolls the track list in big steps
+// FLXXX3: SHIFT + BROWSE knob scrolls the track list in big steps
 // (10 tracks per click). The knob alone zooms the waveforms while the library
 // is closed and scrolls the list while it is open (see the main window).
 PioneerDDJFLX4.browseRotateShift = function(_channel, _control, value, _status, _group) {
@@ -485,7 +485,7 @@ PioneerDDJFLX4.vuMeterUpdate = function(value, group) {
 // Effects
 //
 
-// Android edition: the BEAT FX ON/OFF button is lit while the effect is off and
+// FLXXX3: the BEAT FX ON/OFF button is lit while the effect is off and
 // blinks while the effect is on.
 
 // Own ON/OFF state of Beat FX: the effect system switches a freshly loaded
@@ -615,7 +615,7 @@ PioneerDDJFLX4.changeFocusedEffectBy = function(numberOfSteps) {
     engine.setValue("[EffectRack1_EffectUnit1]", "focused_effect", focusedEffect);
 };
 
-// Android edition: a newly loaded effect is switched on by the effect system;
+// FLXXX3: a newly loaded effect is switched on by the effect system;
 // ON/OFF of the player stays as it was.
 PioneerDDJFLX4.changeEffectKeepState = function(control, value) {
     engine.setValue(PioneerDDJFLX4.focusedFxGroup(), control, value);
@@ -634,7 +634,7 @@ PioneerDDJFLX4.beatFxSelectShiftPressed = function(_channel, _control, value) {
     PioneerDDJFLX4.changeEffectKeepState("prev_effect", value);
 };
 
-// Android edition: the BEAT < > buttons step through the effect time in beats
+// FLXXX3: the BEAT < > buttons step through the effect time in beats
 // (1/16 - 8 beats, like the Pioneer players). All effects have the time in
 // beats as their first parameter (0 - 8), except the reverb (percent). List
 // positions: 1 Delay, 2 Echo, 3 Ping Pong, 4 Spiral, 5 Helix, 6 Reverb,
@@ -702,7 +702,7 @@ PioneerDDJFLX4.beatFxChannel2 = function(_channel, control, value, _status, grou
 // Loop IN/OUT ADJUST
 //
 
-// Android edition: RELOOP/EXIT leaves an active loop; without a loop it makes a
+// FLXXX3: RELOOP/EXIT leaves an active loop; without a loop it makes a
 // new 4 beat loop at the current position (no return to the old loop).
 PioneerDDJFLX4.loopExitOrFourBeat = function(_channel, _control, value, _status, group) {
     if (value === 0) { return; }
@@ -716,7 +716,7 @@ PioneerDDJFLX4.loopExitOrFourBeat = function(_channel, _control, value, _status,
     }
 };
 
-// Android edition: LOOP IN / OUT.
+// FLXXX3: LOOP IN / OUT.
 //  - Inside an active loop the buttons do nothing.
 //  - IN sets only a new start point.
 //  - OUT sets the end point at the current position and makes the loop.
@@ -824,7 +824,7 @@ PioneerDDJFLX4.loopToggle = function(value, group, control) {
 
     PioneerDDJFLX4.setReloopLight(status, value ? 0x7F : 0x00);
 
-    // Android edition: a new loop sets the main CUE point at its start.
+    // FLXXX3: a new loop sets the main CUE point at its start.
     if (value) {
         const loopStart = engine.getValue(group, "loop_start_position");
         if (loopStart >= 0) {
@@ -865,7 +865,7 @@ PioneerDDJFLX4.cueLoopCallRight = function(_channel, _control, value, _status, g
 //
 
 PioneerDDJFLX4.syncPressed = function(channel, control, value, status, group) {
-    // Android edition: a short press of BEAT SYNC makes this deck the MASTER
+    // FLXXX3: a short press of BEAT SYNC makes this deck the MASTER
     // (tempo reference shown in orange on the screen).
     if (value > 0) {
         engine.setValue("[AndroidDJ]", "master_deck", group === "[Channel1]" ? 1 : 2);
@@ -873,7 +873,7 @@ PioneerDDJFLX4.syncPressed = function(channel, control, value, status, group) {
 };
 
 PioneerDDJFLX4.syncLongPressed = function(channel, control, value, status, group) {
-    // Android edition: holding BEAT SYNC for a second switches the sync mode of
+    // FLXXX3: holding BEAT SYNC for a second switches the sync mode of
     // this deck on or off. Sync is off by default. The MASTER deck is the tempo
     // reference and cannot follow itself.
     if (value > 0) {
@@ -958,7 +958,7 @@ PioneerDDJFLX4.jogSearch = function(_channel, _control, value, _status, group) {
     engine.setValue(group, "jog", newVal);
 };
 
-// ---- JOGWHEEL settings (Android edition, menu JOGWHEEL on the screen) --------
+// ---- JOGWHEEL settings (FLXXX3, menu JOGWHEEL on the screen) --------
 // BACK SPIN: turning the jog fast backwards and letting go spins the track back, then it
 // plays on. (VINYL SPEED ADJUST, the start and stop time of PLAY, is at PioneerDDJFLX4.playButton.)
 PioneerDDJFLX4.jogState = [
@@ -1136,7 +1136,7 @@ PioneerDDJFLX4.jogTouch = function(channel, _control, value) {
 
 PioneerDDJFLX4.shiftPressed = function(channel, _control, value, _status, _group) {
     PioneerDDJFLX4.shiftButtonDown[channel] = value === 0x7F;
-    // Android edition: tells the main window which SHIFT is held (0 = none, 1 = deck 1,
+    // FLXXX3: tells the main window which SHIFT is held (0 = none, 1 = deck 1,
     // 2 = deck 2); SHIFT + BROWSE knob zooms only the waveform of that deck (CDJ view).
     let shiftDeck = 0;
     if (PioneerDDJFLX4.shiftButtonDown[0]) {
@@ -1163,7 +1163,7 @@ PioneerDDJFLX4.tempoSliderMSB = function(channel, control, value, status, group)
 PioneerDDJFLX4.tempoSliderLSB = function(channel, control, value, status, group) {
     const fullValue = (PioneerDDJFLX4.highResMSB[group].tempoSlider << 7) + value;
 
-    // Android edition: a deck that follows the master (SYNC on) takes its tempo
+    // FLXXX3: a deck that follows the master (SYNC on) takes its tempo
     // from the master. Its tempo fader must not change the master's tempo.
     const deck = group === "[Channel1]" ? 1 : 2;
     if (engine.getValue(group, "sync_enabled") > 0 &&

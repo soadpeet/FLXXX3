@@ -108,7 +108,7 @@ class QmlWaveformOverview : public QQuickPaintedItem {
 
   private:
 #ifdef FLXXX3
-    // Android edition: same look as the scrolling waveform (BLUE / RGB / 3BAND).
+    // FLXXX3: same look as the scrolling waveform (BLUE / RGB / 3BAND).
     void drawScheme(QPainter* pPainter,
             ConstWaveformPointer pWaveform,
             int completion,
@@ -130,7 +130,7 @@ class QmlWaveformOverview : public QQuickPaintedItem {
     QColor getRgbPenColor(ConstWaveformPointer pWaveform, int completion) const;
     QColor getRgbPenColor(qreal low, qreal mid, qreal high) const;
     QString m_group;
-    // Android edition: the proxy is owned by QML and may be deleted while this item lives on
+    // FLXXX3: the proxy is owned by QML and may be deleted while this item lives on
     // (list rows keep their overview and only change the track): a guarded pointer, and the
     // track itself is held here.
     QPointer<QmlTrackProxy> m_pTrack;

@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QRegularExpression>
 #include <QtGlobal>
+#include <algorithm>
 
 #include "audio/types.h"
 #include "soundio/sounddevice.h"
@@ -18,6 +19,7 @@ const QString SoundManagerConfig::kAPIAlsa = QStringLiteral("ALSA");
 const QString SoundManagerConfig::kAPIOss = QStringLiteral("OSS");
 const QString SoundManagerConfig::kAPIAsio = QStringLiteral("ASIO");
 const QString SoundManagerConfig::kAPIDirectSound = QStringLiteral("Windows DirectSound");
+const QString SoundManagerConfig::kAPIWasapi = QStringLiteral("Windows WASAPI");
 // NOTE: This is what our patched version of PortAudio uses for the Core Audio
 // backend on iOS. If/when upstream supports iOS officially
 // (https://github.com/PortAudio/portaudio/pull/881), we may have to update this
@@ -612,12 +614,12 @@ void SoundManagerConfig::loadDefaults(SoundManager* soundManager, unsigned int f
         clearInputs();
         const QList<SoundDevicePointer> outputDevices =
                 soundManager->getDeviceList(m_api, true, false);
-#ifdef __ANDROID__
-        const bool androidRouted = applyAndroidPreferredRouting(soundManager);
+#ifdef FLXXX3
+        const bool flx4Routed = applyPreferredRouting(soundManager);
 #else
-        const bool androidRouted = false;
+        const bool flx4Routed = false;
 #endif
-        if (!androidRouted && !outputDevices.isEmpty()) {
+        if (!flx4Routed && !outputDevices.isEmpty()) {
             for (const auto& pDevice : outputDevices) {
                 if (pDevice->getNumOutputChannels() < 2) {
                     continue;
@@ -651,31 +653,66 @@ void SoundManagerConfig::loadDefaults(SoundManager* soundManager, unsigned int f
     m_forceNetworkClock = false;
 }
 
-#ifdef __ANDROID__
-bool SoundManagerConfig::applyAndroidPreferredRouting(SoundManager* soundManager) {
+#ifdef FLXXX3
+namespace {
+bool isFlx4WithFourOutputs(const SoundDevicePointer& pDevice) {
     // Device names on Android are "<product name>: <type>", see
-    // PortAudioEnumerator::initialize().
-    static const QString kPreferredDevice = QStringLiteral("DDJ-FLX4");
+    // PortAudioEnumerator::initialize(). On Windows they are like
+    // "Line (2- DDJ-FLX4)" (WASAPI) or "ASIO DDJ-FLX4" (ASIO driver of the maker).
+    return pDevice->getDeviceId().name.contains(
+                   QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive) &&
+            pDevice->getNumOutputChannels() >= 4;
+}
+} // namespace
+
+bool SoundManagerConfig::applyPreferredRouting(SoundManager* soundManager) {
+#ifdef __WINDOWS__
+    // ASIO has the lowest latency but only exists if the maker's driver is
+    // installed. WASAPI (shared mode) always works. WASAPI exclusive mode is not
+    // possible: the FLX4 only accepts channel mask 0, PortAudio always sends a
+    // speaker mask. WDM-KS does not open either.
+    const QList<QString> apiList = soundManager->getHostAPIList();
+    for (const QString& api : {kAPIAsio, kAPIWasapi}) {
+        if (!apiList.contains(api)) {
+            continue;
+        }
+        const QList<SoundDevicePointer> devices = soundManager->getDeviceList(api, true, false);
+        if (std::any_of(devices.cbegin(), devices.cend(), isFlx4WithFourOutputs)) {
+            m_api = api;
+            break;
+        }
+    }
+    // WASAPI shared mode adds about 12 ms to the buffer and is not faster with
+    // buffers below 10 ms. The Mixxx default (20 ms) only adds latency there.
+    if (m_api == kAPIWasapi &&
+            m_audioBufferSizeIndex == kDefaultAudioBufferSizeIndex) {
+        m_audioBufferSizeIndex = static_cast<unsigned int>(AudioBufferSizeIndex::Size10xms);
+    }
+#endif
     const QList<SoundDevicePointer> outputDevices =
             soundManager->getDeviceList(m_api, true, false);
     for (const auto& pDevice : outputDevices) {
-        const SoundDeviceId deviceId = pDevice->getDeviceId();
-        if (!deviceId.name.contains(kPreferredDevice, Qt::CaseInsensitive) ||
-                pDevice->getNumOutputChannels() < 4) {
+        if (!isFlx4WithFourOutputs(pDevice)) {
             continue;
         }
+        const SoundDeviceId deviceId = pDevice->getDeviceId();
         clearOutputs();
         addOutput(deviceId,
                 AudioOutput(AudioPathType::Main, 0, mixxx::audio::ChannelCount::stereo(), 0));
-        if (!soundManager->androidStereoOnly()) {
+#ifdef __ANDROID__
+        const bool stereoOnly = soundManager->androidStereoOnly();
+#else
+        const bool stereoOnly = false;
+#endif
+        if (!stereoOnly) {
             addOutput(deviceId,
                     AudioOutput(AudioPathType::Headphones,
                             2,
                             mixxx::audio::ChannelCount::stereo(),
                             0));
         }
-        qInfo() << "Android: routed Main to channels 1-2 and Headphones to"
-                << "channels 3-4 of" << deviceId.name;
+        qInfo() << "FLXXX3: routed Main to channels 1-2 and Headphones to"
+                << "channels 3-4 of" << deviceId.name << "via" << m_api;
         return true;
     }
     return false;

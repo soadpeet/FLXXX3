@@ -57,7 +57,7 @@ void ReplayGainSettings::setReplayGainEnabled(bool value) {
 
 bool ReplayGainSettings::getReplayGainAnalyzerEnabled() const {
 #ifdef FLXXX3
-    // Android edition: no ReplayGain analysis (it was about 20 % of the load
+    // FLXXX3: no ReplayGain analysis (it was about 20 % of the load
     // time of a track); the gain is set on the controller.
     return false;
 #else

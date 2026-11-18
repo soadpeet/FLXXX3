@@ -1,7 +1,7 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.12
 
-// Android edition: a popup made for a fixed size (designWidth x designHeight, the tablet).
+// FLXXX3: a popup made for a fixed size (designWidth x designHeight, the tablet).
 // On smaller screens (phones) the whole popup is scaled down so that it fits on the screen;
 // the frame keeps its place in the middle, only the content inside is scaled.
 // (Popup.scale cannot be used: the popup is then placed off the middle.)

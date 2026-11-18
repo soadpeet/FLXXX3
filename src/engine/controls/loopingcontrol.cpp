@@ -897,7 +897,7 @@ void LoopingControl::setLoopOutToCurrentPosition() {
         }
     }
 
-    // Android edition (like Pioneer): with quantize, a quick IN + OUT snaps both
+    // FLXXX3 (like Pioneer): with quantize, a quick IN + OUT snaps both
     // to the same beat. Make a 1 beat loop instead of ignoring OUT.
     if (quantizedBeatPosition.isValid() && pBeats && loopInfo.startPosition.isValid() &&
             position == loopInfo.startPosition) {

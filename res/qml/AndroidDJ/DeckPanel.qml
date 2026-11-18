@@ -1,5 +1,6 @@
 import "../" as Skin
 import "../AdvSettings"
+import "../Theme"
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import "." as DJ
@@ -37,8 +38,9 @@ Rectangle {
     function formatKey(rawText) {
         if (!rawText)
             return "";
-        // Mixxx writes sharps and flats as special characters (F\u266fm).
-        const text = rawText.replace(/\u266f/g, "#").replace(/\u266d/g, "b");
+        // Mixxx writes sharps and flats as special characters (F\u266fm). Tags with two
+        // names ("D#m/Ebm"): the first one counts.
+        const text = String(rawText).split("/")[0].trim().replace(/\u266f/g, "#").replace(/\u266d/g, "b");
         const pretty = name => name.replace(/#/g, "\u266f").replace(/([A-G])b/g, "$1\u266d");
         const m = /^(\d{1,2})([ABab])$/.exec(text);
         if (m) {
@@ -48,7 +50,7 @@ Rectangle {
             return pretty(m[2].toUpperCase() === "A" ? root._classicMinor[n] : root._classicMajor[n]);
         }
         if (!root.keyCamelot)
-            return rawText;
+            return pretty(text);
         const minor = root._camelotMinor[text];
         if (minor !== undefined)
             return minor + "A";
@@ -62,7 +64,7 @@ Rectangle {
     function camelotOf(rawText) {
         if (!rawText)
             return { n: 0, letter: "A" };
-        const text = rawText.replace(/\u266f/g, "#").replace(/\u266d/g, "b");
+        const text = String(rawText).split("/")[0].trim().replace(/\u266f/g, "#").replace(/\u266d/g, "b");
         const m = /^(\d{1,2})([ABab])$/.exec(text);
         if (m)
             return { n: parseInt(m[1]), letter: m[2].toUpperCase() };
@@ -184,9 +186,10 @@ Rectangle {
         return "." + (ms < 10 ? "00" : (ms < 100 ? "0" : "")) + ms;
     }
 
+    // CDJ view: everything behind the waveform and the deck data is black, no boxes.
     border.color: "#2a2a2a"
-    border.width: 1
-    color: "#0c0c0c"
+    border.width: root.cdj ? 0 : 1
+    color: root.cdj ? "#000000" : "#0c0c0c"
 
     Mixxx.ControlProxy { id: bpmControl; group: root.group; key: "bpm" }
     Mixxx.ControlProxy { id: rateRatioControl; group: root.group; key: "rate_ratio" }
@@ -220,7 +223,7 @@ Rectangle {
         id: deckColumn
 
         // Only a little lighter while the deck plays (and while the DECK field is held).
-        color: deckHold.pressed ? "#505050" : (playControl.value > 0 ? "#383838" : "#181818")
+        color: deckHold.pressed ? "#505050" : (playControl.value > 0 ? "#383838" : (root.cdj ? "#000000" : "#181818"))
         width: Math.round(root.unit * 3.2)
 
         // Hold the DECK field briefly: starts or stops the loaded track (like PLAY).
@@ -831,7 +834,7 @@ Rectangle {
         // CDJ view: the tempo correction lies over the metrics row.
         Rectangle {
             anchors.fill: parent
-            color: "#0c0c0c"
+            color: "#000000"
             visible: root.cdj && root.bpmFixOpen
         }
         // Like the RX3 without a track: red "Not Loaded." instead of the indicators.
@@ -900,6 +903,7 @@ Rectangle {
     Skin.WaveformOverview {
         id: overview
 
+        backgroundColor: root.cdj ? "#000000" : Theme.deckBackgroundColor
         group: root.group
         height: root.cdj ? Math.round(root.cdjLowerHeight * 0.38) : Math.round(root.layoutHeight * 0.28)
 

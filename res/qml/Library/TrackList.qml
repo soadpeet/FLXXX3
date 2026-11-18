@@ -66,7 +66,7 @@ Rectangle {
     property bool scrollEnabled: true
     // Size factor of the rows and texts (smaller screens).
     property real uiScale: 1.0
-    // Android edition: look of the list (SETTINGS gear in BROWSE), saved on the device.
+    // FLXXX3: look of the list (SETTINGS gear in BROWSE), saved on the device.
     property int rowHeight: 54
     property int waveWidth: 150
     // The width before the waveform was switched off (SHOW IN THE LIST > WAVEFORM).
@@ -138,7 +138,7 @@ Rectangle {
         if (root.previewActive)
             previewPlay.value = 1;
     }
-    // Android edition: when a list is shown, the waveform previews of its first rows are read in
+    // FLXXX3: when a list is shown, the waveform previews of its first rows are read in
     // the background one after the other (the files of a Rekordbox stick are slow), so that
     // scrolling later finds them ready. At most three requests wait at a time, so that the
     // rows that are on screen come first.
@@ -269,7 +269,8 @@ Rectangle {
     function formatKey(rawText) {
         if (!rawText)
             return "";
-        const text = rawText.replace(/\u266f/g, "#").replace(/\u266d/g, "b");
+        // Tags with two names ("D#m/Ebm"): the first one counts.
+        const text = String(rawText).split("/")[0].trim().replace(/\u266f/g, "#").replace(/\u266d/g, "b");
         const pretty = name => name.replace(/#/g, "\u266f").replace(/([A-G])b/g, "$1\u266d");
         const m = /^(\d{1,2})([ABab])$/.exec(text);
         if (m) {
@@ -279,7 +280,7 @@ Rectangle {
             return pretty(m[2].toUpperCase() === "A" ? root._classicMinor[n] : root._classicMajor[n]);
         }
         if (!root.keyCamelot)
-            return rawText;
+            return pretty(text);
         const minor = root._camelotMinor[text];
         if (minor !== undefined)
             return minor + "A";
@@ -447,25 +448,36 @@ Rectangle {
             }
         }
     }
-    // Sort arrow drawn from bars (the font of the tablet shows the triangle glyph as a yellow
-    // emoji). Points up for ascending, down for descending, in the accent colour.
-    component SortArrow: Column {
+    // Sort arrow: a smooth triangle (the font of the tablet shows the triangle glyph as a
+    // yellow emoji). Points up for ascending, down for descending, in the accent colour.
+    component SortArrow: Canvas {
         property bool up: true
         property color arrowColor: "#27a8e0"
 
-        spacing: 0
+        antialiasing: true
+        height: Math.round(8 * root.uiScale)
+        width: Math.round(12 * root.uiScale)
 
-        Repeater {
-            model: 5
-
-            Rectangle {
-                required property int index
-
-                anchors.horizontalCenter: parent.horizontalCenter
-                color: parent.arrowColor
-                height: Math.max(2, Math.round(2 * root.uiScale))
-                width: Math.round((parent.up ? index * 3 + 3 : (5 - index) * 3) * root.uiScale)
+        onArrowColorChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onUpChanged: requestPaint()
+        onWidthChanged: requestPaint()
+        onPaint: {
+            const ctx = getContext("2d");
+            ctx.reset();
+            ctx.fillStyle = arrowColor;
+            ctx.beginPath();
+            if (up) {
+                ctx.moveTo(0, height);
+                ctx.lineTo(width / 2, 0);
+                ctx.lineTo(width, height);
+            } else {
+                ctx.moveTo(0, 0);
+                ctx.lineTo(width / 2, height);
+                ctx.lineTo(width, 0);
             }
+            ctx.closePath();
+            ctx.fill();
         }
     }
     HorizontalHeaderView {
@@ -541,6 +553,8 @@ Rectangle {
                 // Android: the title column starts with the waveform and the number, the
                 // header "Title" stands over the titles, "#" over the numbers.
                 anchors.leftMargin: (Mixxx.Product.ui && display === "Title") ? 8 + Math.round(root.waveWidth * root.uiScale) + 4 + Math.round(34 * root.uiScale) + 8 : 15
+                // Room for the sort arrow behind the name (narrow columns: the name gets shorter).
+                anchors.rightMargin: sortIndicator.visible ? sortIndicator.width + Math.round(8 * root.uiScale) : 0
                 color: Theme.textColor
                 elide: Text.ElideRight
                 font.capitalization: Font.Capitalize
@@ -565,20 +579,14 @@ Rectangle {
                 width: Math.round(34 * root.uiScale)
                 x: 8
             }
-            Item {
-                anchors {
-                    bottom: parent.bottom
-                    left: parent.left
-                    leftMargin: column.split ? column.waveEnd + 5 : 5
-                    top: parent.top
-                }
-                SortArrow {
-                    id: sortIndicator
+            // Right after the column name (inside the column).
+            SortArrow {
+                id: sortIndicator
 
-                    anchors.centerIn: parent
-                    up: horizontalHeader.sortingOrder == Qt.AscendingOrder
-                    visible: horizontalHeader.sortingColumn == index
-                }
+                anchors.verticalCenter: parent.verticalCenter
+                up: horizontalHeader.sortingOrder == Qt.AscendingOrder
+                visible: horizontalHeader.sortingColumn == index
+                x: columnName.x + Math.min(columnName.contentWidth, columnName.width) + Math.round(4 * root.uiScale)
             }
             Rectangle {
                 anchors {
@@ -926,13 +934,13 @@ Rectangle {
         }
         property int dynamicColumnCount: 0
         property int usedWidth: 0
-        // Android edition: the columns of the track number and of the stars.
+        // FLXXX3: the columns of the track number and of the stars.
         property int numberColumn: -1
         property real flexWeightSum: 0
         property bool titleVisible: false
         property int starsColumn: -1
 
-        // Android edition: loading by file location skips the track model, so
+        // FLXXX3: loading by file location skips the track model, so
         // the Rekordbox data (waveform, beat grid, cues) would never be read.
         // Asking the model for the track does that (and keeps it in the cache
         // for the load that follows).
@@ -1063,7 +1071,7 @@ Rectangle {
                     this.clear();
                     return;
                 }
-                // Android edition: stay at the first / last track instead of
+                // FLXXX3: stay at the first / last track instead of
                 // wrapping around, and keep the selection in view.
                 const newRow = Mixxx.Product.ui ? Math.max(0, Math.min(rowCount - 1, row)) : Mixxx.MathUtils.positiveModulo(row, rowCount);
                 this.select(this.model.index(newRow, 0), ItemSelectionModel.Rows | ItemSelectionModel.Select | ItemSelectionModel.Clear | ItemSelectionModel.Current);

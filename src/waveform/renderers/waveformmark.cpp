@@ -487,7 +487,7 @@ QImage WaveformMark::performImageGeneration(float devicePixelRatio,
     }
 
 #ifdef FLXXX3
-    // Android edition, RX3 style markers (only for the main marks, not for the
+    // FLXXX3, RX3 style markers (only for the main marks, not for the
     // end marks of loops): the main cue is a small white triangle under the
     // waveform, hotcues are squares in their colour with their letter above
     // the waveform, memory cues (hotcue slots 16 and up, see the Rekordbox

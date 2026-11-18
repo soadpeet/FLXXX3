@@ -79,7 +79,7 @@ class Waveform {
         m_description = description;
     }
 
-    // Android edition: built from the 3-band detail waveform of Rekordbox (not saved). Kept in the
+    // FLXXX3: built from the 3-band detail waveform of Rekordbox (not saved). Kept in the
     // waveform itself: a list of pointers elsewhere lost entries when it was cleared.
     bool isRekordbox3Band() const {
         return m_rekordbox3Band.loadAcquire() != 0;

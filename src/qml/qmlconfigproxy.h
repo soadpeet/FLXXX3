@@ -352,7 +352,7 @@ class QmlConfigProxy : public QmlConfigProxyBase {
 
     Q_INVOKABLE QStringList paletteNames() const;
 
-    // Android edition: small persistent settings of the touch interface
+    // FLXXX3: small persistent settings of the touch interface
     // (stored in the Mixxx config file, group [AndroidDJ]).
     Q_INVOKABLE QString androidSetting(const QString& key, const QString& defaultValue) const {
         return m_pConfig->getValue(ConfigKey(QStringLiteral("[AndroidDJ]"), key),

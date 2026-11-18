@@ -9,7 +9,7 @@ Mixxx.WaveformOverview {
     property color introOutroMarkerColor: "blue"
     property bool interactive: true
     property color loopMarkerColor: "green"
-    // Android edition: thick white play position marker.
+    // FLXXX3: thick white play position marker.
     property string playPositionMarkerColor: "white"
     property color analyzerStatusColor: "orangered"
     property bool showAnalyzerStatus: false
@@ -75,7 +75,7 @@ Mixxx.WaveformOverview {
         anchors.fill: parent
         visible: trackLoadedControl.value
 
-        // Android edition: the part behind the play position (already played)
+        // FLXXX3: the part behind the play position (already played)
         // is darkened, the rest keeps the colours of the scrolling waveform.
         Rectangle {
             color: "#000000"

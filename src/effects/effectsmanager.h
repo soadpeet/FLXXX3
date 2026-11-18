@@ -32,7 +32,7 @@ class EffectsManager {
 
     void loadDefaultEqsAndQuickEffects();
 #ifdef FLXXX3
-    // Android edition: puts the selected Color FX (SPACE, DUB ECHO, CRUSH, SWEEP,
+    // FLXXX3: puts the selected Color FX (SPACE, DUB ECHO, CRUSH, SWEEP,
     // NOISE, FILTER) as the quick effect into the chains of the channels and
     // switches them on or off ([AndroidDJ] color_fx / color_fx_on).
     void applyColorFx();

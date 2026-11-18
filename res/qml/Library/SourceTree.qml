@@ -141,7 +141,7 @@ Mixxx.LibrarySourceTree {
             delegate: DefaultDelegate {
             }
         },
-        // Android edition: the track number (shown in the title cell, the column itself
+        // FLXXX3: the track number (shown in the title cell, the column itself
         // is hidden) and the stars (right of the key). Kept at the end so that the
         // column numbers of the others do not change.
         Mixxx.TrackListColumn {

@@ -659,7 +659,7 @@ void CoreServices::initialize() {
         } else {
             qDebug() << "Got ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION";
         }
-        // Android edition: no default music folder. Own folders are added
+        // FLXXX3: no default music folder. Own folders are added
         // in the SOURCE screen.
         fd.clear();
 #elif defined(FLXXX3)

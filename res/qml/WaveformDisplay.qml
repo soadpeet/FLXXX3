@@ -21,9 +21,9 @@ Item {
     // of the type that was used for the scene-graph stack so a change from
     // the legacy preferences dialog can recreate that stack explicitly.
     property int renderedWaveformType: -1
-    // Android edition: fixed gain (the waveform data is already normalised).
+    // FLXXX3: fixed gain (the waveform data is already normalised).
     readonly property real visualGain: Mixxx.Product.ui ? AdvSettings.values.waveGain : Mixxx.Config.waveformVisualGainAll
-    // Android edition: small waveform of the other deck (beat match aid) follows the zoom of this deck.
+    // FLXXX3: small waveform of the other deck (beat match aid) follows the zoom of this deck.
     property string zoomGroupOverride: ""
     property int frameRateOverride: 0
     readonly property string zoomGroup: zoomGroupOverride !== "" ? zoomGroupOverride : (Mixxx.Config.waveformZoomSynchronization ? "[Channel1]" : group)
@@ -63,7 +63,7 @@ Item {
 
         Behavior on zoom {
             SmoothedAnimation {
-                // Android edition: follows the fingers almost directly.
+                // FLXXX3: follows the fingers almost directly.
                 duration: Mixxx.Product.ui ? 60 : 500
                 velocity: -1
             }
@@ -73,7 +73,7 @@ Item {
             color: '#ff8872'
             endOfTrackWarningTime: Mixxx.Config.waveformEndOfTrackWarningTime
         }
-        // No pre-roll arrows before the start of the track (Android edition).
+        // No pre-roll arrows before the start of the track (FLXXX3).
         Mixxx.WaveformRendererMarkRange {
             // Loop
             Mixxx.WaveformMarkRange {
@@ -178,7 +178,7 @@ Item {
             untilMark.textSize: Mixxx.Config.waveformUntilMarkTextPointSize
 
             defaultMark: Mixxx.WaveformMark {
-                // Android edition: hotcue squares / memory cue triangles above
+                // FLXXX3: hotcue squares / memory cue triangles above
                 // the waveform.
                 align: Mixxx.Product.ui ? "top|hcenter" : "bottom|right"
                 color: "#00d9ff"
@@ -285,7 +285,7 @@ Item {
             }
         }
     }
-    // Android edition: move the track with one finger (scratch). The scratch
+    // FLXXX3: move the track with one finger (scratch). The scratch
     // mode is always left when the finger lifts or a second finger arrives
     // (then the pinch zoom takes over).
     DragHandler {
@@ -313,7 +313,7 @@ Item {
         }
     }
     MouseArea {
-        // Android edition: no mouse scratching (it got stuck during pinch
+        // FLXXX3: no mouse scratching (it got stuck during pinch
         // zoom and kept the deck from playing).
         enabled: !Mixxx.Product.ui
         property point mouseAnchor: Qt.point(0, 0)

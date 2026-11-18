@@ -19,16 +19,16 @@ Item {
     // False while the library is closed (set by the main window).
     property bool scrollEnabled: true
 
-    // Android edition (BROWSE screen like the XDJ-RX3): name of the shown source
+    // FLXXX3 (BROWSE screen like the XDJ-RX3): name of the shown source
     // (stick or tablet), set by the main window.
     property string sourceTitle: ""
-    // Android edition: folders of the tablet that are shown (empty = no folder filter).
+    // FLXXX3: folders of the tablet that are shown (empty = no folder filter).
     property var folderFilter: []
-    // Android edition: PLAYLIST shows only the stick with this id (the source chosen on the
+    // FLXXX3: PLAYLIST shows only the stick with this id (the source chosen on the
     // SOURCE screen; "TABLET" = no stick). Empty = all sticks.
     property string stickFilter: ""
     readonly property bool touchUi: Mixxx.Product.ui
-    // Android edition: shown screen (BROWSE, PLAYLIST, SEARCH, TAG LIST, set by the
+    // FLXXX3: shown screen (BROWSE, PLAYLIST, SEARCH, TAG LIST, set by the
     // main window) and the lists that the app keeps (tag list, history, my lists).
     property string mode: "BROWSE"
     readonly property var store: listStore
