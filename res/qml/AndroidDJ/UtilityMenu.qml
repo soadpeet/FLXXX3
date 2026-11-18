@@ -15,6 +15,7 @@ Rectangle {
     // Shared with the main window (two-way through the signals below).
     property bool showRemain: true
     property bool keyCamelot: true
+    property bool matchKeys: true
     property bool autoCue: false
     property bool cdjView: false
     property int beatMatchMode: 1
@@ -31,6 +32,7 @@ Rectangle {
     signal advancedRequested
     signal showRemainSelected(bool remain)
     signal keyCamelotSelected(bool camelot)
+    signal matchKeysSelected(bool on)
     signal autoCueSelected(bool on)
     signal cdjViewSelected(bool on)
     signal beatMatchModeSelected(int mode)
@@ -237,6 +239,21 @@ Rectangle {
                 width: root.u * 17
 
                 onActivated: index => root.keyCamelotSelected(index === 1)
+            }
+        }
+        Column {
+            spacing: 3
+
+            // Keys in the track lists that fit the key of the master deck are green.
+            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "MATCHING KEYS" }
+            DJ.Segmented {
+                fontSize: root.u * 0.95
+                height: root.u * 2.5
+                currentIndex: root.matchKeys ? 1 : 0
+                labels: ["OFF", "ON"]
+                width: root.u * 12
+
+                onActivated: index => root.matchKeysSelected(index === 1)
             }
         }
         Column {

@@ -26,10 +26,16 @@ ApplicationWindow {
         if (!Mixxx.Core.ready) {
             return;
         }
-        // FLXXX3 on the desktop (Windows) starts maximized, a phone or tablet full screen.
-        root.visibility = Mixxx.Config.configStartInFullscreenKey || isMobile
+        // FLXXX3 starts full screen everywhere (desktop: F11 switches to a maximized window).
+        root.visibility = Mixxx.Config.configStartInFullscreenKey || isMobile || Mixxx.Product.ui
                 ? Window.FullScreen
-                : (Mixxx.Product.ui ? Window.Maximized : Window.Windowed);
+                : Window.Windowed;
+    }
+    // FLXXX3 on the desktop: F11 switches between full screen and a maximized window.
+    Shortcut {
+        enabled: Mixxx.Product.ui && !root.isMobile
+        sequence: "F11"
+        onActivated: root.visibility = root.visibility === Window.FullScreen ? Window.Maximized : Window.FullScreen
     }
 
     Connections {

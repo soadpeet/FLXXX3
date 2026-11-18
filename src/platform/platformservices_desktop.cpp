@@ -3,7 +3,10 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDesktopServices>
 #include <QDir>
+#include <QFileInfo>
+#include <QUrl>
 #include <QHash>
 #include <QMutex>
 #include <QStandardPaths>
@@ -155,6 +158,10 @@ void log(const QString& text) {
 
 void quitApp() {
     QCoreApplication::quit();
+}
+
+void shareLogFiles(const QString& logFilePath) {
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(logFilePath).absolutePath()));
 }
 
 } // namespace mixxx::platform

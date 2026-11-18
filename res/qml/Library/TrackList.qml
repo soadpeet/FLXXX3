@@ -266,6 +266,42 @@ Rectangle {
     readonly property var _classicMinor: ["", "Abm", "Ebm", "Bbm", "Fm", "Cm", "Gm", "Dm", "Am", "Em", "Bm", "F#m", "C#m"]
     readonly property var _classicMajor: ["", "B", "F#", "Db", "Ab", "Eb", "Bb", "F", "C", "G", "D", "A", "E"]
 
+    // UTILITY > MATCHING KEYS: key of the master deck (Mixxx ChromaticKey 1..24, 0 = off).
+    // Keys that fit it (Camelot: the same, one step on the wheel, minor/major of the same
+    // number) are shown in green.
+    property int matchKeyId: 0
+    readonly property var _chromaticCamelot: [null,
+        [8, "B"], [3, "B"], [10, "B"], [5, "B"], [12, "B"], [7, "B"],
+        [2, "B"], [9, "B"], [4, "B"], [11, "B"], [6, "B"], [1, "B"],
+        [5, "A"], [12, "A"], [7, "A"], [2, "A"], [9, "A"], [4, "A"],
+        [11, "A"], [6, "A"], [1, "A"], [8, "A"], [3, "A"], [10, "A"]]
+    function camelotOf(rawText) {
+        if (!rawText)
+            return null;
+        const text = String(rawText).split("/")[0].trim().replace(/\u266f/g, "#").replace(/\u266d/g, "b");
+        const m = /^(\d{1,2})([ABab])$/.exec(text);
+        if (m) {
+            const n = parseInt(m[1]);
+            return n >= 1 && n <= 12 ? { n: n, letter: m[2].toUpperCase() } : null;
+        }
+        if (root._camelotMinor[text] !== undefined)
+            return { n: root._camelotMinor[text], letter: "A" };
+        if (root._camelotMajor[text] !== undefined)
+            return { n: root._camelotMajor[text], letter: "B" };
+        return null;
+    }
+    function keyMatches(rawText) {
+        if (root.matchKeyId < 1 || root.matchKeyId > 24)
+            return false;
+        const master = root._chromaticCamelot[root.matchKeyId];
+        const key = root.camelotOf(rawText);
+        if (!key)
+            return false;
+        if (key.letter !== master[1])
+            return key.n === master[0];
+        const step = (key.n - master[0] + 12) % 12;
+        return step === 0 || step === 1 || step === 11;
+    }
     function formatKey(rawText) {
         if (!rawText)
             return "";
@@ -876,10 +912,22 @@ Rectangle {
                 visible: liteCell.isTitle
                 width: Math.round(34 * root.uiScale)
             }
+            // UTILITY > MATCHING KEYS: a green box behind keys that fit the master deck (like Pioneer).
+            Rectangle {
+                color: "#33ef6c"
+                height: Math.round(24 * root.uiScale)
+                radius: Math.round(3 * root.uiScale)
+                visible: liteCell.isKey && root.keyMatches(liteCell.display)
+                width: Math.min(cellText.contentWidth, cellText.width) + Math.round(12 * root.uiScale)
+                x: cellText.x - Math.round(6 * root.uiScale)
+                anchors.verticalCenter: parent.verticalCenter
+            }
             Text {
+                id: cellText
+
                 anchors.fill: parent
                 anchors.leftMargin: liteCell.isTitle ? 8 + Math.round(root.waveWidth * root.uiScale) + 4 + Math.round(34 * root.uiScale) + 8 : 10
-                color: liteCell.isStars ? "#f5c542" : (liteCell.isTitle ? "#ffffff" : (liteCell.isArtist ? "#b8b8b8" : "#ffffff"))
+                color: liteCell.isStars ? "#f5c542" : (liteCell.isTitle ? "#ffffff" : (liteCell.isArtist ? "#b8b8b8" : ((liteCell.isKey && root.keyMatches(liteCell.display)) ? "#000000" : "#ffffff")))
                 elide: Text.ElideRight
                 font.bold: liteCell.isTitle
                 font.pixelSize: Math.round((liteCell.isTitle ? 18 : 16) * root.uiScale)

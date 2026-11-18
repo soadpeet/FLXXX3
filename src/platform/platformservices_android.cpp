@@ -208,4 +208,36 @@ void quitApp() {
     });
 }
 
+void shareLogFiles(const QString& logFilePath) {
+    const QDir folder = QFileInfo(logFilePath).absoluteDir();
+    QStringList paths;
+    // The current log, the one of the run before (e.g. the run that crashed) and the crash
+    // reports, if there are any.
+    const QString logName = QFileInfo(logFilePath).fileName();
+    const QStringList names{logName, logName + QStringLiteral(".1"), QStringLiteral("crash.txt")};
+    for (const QString& name : names) {
+        const QFileInfo file(folder.filePath(name));
+        if (file.exists() && file.size() > 0) {
+            paths << file.absoluteFilePath();
+        }
+    }
+    if (paths.isEmpty()) {
+        return;
+    }
+    QJniEnvironment env;
+    jobjectArray array = env->NewObjectArray(static_cast<jsize>(paths.size()),
+            env->FindClass("java/lang/String"),
+            nullptr);
+    for (int i = 0; i < paths.size(); ++i) {
+        QJniObject text = QJniObject::fromString(paths.at(i));
+        env->SetObjectArrayElement(array, i, text.object<jstring>());
+    }
+    QJniObject::callStaticMethod<void>("de/biggo/flxxx3/MainActivity",
+            "shareFiles",
+            "([Ljava/lang/String;Ljava/lang/String;)V",
+            array,
+            QJniObject::fromString(QStringLiteral("FLXXX3 log")).object<jstring>());
+    env->DeleteLocalRef(array);
+}
+
 } // namespace mixxx::platform

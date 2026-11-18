@@ -393,6 +393,11 @@ Rectangle {
             top: parent.top
         }
 
+        // Like the CDJ-3000: the row with the track data stands out in dark grey.
+        Rectangle {
+            anchors.fill: parent
+            color: "#262626"
+        }
         Rectangle {
             id: sourceBox
 

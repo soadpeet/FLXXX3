@@ -43,5 +43,8 @@ void keepScreenOn();
 void log(const QString& text);
 /// Closes the app.
 void quitApp();
+/// Gives the log files (in the folder of the log) to the user: Android offers them with the
+/// share menu (mail, messenger, cloud), the desktop opens the folder in the file manager.
+void shareLogFiles(const QString& logFilePath);
 
 } // namespace mixxx::platform

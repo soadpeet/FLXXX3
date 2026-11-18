@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QFlags>
+#include <QString>
 
 namespace mixxx {
 
@@ -47,6 +48,10 @@ class Logging {
     }
 
     static void shutdown();
+
+    /// Path of the log file that is written now (empty without one).
+
+    static QString logFilePath();
 
     static void flushLogFile();
 

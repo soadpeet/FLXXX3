@@ -16,6 +16,8 @@ Item {
     property var sidebar: librarySources.sidebar()
     // Key notation of the UTILITY menu (set by the main window).
     property bool keyCamelot: true
+    // UTILITY > MATCHING KEYS: key of the master deck (ChromaticKey, 0 = off), set by the main window.
+    property int matchKeyId: 0
     // False while the library is closed (set by the main window).
     property bool scrollEnabled: true
 

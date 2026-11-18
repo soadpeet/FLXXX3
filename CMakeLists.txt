@@ -3824,6 +3824,7 @@ if(ANDROID)
       src/controllers/midi/androidmidienumerator.cpp
       src/controllers/midi/androidmidiparser.cpp
       src/util/androidtrackcache.cpp
+      src/util/androidcrashlog.cpp
   )
 endif()
 

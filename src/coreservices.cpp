@@ -1,5 +1,9 @@
 #include "coreservices.h"
 
+#ifdef __ANDROID__
+#include "util/androidcrashlog.h"
+#endif
+
 #include <QApplication>
 #include <QFileDialog>
 #include <QProcess>
@@ -451,11 +455,23 @@ void CoreServices::initializeLogging() {
     if (m_cmdlineArgs.getDebugAssertBreak()) {
         logFlags.setFlag(mixxx::LogFlag::DebugAssertBreak);
     }
+    QString logDir = m_pSettingsManager->settings()->getSettingsPath();
+#ifdef __ANDROID__
+    // Android: the log goes to a folder that users can open with a file manager
+    // (Android/data/<package>/files/Documents), so that they can send it.
+    const QString sharedLogDir = mixxx::androidcrashlog::logFolder();
+    if (!sharedLogDir.isEmpty()) {
+        logDir = sharedLogDir;
+    }
+#endif
     mixxx::Logging::initialize(
-            m_pSettingsManager->settings()->getSettingsPath(),
+            logDir,
             m_cmdlineArgs.getLogLevel(),
             m_cmdlineArgs.getLogFlushLevel(),
             logFlags);
+#ifdef __ANDROID__
+    mixxx::androidcrashlog::install(sharedLogDir);
+#endif
 }
 
 void CoreServices::initialize() {

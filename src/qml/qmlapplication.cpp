@@ -4,11 +4,15 @@
 #include <QEventLoop>
 #include <QLocale>
 #include <QMessageBox>
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
 #include <QMetaEnum>
 #include <QQmlEngineExtensionPlugin>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QSGRendererInterface>
 #include <QTextDocument>
+#include <atomic>
 #include <memory>
 #include <utility>
 
@@ -499,6 +503,53 @@ bool QmlApplication::loadQml(const QString& path) {
         if (!pWindow) {
             continue;
         }
+#ifdef FLXXX3
+        // The graphics driver in the log: start problems on some devices depend on it.
+        // Once, at the first frame (on the render thread, where the context is current).
+        auto pLogged = std::make_shared<std::atomic<bool>>(false);
+        auto pConnection = std::make_shared<QMetaObject::Connection>();
+        *pConnection = connect(
+                pWindow,
+                &QQuickWindow::beforeRendering,
+                pWindow,
+                [pWindow, pLogged, pConnection]() {
+                    if (pLogged->exchange(true)) {
+                        return;
+                    }
+                    QObject::disconnect(*pConnection);
+                    QString api = QStringLiteral("other");
+                    switch (pWindow->rendererInterface()->graphicsApi()) {
+                    case QSGRendererInterface::OpenGL:
+                        api = QStringLiteral("OpenGL");
+                        break;
+                    case QSGRendererInterface::Direct3D11:
+                    case QSGRendererInterface::Direct3D12:
+                        api = QStringLiteral("Direct3D");
+                        break;
+                    case QSGRendererInterface::Vulkan:
+                        api = QStringLiteral("Vulkan");
+                        break;
+                    case QSGRendererInterface::Metal:
+                        api = QStringLiteral("Metal");
+                        break;
+                    default:
+                        break;
+                    }
+                    QString renderer;
+                    if (QOpenGLContext* pContext = QOpenGLContext::currentContext()) {
+                        auto* f = pContext->functions();
+                        const auto text = [f](GLenum name) {
+                            const auto* value = f->glGetString(name);
+                            return value ? QString::fromLatin1(reinterpret_cast<const char*>(value))
+                                         : QString();
+                        };
+                        renderer = text(GL_VENDOR) + " | " + text(GL_RENDERER) + " | " +
+                                text(GL_VERSION);
+                    }
+                    qWarning().noquote() << "FLXXX3 graphics:" << api << renderer;
+                },
+                Qt::DirectConnection);
+#endif
         slotWindowChanged(pWindow);
         break;
     }

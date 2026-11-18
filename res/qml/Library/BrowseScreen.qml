@@ -881,6 +881,8 @@ Rectangle {
 
         entries: root.store.history
         formatKey: trackList.formatKey
+        keyMatches: trackList.keyMatches
+        matchActive: trackList.matchKeyId > 0
         scrollEnabled: root.library.scrollEnabled
         store: root.store
         uiScale: root.s
@@ -998,6 +1000,8 @@ Rectangle {
         entries: root.myListShown >= 0 && root.store.myLists[root.myListShown]
                 ? root.store.myLists[root.myListShown].tracks : []
         formatKey: trackList.formatKey
+        keyMatches: trackList.keyMatches
+        matchActive: trackList.matchKeyId > 0
         scrollEnabled: root.library.scrollEnabled
         store: root.store
         uiScale: root.s
@@ -1237,6 +1241,8 @@ Rectangle {
         checkable: true
         entries: root.store.tags
         formatKey: trackList.formatKey
+        keyMatches: trackList.keyMatches
+        matchActive: trackList.matchKeyId > 0
         scrollEnabled: root.library.scrollEnabled
         store: root.store
         uiScale: root.s
@@ -1269,6 +1275,7 @@ Rectangle {
         clip: true
         keyCamelot: root.library.keyCamelot
         listStore: root.store
+        matchKeyId: root.library.matchKeyId
         model: root.tracklist
         scrollEnabled: root.library.scrollEnabled
         uiScale: root.s

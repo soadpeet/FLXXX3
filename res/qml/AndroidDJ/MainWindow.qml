@@ -39,6 +39,13 @@ Item {
     property bool fxPresetMode: false
     // Key display: classic notation (Am) or Camelot (8A).
     property bool keyCamelot: true
+    // UTILITY > MATCHING KEYS (default on): keys in the lists that fit the master deck are green.
+    property bool matchKeys: true
+    Mixxx.ControlProxy { id: deckKey1; group: "[Channel1]"; key: "key" }
+    Mixxx.ControlProxy { id: deckKey2; group: "[Channel2]"; key: "key" }
+    // Current key of the master deck (with KEY SHIFT), Mixxx ChromaticKey 1..24; 0 = none.
+    readonly property int matchKeyId: !matchKeys ? 0
+            : (masterDeck === 1 ? Math.round(deckKey1.value) : (masterDeck === 2 ? Math.round(deckKey2.value) : 0))
     // Screen layout (UTILITY): false = XDJ view (both waveforms stacked, a panel per
     // deck below), true = CDJ view (the screen is split in two halves, one per deck:
     // deck panel on top, the big waveform below, hotcues at the bottom).
@@ -71,6 +78,7 @@ Item {
     }
     onShowRemainChanged: saveSetting("showRemain", showRemain ? "1" : "0")
     onKeyCamelotChanged: saveSetting("keyCamelot", keyCamelot ? "1" : "0")
+    onMatchKeysChanged: saveSetting("matchKeys", matchKeys ? "1" : "0")
     // Quantize beat value: grid steps per beat for the engine of both decks.
     function applyQuantizeBeat() {
         const steps = {"1/8": 8, "1/4": 4, "1/2": 2, "1": 1}[root.quantizeBeat] || 4;
@@ -237,6 +245,7 @@ Item {
         }
         root.showRemain = Mixxx.Config.androidSetting("showRemain", "1") === "1";
         root.keyCamelot = Mixxx.Config.androidSetting("keyCamelot", "1") === "1";
+        root.matchKeys = Mixxx.Config.androidSetting("matchKeys", "1") === "1";
         root.cdjView = Mixxx.Config.androidSetting("cdjView", "0") === "1";
         root.beatMatchMode = parseInt(Mixxx.Config.androidSetting("beatMatchModeV2", "1"));
         root.quantizeBeat = Mixxx.Config.androidSetting("quantizeBeat", "1/4");
@@ -967,6 +976,7 @@ Item {
         beatMatchMode: root.beatMatchMode
         cdjView: root.cdjView
         keyCamelot: root.keyCamelot
+        matchKeys: root.matchKeys
         quantizeBeat: root.quantizeBeat
         showRemain: root.showRemain
         visible: root.utilityOpen
@@ -977,6 +987,7 @@ Item {
         onCdjViewSelected: on => root.cdjView = on
         onBeatMatchModeSelected: mode => root.beatMatchMode = mode
         onKeyCamelotSelected: camelot => root.keyCamelot = camelot
+        onMatchKeysSelected: on => root.matchKeys = on
         onQuantizeBeatSelected: beat => root.quantizeBeat = beat
         onShowRemainSelected: remain => root.showRemain = remain
         onAdvancedRequested: root.advancedOpen = true
@@ -1059,6 +1070,7 @@ Item {
 
                 anchors.fill: parent
                 keyCamelot: root.keyCamelot
+                matchKeyId: root.matchKeyId
                 scrollEnabled: root.browserOpen
             }
         }

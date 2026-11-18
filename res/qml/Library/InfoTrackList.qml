@@ -22,6 +22,9 @@ Rectangle {
     property var checked: ({})
     property int selectedIndex: -1
     property var formatKey: function(text) { return text; }
+    // UTILITY > MATCHING KEYS (from the track list): green for keys that fit the master deck.
+    property var keyMatches: function(text) { return false; }
+    property bool matchActive: false
     readonly property int count: root.entries ? root.entries.length : 0
 
     function formatTime(seconds) {
@@ -167,10 +170,21 @@ Rectangle {
                     width: parent.width
                 }
             }
+            // UTILITY > MATCHING KEYS: a green box behind keys that fit the master deck (like Pioneer).
+            Rectangle {
+                anchors.right: keyText.right
+                anchors.rightMargin: -Math.round(6 * root.uiScale)
+                anchors.verticalCenter: keyText.verticalCenter
+                color: "#33ef6c"
+                height: Math.round(26 * root.uiScale)
+                radius: Math.round(3 * root.uiScale)
+                visible: root.matchActive && keyText.text !== "" && root.keyMatches(row.entry.key ? row.entry.key : "")
+                width: keyText.contentWidth + Math.round(12 * root.uiScale)
+            }
             Text {
                 id: keyText
 
-                color: "#7fd18a"
+                color: !root.matchActive ? "#7fd18a" : (root.keyMatches(row.entry.key ? row.entry.key : "") ? "#000000" : "#ffffff")
                 font.pixelSize: Math.round(18 * root.uiScale)
                 horizontalAlignment: Text.AlignRight
                 text: root.formatKey(row.entry.key ? row.entry.key : "")

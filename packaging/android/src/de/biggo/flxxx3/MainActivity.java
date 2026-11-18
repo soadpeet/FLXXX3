@@ -1,6 +1,10 @@
 package de.biggo.flxxx3;
 
 import android.content.Intent;
+import android.net.Uri;
+import androidx.core.content.FileProvider;
+import java.io.File;
+import java.util.ArrayList;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowInsets;
@@ -13,6 +17,41 @@ import org.qtproject.qt.android.QtActivityBase;
 
 public class MainActivity extends QtActivityBase {
     private static MainActivity sInstance;
+
+    // ADVANCED SETTINGS > INFO > SHARE LOG: offers the log files to other apps (mail,
+    // messenger, cloud) with the Android share menu. The files lie in the app's folder on the
+    // shared storage; the FileProvider of Qt (authority <package>.qtprovider) grants access.
+    public static void shareFiles(final String[] paths, final String subject) {
+        final MainActivity activity = sInstance;
+        if (activity == null || paths == null || paths.length == 0) {
+            return;
+        }
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    ArrayList<Uri> uris = new ArrayList<>();
+                    String authority = activity.getPackageName() + ".qtprovider";
+                    for (String path : paths) {
+                        uris.add(FileProvider.getUriForFile(activity, authority, new File(path)));
+                    }
+                    Intent send = new Intent(uris.size() == 1 ? Intent.ACTION_SEND
+                                                              : Intent.ACTION_SEND_MULTIPLE);
+                    send.setType("text/plain");
+                    send.putExtra(Intent.EXTRA_SUBJECT, subject);
+                    if (uris.size() == 1) {
+                        send.putExtra(Intent.EXTRA_STREAM, uris.get(0));
+                    } else {
+                        send.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+                    }
+                    send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    activity.startActivity(Intent.createChooser(send, subject));
+                } catch (Exception e) {
+                    android.util.Log.w("mixxx-qml", "share failed: " + e);
+                }
+            }
+        });
+    }
 
     // Starts the app again in a new process (called from native code when the controller was
     // plugged in after the start and the sound could not go to it).

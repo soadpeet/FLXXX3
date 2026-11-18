@@ -8,6 +8,7 @@
 #include "controllers/controller.h"
 #include "moc_qmldevicestatusproxy.cpp"
 #include "platform/platformservices.h"
+#include "util/logging.h"
 
 namespace mixxx {
 namespace qml {
@@ -157,6 +158,18 @@ void QmlDeviceStatusProxy::lockScreen() {
 
 void QmlDeviceStatusProxy::log(const QString& text) {
     platform::log(text);
+}
+
+QString QmlDeviceStatusProxy::logFilePath() const {
+    return Logging::logFilePath();
+}
+
+void QmlDeviceStatusProxy::shareLog() {
+    Logging::flushLogFile();
+    const QString path = Logging::logFilePath();
+    if (!path.isEmpty()) {
+        platform::shareLogFiles(path);
+    }
 }
 
 void QmlDeviceStatusProxy::quitApp() {

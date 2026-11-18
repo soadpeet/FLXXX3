@@ -5,6 +5,7 @@
 
 #include <QByteArray>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QIODevice>
@@ -34,6 +35,16 @@ qint64 s_logMaxFileSize = mixxx::kLogMaxFileSizeDefault;
 std::atomic<bool> s_logMaxFileSizeReached = false;
 
 QLoggingCategory::CategoryFilter oldCategoryFilter = nullptr;
+
+#ifdef __ANDROID__
+// Android: the first seconds after the start are logged in detail (info messages, every
+// line written at once), so that the log shows where a start fails or crashes.
+QElapsedTimer s_sinceStart;
+constexpr qint64 kDetailedStartLogMs = 30000;
+bool inStartPhase() {
+    return s_sinceStart.isValid() && s_sinceStart.elapsed() < kDetailedStartLogMs;
+}
+#endif
 
 /// Logging category for messages logged via the JavaScript Console API.
 constexpr std::string_view jsLoggingCategory = {"js"};
@@ -332,8 +343,8 @@ void handleMessage(
         }
         // Write unconditionally into log file
 #ifdef __ANDROID__
-        // Android edition: only when the info level is enabled.
-        if (Logging::enabled(LogLevel::Info)) {
+        // Android edition: only when the info level is enabled (or in the start phase).
+        if (Logging::enabled(LogLevel::Info) || inStartPhase()) {
             writeFlags |= WriteFlag::File;
         }
 #else
@@ -365,6 +376,11 @@ void handleMessage(
         // Ignore message for disabled log level
         return;
     }
+#ifdef __ANDROID__
+    if (inStartPhase()) {
+        writeFlags |= WriteFlag::Flush;
+    }
+#endif
     VERIFY_OR_DEBUG_ASSERT(levelName) {
         return;
     }
@@ -407,6 +423,9 @@ void Logging::initialize(
     }
 
     setLogLevel(logLevel);
+#ifdef __ANDROID__
+    s_sinceStart.start();
+#endif
 
     QString logFilePath;
     if (flags.testFlag(LogFlag::LogToFile)) {
@@ -479,6 +498,12 @@ void Logging::shutdown() {
     if (s_logfile.isOpen()) {
         s_logfile.close();
     }
+}
+
+// static
+QString Logging::logFilePath() {
+    const auto locker = QMutexLocker(&s_mutexLogfile);
+    return s_logfile.isOpen() ? s_logfile.fileName() : QString();
 }
 
 // static

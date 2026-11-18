@@ -320,6 +320,24 @@ Rectangle {
                         text: modelData
                     }
                 }
+                // LOG: for problem reports. Android offers the log files with the share menu
+                // (mail, messenger, cloud), the computer opens the folder.
+                Item {
+                    height: root.u * 0.6
+                    width: 1
+                }
+                Text {
+                    color: "#8a8a8a"
+                    font.pixelSize: root.u * 1.0
+                    text: "LOG:  " + (root.area === "INFO" ? Mixxx.DeviceStatus.logFilePath() : "")
+                    width: settingsView.width - root.u
+                    wrapMode: Text.WrapAnywhere
+                }
+                Btn {
+                    text: Mixxx.Product.ui && Qt.platform.os === "android" ? "SHARE LOG" : "OPEN LOG FOLDER"
+                    width: root.u * 16
+                    onClicked: Mixxx.DeviceStatus.shareLog()
+                }
             }
         }
     }

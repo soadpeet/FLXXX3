@@ -87,6 +87,10 @@ class QmlDeviceStatusProxy : public QObject {
     Q_INVOKABLE void log(const QString& text);
     // Unpins and closes the app.
     Q_INVOKABLE void quitApp();
+    // ADVANCED SETTINGS > INFO: where the log is, and SHARE LOG (Android: share menu,
+    // desktop: opens the folder).
+    Q_INVOKABLE QString logFilePath() const;
+    Q_INVOKABLE void shareLog();
 
   signals:
     void changed();
