@@ -11,7 +11,24 @@ Stand: 2026-11-11, Quellstand `8c99f51a5f` plus uncommittete Änderungen. Dieser
 | `uname-shim` | Kopie von `~/mixxx-android/shim/uname`; umgeht die WSL-Sperre `CMakeLists.txt:268-276`. |
 | `configure.sh` | Konfigurationsaufruf, **rekonstruiert**, nicht neu ausgeführt (siehe Kopf der Datei). |
 | `build-options.md` | Tatsächliche CMake-Optionen des Build-Ordners `build-flxxx3` (Stand 2026-11-11). |
-| `../build-install.sh` | Bauen, ausrichten, signieren, installieren. |
+| `../build-install.sh` | Bauen, ausrichten, signieren, installieren (`BUILD_DIR`, `OUT_APK` einstellbar). |
+| `build-deps-api29.sh` | Baut die Mixxx-Abhängigkeiten (vcpkg, Stand `1c20f84a`, ~90 Pakete inkl. Qt/FFmpeg) für **Android 10 (API 29)** statt API 35; `setup`/`start`/`stop`/`status`, fortsetzbar. Dauer ca. 3 h. |
+| `configure-api29.sh` | Konfiguriert den zweiten Build-Ordner `~/mixxx-android/build-flxxx3-api29` mit diesen Abhängigkeiten (`ANDROID_API_LEVEL=29`, `ANDROID_MIN_SDK=29`). |
+
+## Android 10 und neuer (seit 2026-11-19)
+
+Das fertige Mixxx-Paket (`mixxx-deps-2.7-arm64-android-1c20f84a`) ist für API 35 gebaut und nutzt C-Bibliotheksfunktionen von Android 11–15; eine APK damit startet erst ab Android 14 (`ANDROID_MIN_SDK` 34). Für Android 10:
+
+```bash
+bash docs/android-port/build/build-deps-api29.sh setup
+bash docs/android-port/build/build-deps-api29.sh start      # status / stop, fortsetzbar
+bash docs/android-port/build/configure-api29.sh
+BUILD_DIR=~/mixxx-android/build-flxxx3-api29 OUT_APK=~/mixxx-android/flx-api29.apk \
+    bash docs/android-port/build-install.sh --no-install
+```
+
+Zusätzliche Systempakete (Ubuntu 24.04): `libgl1-mesa-dev libdrm-dev libgbm-dev libsm-dev libudev-dev libxrandr-dev nasm python3-venv zip ninja-build libtool autopoint gperf texinfo`.
+Geprüft: alle 103 Bibliotheken der APK gegen die API-29-Systembibliotheken des NDK (keine fehlenden Funktionen); Test auf dem Tablet (Android 16) mit FLX4.
 
 ## Voraussetzungen (geprüft auf der Entwicklungsmaschine, 2026-11-11)
 

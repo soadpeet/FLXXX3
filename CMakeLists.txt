@@ -77,7 +77,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL Android)
   endif()
   set(ANDROID_ABI arm64-v8a)
   set(ANDROID_NDK_HOST_SYSTEM_NAME linux-x86_64)
-  set(CMAKE_SYSTEM_VERSION 35) # API level
+  # API level the code is compiled for (FLXXX3: a cache variable; 29 with dependencies built
+  # for API 29, see docs/android-port/build/build-deps-api29.sh).
+  set(ANDROID_API_LEVEL 35 CACHE STRING "Android API level to compile for")
+  set(CMAKE_SYSTEM_VERSION ${ANDROID_API_LEVEL}) # API level
   set(ANDROID_PLATFORM "android-${CMAKE_SYSTEM_VERSION}")
   set(ANDROID_API_VERSION "android-${CMAKE_SYSTEM_VERSION}")
   set(CMAKE_ANDROID_ARCH_ABI "${ANDROID_ABI}") # or x86_64, armeabi-v7a, etc.

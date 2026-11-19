@@ -25,8 +25,8 @@ cmake --build "$BUILD" --target apk -j"$(nproc)"
 ( cd "$BUILD/android-build" && ANDROID_SDK_ROOT="$ANDROID_SDK" ./gradlew assembleRelease --offline -q )
 
 UNSIGNED="$BUILD/android-build/build/outputs/apk/release/android-build-release-unsigned.apk"
-ALIGNED="$BASE/flx-aligned.apk"
-SIGNED="$BASE/flx.apk"
+ALIGNED="${OUT_APK:-$BASE/flx.apk}.aligned"
+SIGNED="${OUT_APK:-$BASE/flx.apk}"
 
 rm -f "$ALIGNED" "$SIGNED" "$SIGNED.idsig"
 "$BT/zipalign" -f -p 4 "$UNSIGNED" "$ALIGNED"
