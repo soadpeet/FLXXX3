@@ -14,8 +14,8 @@ Quelle: `~/mixxx-android/build-flxxx3/CMakeCache.txt`, gelesen am 2026-11-11 (le
 | `BUILD_TESTING`, `BUILD_BENCH` | OFF |
 | `OPTIMIZE` | portable |
 | `PORTMIDI` | OFF (eigenes Android-MIDI-Backend) |
-| `FFMPEG`, `STEM`, `KEYFINDER`, `RUBBERBAND`, `OPUS`, `WAVPACK`, `MAD`, `QTKEYCHAIN`, `LOCALECOMPARE` | ON |
-| `BROADCAST`, `VINYLCONTROL`, `ENGINEPRIME`, `LILV`, `MODPLUG` | ON |
+| `FFMPEG`, `KEYFINDER`, `RUBBERBAND`, `OPUS`, `WAVPACK`, `MAD`, `QTKEYCHAIN`, `LOCALECOMPARE` | ON |
+| `STEM`, `BROADCAST`, `VINYLCONTROL`, `ENGINEPRIME`, `LILV`, `MODPLUG` | OFF (seit 2026-11-19, `configure-api29.sh`; FLXXX3 nutzt sie nicht, kleinere APK) |
 | `FAAD` | OFF |
 
 Hinweis: Die Option `STEM=ON` und die weiteren ON-Optionen widersprechen älteren Notizen in `../PROGRESS.md`/`../CLAUDE.md`. Im Link des APK stehen u. a. `libfdk-aac.a`, `libkeyfinder.a`, `librubberband.a`, `libdjinterop.a`, `libusb-1.0.a`, `libhidapi-libusb.a` (siehe `/LICENSE_AUDIT.md`).

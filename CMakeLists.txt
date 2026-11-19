@@ -2469,12 +2469,25 @@ if(ANDROID)
     COMMAND
       ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/packaging/android
       ${CMAKE_CURRENT_BINARY_DIR}/android
+    # FLXXX3: only the files the app uses (see the script).
     COMMAND
-      ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/res
-      ${CMAKE_CURRENT_BINARY_DIR}/android-build/assets
+      ${CMAKE_COMMAND} -DSRC=${CMAKE_SOURCE_DIR}/res
+      -DDST=${CMAKE_CURRENT_BINARY_DIR}/android-build/assets
+      -P ${CMAKE_SOURCE_DIR}/cmake/scripts/android_assets.cmake
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
   )
   add_dependencies(mixxx copy-resource-android)
+  if(FLXXX3)
+    # FLXXX3: Qt plugins the app never loads (about 24 MB in the APK): the PostgreSQL driver
+    # (the library is SQLite), the FFmpeg backend of Qt Multimedia (only for controller
+    # screens; the audio goes through Mixxx's own decoders) and the QML debugging tools.
+    qt_import_plugins(mixxx
+      EXCLUDE
+        Qt6::QPSQLDriverPlugin
+        Qt6::QFFmpegMediaPlugin
+      EXCLUDE_BY_TYPE qmltooling
+    )
+  endif()
   target_link_libraries(mixxx PUBLIC omp)
 else()
   qt_add_executable(mixxx WIN32 src/main.cpp MANUAL_FINALIZATION)
