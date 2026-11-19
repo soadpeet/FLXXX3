@@ -848,16 +848,100 @@ PioneerDDJFLX4.loopToggle = function(value, group, control) {
 // CUE/LOOP CALL
 //
 
+// FLXXX3 (like the Pioneer players): during a loop the buttons halve / double the loop,
+// otherwise they call the memory cue before / after the current position.
+
+// The Rekordbox memory cues and memory loops are hotcue 17..36 (hotcues A..H are 1..8).
+PioneerDDJFLX4.firstMemoryCue = 17;
+PioneerDDJFLX4.lastMemoryCue = 36;
+
+PioneerDDJFLX4.callMemoryCue = function(group, direction) {
+    const trackSamples = engine.getValue(group, "track_samples");
+    if (trackSamples <= 0) {
+        return;
+    }
+    const sampleRate = engine.getValue(group, "track_samplerate") || 44100;
+    const now = engine.getValue(group, "playposition") * trackSamples;
+    // A quarter of a second: a cue that was just called is not called again.
+    const margin = sampleRate * 2 * 0.25;
+    let best = -1;
+    let bestPosition = 0;
+    for (let i = PioneerDDJFLX4.firstMemoryCue; i <= PioneerDDJFLX4.lastMemoryCue; i++) {
+        if (engine.getValue(group, "hotcue_" + i + "_status") <= 0) {
+            continue;
+        }
+        const position = engine.getValue(group, "hotcue_" + i + "_position");
+        if (position < 0) {
+            continue;
+        }
+        if (direction < 0 && position < now - margin && (best < 0 || position > bestPosition)) {
+            best = i;
+            bestPosition = position;
+        } else if (direction > 0 && position > now + margin && (best < 0 || position < bestPosition)) {
+            best = i;
+            bestPosition = position;
+        }
+    }
+    if (best < 0) {
+        return;
+    }
+    // A memory loop starts its loop, a memory cue only jumps. The called point becomes the CUE.
+    const isLoop = engine.getValue(group, "hotcue_" + best + "_type") === 4;
+    engine.setValue(group, "hotcue_" + best + (isLoop ? "_gotoandloop" : "_goto"), 1);
+    engine.setValue(group, "hotcue_" + best + (isLoop ? "_gotoandloop" : "_goto"), 0);
+    engine.setValue(group, "cue_point", bestPosition);
+};
+
 PioneerDDJFLX4.cueLoopCallLeft = function(_channel, _control, value, _status, group) {
-    if (value) {
+    if (!value) {
+        return;
+    }
+    if (engine.getValue(group, "loop_enabled")) {
         engine.setValue(group, "loop_scale", 0.5);
+    } else {
+        PioneerDDJFLX4.callMemoryCue(group, -1);
     }
 };
 
 PioneerDDJFLX4.cueLoopCallRight = function(_channel, _control, value, _status, group) {
-    if (value) {
-        engine.setValue(group, "loop_scale", 2.0);
+    if (!value) {
+        return;
     }
+    if (engine.getValue(group, "loop_enabled")) {
+        engine.setValue(group, "loop_scale", 2.0);
+    } else {
+        PioneerDDJFLX4.callMemoryCue(group, 1);
+    }
+};
+
+//
+// LOAD
+//
+// FLXXX3: INSTANT DOUBLES. Pressing LOAD twice quickly loads the track of the other deck,
+// at the same position (and playing if it plays). The first press has already loaded the
+// selected track; the copy comes a moment later so that it replaces that load.
+
+PioneerDDJFLX4.loadPressedAt = {};
+PioneerDDJFLX4.doubleLoadMs = 500;
+
+PioneerDDJFLX4.loadPressed = function(_channel, _control, value, _status, group) {
+    if (!value) {
+        engine.setValue(group, "LoadSelectedTrack", 0);
+        return;
+    }
+    const nowMs = Date.now();
+    const last = PioneerDDJFLX4.loadPressedAt[group] || 0;
+    const otherDeck = group === "[Channel1]" ? 2 : 1;
+    if (nowMs - last < PioneerDDJFLX4.doubleLoadMs &&
+            engine.getValue("[Channel" + otherDeck + "]", "track_loaded")) {
+        PioneerDDJFLX4.loadPressedAt[group] = 0;
+        engine.beginTimer(250, function() {
+            engine.setValue(group, "CloneFromDeck", otherDeck);
+        }, true);
+        return;
+    }
+    PioneerDDJFLX4.loadPressedAt[group] = nowMs;
+    engine.setValue(group, "LoadSelectedTrack", 1);
 };
 
 //

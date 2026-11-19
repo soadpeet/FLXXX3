@@ -24,6 +24,7 @@
 #include "engine/sync/synccontrol.h"
 #include "mixer/playermanager.h"
 #include "moc_enginebuffer.cpp"
+#include "preferences/replaygainsettings.h"
 #include "preferences/usersettings.h"
 #include "track/track.h"
 #include "util/assert.h"
@@ -605,7 +606,7 @@ void EngineBuffer::slotTrackLoaded(TrackPointer pTrack,
     m_dSlipRate = 0;
     m_slipModeState = SlipModeState::Disabled;
 
-    m_pReplayGain->set(pTrack->getReplayGain().getRatio());
+    m_pReplayGain->set(ReplayGainSettings::deckRatio(pTrack->getReplayGain()));
 
     m_queuedSeek.setValue(kNoQueuedSeek);
 

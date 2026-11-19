@@ -1,6 +1,9 @@
 #include "preferences/replaygainsettings.h"
 
+#include <algorithm>
+
 #include "track/track.h"
+#include "util/math.h"
 
 namespace {
 const char* kConfigKey = "[ReplayGain]";
@@ -57,9 +60,12 @@ void ReplayGainSettings::setReplayGainEnabled(bool value) {
 
 bool ReplayGainSettings::getReplayGainAnalyzerEnabled() const {
 #ifdef FLXXX3
-    // FLXXX3: no ReplayGain analysis (it was about 20 % of the load
-    // time of a track); the gain is set on the controller.
-    return false;
+    // FLXXX3: AUTO GAIN (ADVANCED SETTINGS > AUDIO, on by default). The loudness
+    // analysis (EBU R128) costs about 20 % of the analysis time of a track; the
+    // result is saved, so every track is measured only once.
+    return m_pConfig->getValue(ConfigKey(QStringLiteral("[AndroidDJ]"),
+                                       QStringLiteral("adv_auto_gain")),
+                   QStringLiteral("1")) != QStringLiteral("0");
 #else
     return m_pConfig->getValue(
         ConfigKey(kConfigKey, kReplayGainAnalyzerEnabled), true);
@@ -106,4 +112,26 @@ bool ReplayGainSettings::isAnalyzerDisabled(int version, TrackPointer tio) const
     }
     // not enabled, pretend we have already a stored value.
     return true;
+}
+
+// static
+double ReplayGainSettings::deckRatio(const mixxx::ReplayGain& replayGain) {
+    if (!replayGain.hasRatio()) {
+        return 0.0;
+    }
+#ifdef FLXXX3
+    // ReplayGain 2.0 brings a track to -18 LUFS. Up to v0.1.1 a track played 6 dB below
+    // its own level, a club track (about -8 LUFS) so at about -14 LUFS: AUTO GAIN brings
+    // every track there, so the trims and meters stay where they were.
+    constexpr double kTargetAboveReplayGainDb = 4.0; // -18 + 4 = -14 LUFS
+    double ratio = replayGain.getRatio() * db2ratio(kTargetAboveReplayGainDb);
+    // A quiet track is lifted only up to its loudest sample (no clipping).
+    const CSAMPLE peak = replayGain.getPeak();
+    if (replayGain.hasPeak() && peak > 0.01f) {
+        ratio = std::min(ratio, 1.0 / peak);
+    }
+    return ratio;
+#else
+    return replayGain.getRatio();
+#endif
 }

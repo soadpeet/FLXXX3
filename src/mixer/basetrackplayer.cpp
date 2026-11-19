@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "control/controlencoder.h"
+#include "preferences/replaygainsettings.h"
 #include "control/controlobject.h"
 #include "engine/channels/enginedeck.h"
 #include "engine/controls/enginecontrol.h"
@@ -906,7 +907,7 @@ void BaseTrackPlayerImpl::slotSetReplayGain(mixxx::ReplayGain replayGain) {
     // Do not change replay gain when track is playing because
     // this may lead to an unexpected volume change.
     if (m_pPlay->get() == 0.0) {
-        setReplayGain(replayGain.getRatio());
+        setReplayGain(ReplayGainSettings::deckRatio(replayGain));
     } else {
         m_replaygainPending = true;
     }
@@ -914,7 +915,7 @@ void BaseTrackPlayerImpl::slotSetReplayGain(mixxx::ReplayGain replayGain) {
 
 void BaseTrackPlayerImpl::slotAdjustReplayGain(
         mixxx::ReplayGain replayGain, const QString& requestingPlayerGroup) {
-    const double factor = m_pReplayGain->get() / replayGain.getRatio();
+    const double factor = m_pReplayGain->get() / ReplayGainSettings::deckRatio(replayGain);
     const double newPregain = m_pPreGain->get() * factor;
 
     // There is a very slight chance that there will be a buffer call in between these sets.
@@ -926,9 +927,9 @@ void BaseTrackPlayerImpl::slotAdjustReplayGain(
         if (requestingPlayerGroup == m_group) {
             m_pPreGain->set(newPregain);
         }
-        setReplayGain(replayGain.getRatio());
+        setReplayGain(ReplayGainSettings::deckRatio(replayGain));
     } else {
-        setReplayGain(replayGain.getRatio());
+        setReplayGain(ReplayGainSettings::deckRatio(replayGain));
         if (requestingPlayerGroup == m_group) {
             m_pPreGain->set(newPregain);
         }
@@ -996,7 +997,7 @@ void BaseTrackPlayerImpl::slotTrackRatingChangeRequestRelative(int change) {
 
 void BaseTrackPlayerImpl::slotPlayToggled(double value) {
     if (value == 0 && m_replaygainPending) {
-        setReplayGain(m_pLoadedTrack->getReplayGain().getRatio());
+        setReplayGain(ReplayGainSettings::deckRatio(m_pLoadedTrack->getReplayGain()));
     }
 }
 

@@ -67,15 +67,30 @@ void EnginePregain::setSpeedAndScratching(double speed, bool scratching) {
 void EnginePregain::process(CSAMPLE* pInOut, const std::size_t bufferSize) {
     const auto fReplayGain = static_cast<CSAMPLE_GAIN>(m_pCOReplayGain->get());
     CSAMPLE_GAIN fReplayGainCorrection;
+#ifdef FLXXX3
+    // FLXXX3: up to v0.1.1 every track played 6 dB below its own level (the default
+    // boost of Mixxx for tracks without a ReplayGain value). The trims and the meters
+    // are set for that level, so it stays the reference: AUTO GAIN off, or no value yet.
+    const CSAMPLE_GAIN kReferenceGain = static_cast<CSAMPLE_GAIN>(db2ratio(-6.0));
+#endif
     if (!s_pEnableReplayGain->toBool() || m_pPassthroughEnabled->toBool()) {
         // Override replaygain value if passing through
         // TODO(XXX): consider a good default.
         // Do we expect an replaygain leveled input or
         // Normalized to 1 input?
         fReplayGainCorrection = 1; // We expect a replaygain leveled input
+#ifdef FLXXX3
+        if (!m_pPassthroughEnabled->toBool()) {
+            fReplayGainCorrection = kReferenceGain;
+        }
+#endif
     } else if (fReplayGain == 0) {
         // use predicted replaygain
+#ifdef FLXXX3
+        fReplayGainCorrection = kReferenceGain;
+#else
         fReplayGainCorrection = static_cast<CSAMPLE_GAIN>(s_pDefaultBoost->get());
+#endif
         // We prepare for smoothfading to ReplayGain suggested gain
         // if ReplayGain value changes or ReplayGain is enabled
         m_bSmoothFade = true;
@@ -88,8 +103,13 @@ void EnginePregain::process(CSAMPLE* pInOut, const std::size_t bufferSize) {
         // full process for one second.
         // So we need to alter gain each time ::process is called.
 
+#ifdef FLXXX3
+        // The deck value already holds the AUTO GAIN target (ReplayGainSettings::deckRatio).
+        const CSAMPLE_GAIN fullReplayGainBoost = fReplayGain;
+#else
         const CSAMPLE_GAIN fullReplayGainBoost =
                 fReplayGain * static_cast<CSAMPLE_GAIN>(s_pReplayGainBoost->get());
+#endif
 
         // This means that a ReplayGain value has been calculated after the
         // track has been loaded

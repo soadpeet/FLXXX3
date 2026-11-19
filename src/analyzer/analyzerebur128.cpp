@@ -1,6 +1,7 @@
 #include "analyzer/analyzerebur128.h"
 
 #include <QtDebug>
+#include <algorithm>
 
 #include "analyzer/analyzertrack.h"
 #include "analyzer/constants.h"
@@ -34,7 +35,12 @@ bool AnalyzerEbur128::initialize(
     m_pState = ebur128_init(
             channelCount,
             sampleRate,
+#ifdef FLXXX3
+            // FLXXX3: also the loudest sample, so that AUTO GAIN never makes a track clip.
+            EBUR128_MODE_I | EBUR128_MODE_SAMPLE_PEAK);
+#else
             EBUR128_MODE_I);
+#endif
     return m_pState != nullptr;
 }
 
@@ -83,6 +89,18 @@ void AnalyzerEbur128::storeResults(TrackPointer pTrack) {
     const double fReplayGain2 = kReplayGain2ReferenceLUFS - averageLufs;
     mixxx::ReplayGain replayGain(pTrack->getReplayGain());
     replayGain.setRatio(db2ratio(fReplayGain2));
+#ifdef FLXXX3
+    double peak = 0.0;
+    for (unsigned int channel = 0; channel < m_pState->channels; ++channel) {
+        double channelPeak = 0.0;
+        if (ebur128_sample_peak(m_pState, channel, &channelPeak) == EBUR128_SUCCESS) {
+            peak = std::max(peak, channelPeak);
+        }
+    }
+    if (peak > 0.0) {
+        replayGain.setPeak(static_cast<CSAMPLE>(peak));
+    }
+#endif
     pTrack->setReplayGain(replayGain);
     qDebug() << "ReplayGain 2.0 (libebur128) result is" << fReplayGain2
              << "dB for" << pTrack->getFileInfo();

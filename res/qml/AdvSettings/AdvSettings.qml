@@ -24,6 +24,9 @@ Item {
         // ---- AUDIO (buffer and sample rate are read when the app starts: restart needed) ----
         { key: "audioBuffer", area: "AUDIO", label: "USB AUDIO BUFFER (RESTART NEEDED)", kind: "choice", choices: [{ t: "128 (2.7 ms)", v: 2 }, { t: "256 (5.3 ms)", v: 3 }, { t: "512 (10.7 ms)", v: 4 }, { t: "1024 (21 ms)", v: 5 }], def: 3, mirror: "adv_audio_buffer" },
         { key: "audioRate", area: "AUDIO", label: "SAMPLE RATE (RESTART NEEDED)", kind: "choice", choices: [{ t: "44.1 kHz", v: 44100 }, { t: "48 kHz", v: 48000 }], def: 48000, mirror: "adv_audio_rate" },
+        // AUTO GAIN: every track is measured once (loudness, EBU R128) and played at about the same
+        // loudness. Switched in UTILITY (area "UTILITY" is not shown in ADVANCED SETTINGS).
+        { key: "autoGain", area: "UTILITY", label: "AUTO GAIN (SAME LOUDNESS FOR EVERY TRACK)", kind: "choice", choices: [{ t: "ON", v: 1 }, { t: "OFF", v: 0 }], def: 1, mirror: "adv_auto_gain" },
         { key: "headroom", area: "AUDIO", label: "MASTER HEADROOM (LOWERS THE MASTER OUTPUT)", kind: "number", min: 0, max: 12, step: 0.5, fine: 0.1, decimals: 1, unit: "dB", def: 0 },
         // ---- START (values the app starts with) ----
         { key: "stickAuto", area: "START", label: "READ REKORDBOX STICKS", kind: "choice", choices: [{ t: "AUTOMATIC", v: 1 }, { t: "ON REQUEST", v: 0 }], def: 1, mirror: "adv_stick_auto" },
@@ -105,6 +108,13 @@ Item {
                 Mixxx.Config.setAndroidSetting(d.mirror, String(root.values[d.key]));
         });
         root.applyHeadroom();
+        root.applyAutoGain();
+    }
+    // AUTO GAIN on or off for the decks (the analysis reads adv_auto_gain itself).
+    function applyAutoGain() {
+        if (root.values.autoGain === undefined)
+            return;
+        pReplayGainEnabled.value = root.values.autoGain ? 1 : 0;
     }
     // Master headroom: a fixed gain below 0 dB on the master output.
     function applyHeadroom() {
@@ -192,6 +202,12 @@ Item {
             key: "gain"
         },
         Mixxx.ControlProxy {
+            id: pReplayGainEnabled
+
+            group: "[ReplayGain]"
+            key: "ReplayGainEnabled"
+        },
+        Mixxx.ControlProxy {
             id: pBackspinLength
 
             group: "[AndroidDJ]"
@@ -256,6 +272,7 @@ Item {
         });
         root.values = v;
         root.applyHeadroom();
+        root.applyAutoGain();
         try {
             const list = JSON.parse(Mixxx.Config.androidSetting("adv_presets", "[]"));
             if (Array.isArray(list))
