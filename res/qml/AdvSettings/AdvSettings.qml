@@ -12,6 +12,11 @@ import QtQuick 2.12
 Item {
     id: root
 
+    // A list of the library loads a track into a deck (LOAD of the controller, LOAD TO DECK of
+    // the track menu). The main window closes the library on it. (The LOAD control of the
+    // controller and the trackLoading signal of the deck did not always reach the window.)
+    signal trackLoadRequested(string group)
+
     readonly property var areas: ["AUDIO", "WAVEFORM", "WINDOW", "JOGWHEEL", "START", "INFO"]
 
     // kind: "number" (min, max, step, fine, decimals, unit) or "choice" (choices: [{t, v}])
@@ -31,7 +36,7 @@ Item {
         { key: "zoomMin", area: "WAVEFORM", label: "ZOOM LIMIT: MOST DETAIL", kind: "number", min: 0.1, max: 5, step: 0.1, fine: 0.05, decimals: 2, unit: "", def: 0.3 },
         { key: "zoomMax", area: "WAVEFORM", label: "ZOOM LIMIT: MOST OVERVIEW", kind: "number", min: 5, max: 60, step: 1, fine: 0.5, decimals: 1, unit: "", def: 30 },
         // ---- WINDOW ----
-        { key: "windowSec", area: "WINDOW", label: "WINDOWS CLOSE AFTER (BEAT FX, JOGWHEEL, BRIGHTNESS)", kind: "number", min: 1, max: 30, step: 0.5, fine: 0.1, decimals: 1, unit: "s", def: 3 },
+        { key: "windowCloseSec", area: "WINDOW", label: "WINDOWS CLOSE AFTER (FILTER, BEAT FX, JOGWHEEL, BRIGHTNESS)", kind: "number", min: 1, max: 60, step: 0.5, fine: 0.1, decimals: 1, unit: "s", def: 10 },
         { key: "menuIdleSec", area: "WINDOW", label: "LIBRARY / MENU CLOSE AFTER IDLE", kind: "number", min: 10, max: 900, step: 10, fine: 1, decimals: 0, unit: "s", def: 180 },
         { key: "afterLoadMs", area: "WINDOW", label: "LIBRARY CLOSES AFTER LOAD", kind: "number", min: 0, max: 3000, step: 50, fine: 10, decimals: 0, unit: "ms", def: 250 },
         { key: "longPressSec", area: "WINDOW", label: "LONG PRESS (TRACK MENU)", kind: "number", min: 0.2, max: 2, step: 0.1, fine: 0.05, decimals: 2, unit: "s", def: 0.5 },

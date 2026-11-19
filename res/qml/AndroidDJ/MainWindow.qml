@@ -62,7 +62,7 @@ Item {
     onBeatMatchModeChanged: saveSetting("beatMatchModeV2", beatMatchMode)
     onCdjViewChanged: saveSetting("cdjView", cdjView ? "1" : "0")
     // Quantize beat value shown on the decks (1/8, 1/4, 1/2, 1).
-    property string quantizeBeat: "1/4"
+    property string quantizeBeat: "1"
     // AUTO CUE of both decks (UTILITY menu).
     property bool autoCue: false
     onAutoCueChanged: {
@@ -248,7 +248,7 @@ Item {
         root.matchKeys = Mixxx.Config.androidSetting("matchKeys", "1") === "1";
         root.cdjView = Mixxx.Config.androidSetting("cdjView", "0") === "1";
         root.beatMatchMode = parseInt(Mixxx.Config.androidSetting("beatMatchModeV2", "1"));
-        root.quantizeBeat = Mixxx.Config.androidSetting("quantizeBeat", "1/4");
+        root.quantizeBeat = Mixxx.Config.androidSetting("quantizeBeat", "1");
         root.autoCue = Mixxx.Config.androidSetting("autoCue", "0") === "1";
         root.applyQuantizeBeat();
         autoCue1.value = root.autoCue ? 1 : 0;
@@ -392,6 +392,7 @@ Item {
     }
     // side: 0 = the whole screen, 1 / 2 = only the half of deck 1 / 2 (CDJ view).
     function openBrowser(side) {
+        root.closingAfterLoad = false;
         root.browserSide = root.cdjView && side ? side : 0;
         root.utilityOpen = false;
         root.browserOpen = true;
@@ -400,14 +401,18 @@ Item {
     }
     // Turning the knob only keeps an already open library open.
     function keepBrowserOpen() {
-        if (root.browserOpen) {
+        // After LOAD the library closes: a touch or a turn of the knob in that moment must
+        // not keep it open again (it stayed open for the whole idle time).
+        if (root.browserOpen && !root.closingAfterLoad) {
             browserIdle.interval = Math.round(AdvSettings.values.menuIdleSec * 1000);
             browserIdle.restart();
         }
     }
     // After LOAD the library only stays a moment (feedback), then the loaded
     // deck is visible. A longer delay was perceived as "loading takes long".
+    property bool closingAfterLoad: false
     function closeBrowserSoon() {
+        root.closingAfterLoad = true;
         browserIdle.interval = AdvSettings.values.afterLoadMs;
         browserIdle.restart();
     }
@@ -538,7 +543,12 @@ Item {
     }
     // LOAD of a deck: library open = it loads (the library closes soon after); library closed in
     // the CDJ view = the library opens on the side of that deck only.
+    // Time at which a load closed the library: a LOAD that arrives late (the load itself holds
+    // the interface for a moment) must not open it again right away.
+    property double closedByLoadAt: 0
     function loadPressed(deck) {
+        if (!root.browserOpen && Date.now() - root.closedByLoadAt < 800)
+            return;
         if (root.browserOpen) {
             root.closeBrowserSoon();
         } else if (root.cdjView && root.needsSource("BROWSE")) {
@@ -566,11 +576,27 @@ Item {
 
         onValueChanged: if (value > 0) root.loadPressed(2)
     }
+    // Any load from a list of the library (LOAD on the controller, LOAD TO DECK in the track
+    // menu) closes the library a moment later. The lists report it themselves: the LOAD control
+    // and the trackLoading signal of the deck did not always arrive here.
+    Connections {
+        function onTrackLoadRequested(group) {
+            if (root.browserOpen && root.browserMode !== "SOURCE")
+                root.closeBrowserSoon();
+        }
+
+        target: AdvSettings
+    }
     Timer {
         id: browserIdle
 
         interval: 20000
-        onTriggered: root.browserOpen = false
+        onTriggered: {
+            if (root.closingAfterLoad)
+                root.closedByLoadAt = Date.now();
+            root.closingAfterLoad = false;
+            root.browserOpen = false;
+        }
     }
     DJ.TopBar {
         id: topBar
@@ -614,7 +640,7 @@ Item {
     Timer {
         id: popupTimer
 
-        interval: Math.max(5000, Math.round(AdvSettings.values.windowSec * 1000) * 2)
+        interval: Math.max(5000, Math.round(AdvSettings.values.windowCloseSec * 1000) * 2)
         onTriggered: {
             root.popup1 = "";
             root.popup2 = "";
@@ -781,8 +807,10 @@ Item {
     }
     // JOGWHEEL: below the Color FX button, on the lower waveform.
     Rectangle {
-        border.color: jogTap.pressed ? "#1f8fe0" : "#4a4a4a"
-        color: jogTap.pressed ? "#3a3a3a" : "#202020"
+        // While its window is open: orange frame and tint (like the chosen button of the top bar).
+        border.color: jogwheelMenu.opened ? "#ff6a3d" : (jogTap.pressed ? "#1f8fe0" : "#4a4a4a")
+        border.width: jogwheelMenu.opened ? 2 : 1
+        color: jogwheelMenu.opened ? "#3a2016" : (jogTap.pressed ? "#3a3a3a" : "#202020")
         height: root.waveformHeight
         // solid: the waveform behind must not shine through
         enabled: !root.advancedOpen && !root.utilityOpen
@@ -814,19 +842,22 @@ Item {
             onTapped: jogwheelMenu.openWindow()
         }
     }
-    // The window lies over the JOGWHEEL button (left edge of the lower waveform).
+    // The window lies next to the JOGWHEEL button (left edge of the lower waveform), as high
+    // as the waveform (it must not cover the hotcues).
     DJ.JogwheelMenu {
         id: jogwheelMenu
 
-        height: Math.round(root.waveformHeight * 1.1)
+        height: root.waveformHeight
         width: Math.round(Math.min(root.width * 0.46, 540))
-        x: 0
+        x: Math.max(28, Math.round(root.width * 0.034))
         y: waveArea.y + root.waveformHeight
     }
     // BRIGHTNESS: below the Beat FX button, on the lower waveform (right edge).
     Rectangle {
-        border.color: brightnessTap.pressed ? "#1f8fe0" : "#4a4a4a"
-        color: brightnessTap.pressed ? "#3a3a3a" : "#202020"
+        // While its window is open: orange frame and tint (like the chosen button of the top bar).
+        border.color: brightnessMenu.opened ? "#ff6a3d" : (brightnessTap.pressed ? "#1f8fe0" : "#4a4a4a")
+        border.width: brightnessMenu.opened ? 2 : 1
+        color: brightnessMenu.opened ? "#3a2016" : (brightnessTap.pressed ? "#3a3a3a" : "#202020")
         height: root.waveformHeight
         // solid: the waveform behind must not shine through
         enabled: !root.advancedOpen && !root.utilityOpen
@@ -858,13 +889,13 @@ Item {
             onTapped: brightnessMenu.openWindow()
         }
     }
-    // The window lies over the BRIGHTNESS button.
+    // The window lies next to the BRIGHTNESS button.
     DJ.BrightnessMenu {
         id: brightnessMenu
 
         height: root.waveformHeight
         width: Math.round(Math.min(root.width * 0.36, 420))
-        x: root.width - width
+        x: root.width - width - Math.max(28, Math.round(root.width * 0.034))
         y: waveArea.y + root.waveformHeight
     }
     DJ.FxPresetBand {

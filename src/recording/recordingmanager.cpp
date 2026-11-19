@@ -4,6 +4,9 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QMutex>
+#ifdef FLXXX3
+#include <QStandardPaths>
+#endif
 #include <QStorageInfo>
 
 #include "control/controlpushbutton.h"
@@ -61,8 +64,13 @@ RecordingManager::RecordingManager(UserSettingsPointer pConfig, EngineMixer* pEn
 QString RecordingManager::formatDateTimeForFilename(const QDateTime& dateTime) const {
     // Use a format based on ISO 8601. Windows does not support colons in
     // filenames so we can't use them anywhere.
+#ifdef FLXXX3
+    // FLXXX3: FLXXX3_Record_2026-11-19_21-30-05 (sorts by date, no colons for Windows).
+    return QStringLiteral("FLXXX3_Record_") + dateTime.toString("yyyy-MM-dd_hh-mm-ss");
+#else
     QString formatted = dateTime.toString("yyyy-MM-dd_hh'h'mm'm'ss's'");
     return formatted;
+#endif
 }
 
 void RecordingManager::slotSetRecording(bool recording) {
@@ -95,7 +103,43 @@ qint64 RecordingManager::getFreeSpace() {
     return rv;
 }
 
+#ifdef FLXXX3
+// FLXXX3: the settings of a recording come from UTILITY > RECORDING (there is no
+// preferences dialog): WAV (default) or MP3 320 kbit/s, saved in Music/FLXXX3
+// (Android: the shared Music folder of the device, Windows: the Music folder of the user).
+void RecordingManager::applyProductSettings() {
+    const QString format = m_pConfig->getValue(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("recordFormat")),
+            QStringLiteral(ENCODING_WAVE));
+    const bool mp3 = format == QStringLiteral(ENCODING_MP3);
+    m_pConfig->set(ConfigKey(RECORDING_PREF_KEY, "Encoding"),
+            ConfigValue(mp3 ? QStringLiteral(ENCODING_MP3) : QStringLiteral(ENCODING_WAVE)));
+    if (mp3) {
+        m_pConfig->set(ConfigKey(RECORDING_PREF_KEY, "MP3_Quality"), ConfigValue(11)); // 320
+        m_pConfig->set(ConfigKey(RECORDING_PREF_KEY, "MP3_VBR_MODE"), ConfigValue(0)); // CBR
+    }
+    // A WAV file can hold at most 4 GB (about 6 hours): longer sets go on in a second file
+    // (same name with "part2").
+    m_pConfig->set(ConfigKey(RECORDING_PREF_KEY, "FileSize"),
+            ConfigValue(mp3 ? QStringLiteral(SPLIT_NONE) : QStringLiteral(SPLIT_4096MB)));
+    m_pConfig->set(ConfigKey(RECORDING_PREF_KEY, "CueEnabled"), ConfigValue(0));
+#ifdef __ANDROID__
+    // The shared Music folder (Qt's MusicLocation is inside the app folder there).
+    const QString music = QStringLiteral("/storage/emulated/0/Music");
+#else
+    const QString music = QStandardPaths::writableLocation(QStandardPaths::MusicLocation);
+#endif
+    if (!music.isEmpty()) {
+        m_pConfig->set(ConfigKey(RECORDING_PREF_KEY, "Directory"),
+                ConfigValue(music + QStringLiteral("/FLXXX3")));
+    }
+}
+#endif
+
 void RecordingManager::startRecording() {
+#ifdef FLXXX3
+    applyProductSettings();
+#endif
     QString encodingType = m_pConfig->getValueString(
             ConfigKey(RECORDING_PREF_KEY, "Encoding"));
     QString fileExtension = EncoderFactory::getFactory()

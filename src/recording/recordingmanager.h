@@ -52,6 +52,9 @@ class RecordingManager : public QObject {
     void slotToggleRecording(double value);
 
   private:
+#ifdef FLXXX3
+    void applyProductSettings();
+#endif
     QString formatDateTimeForFilename(const QDateTime& dateTime) const;
     // slotBytesRecorded just noticed that recording must be interrupted
     // to split the file. The nth filename will follow the date/time

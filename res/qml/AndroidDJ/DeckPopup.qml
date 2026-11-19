@@ -142,7 +142,7 @@ Rectangle {
             // The shift only works with MASTER TEMPO (key lock) on.
             if (keylock.value <= 0)
                 keylock.value = 1;
-            pitchAdjust.value = Math.max(-6, Math.min(6, Math.round(pitchAdjust.value) + delta));
+            pitchAdjust.value = Math.max(-12, Math.min(12, Math.round(pitchAdjust.value) + delta));
         }
 
         // Key one semitone down, with the minus button.

@@ -110,7 +110,10 @@ Item {
             required property int index
 
             group: "[Channel" + (index + 1) + "]"
-            enabled: root.focusWidget == Skin.FocusedWidgetControl.WidgetKind.LibraryView
+            // FLXXX3: there is no keyboard focus; the BROWSE knob press (MoveFocusForward) opens
+            // the library but moves Mixxx's focus to the sidebar, after which LOAD did nothing
+            // (every second time). The lists check themselves that they are shown.
+            enabled: Mixxx.Product.ui || root.focusWidget == Skin.FocusedWidgetControl.WidgetKind.LibraryView
             onLoadTrackRequested: (play) => {
                 root.loadSelectedTrack(this.group, play);
             }

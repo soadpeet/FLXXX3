@@ -20,6 +20,8 @@ Rectangle {
 
     color: "#161616"
 
+    Mixxx.ControlProxy { id: recordStatus; group: "[Recording]"; key: "status" }
+
     Row {
         spacing: 6
 
@@ -58,6 +60,31 @@ Rectangle {
                     font.bold: true
                     font.pixelSize: Math.round(root.height * 0.38)
                     text: button.modelData
+                }
+                // UTILITY while the set is recorded (UTILITY > RECORDING): a red dot in the
+                // corner (the time is shown in UTILITY; a chip in the bar made the buttons
+                // too narrow).
+                Rectangle {
+                    color: "#ff3030"
+                    height: Math.round(root.height * 0.22)
+                    radius: height / 2
+                    visible: button.modelData === "UTILITY" && recordStatus.value > 0
+                    width: height
+
+                    anchors {
+                        right: parent.right
+                        rightMargin: 4
+                        top: parent.top
+                        topMargin: 4
+                    }
+
+                    SequentialAnimation on opacity {
+                        loops: Animation.Infinite
+                        running: recordStatus.value > 0
+
+                        NumberAnimation { from: 1; to: 0.25; duration: 600 }
+                        NumberAnimation { from: 0.25; to: 1; duration: 600 }
+                    }
                 }
                 TapHandler {
                     id: tap

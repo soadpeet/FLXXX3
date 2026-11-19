@@ -19,7 +19,10 @@ Popup {
     }
 
     closePolicy: Popup.CloseOnPressOutside | Popup.CloseOnEscape
-    modal: false
+    // Modal: a touch beside the window only closes it (it must not move the waveform);
+    // a touch on the button at the edge closes it that way, too.
+    modal: true
+    dim: false
     padding: 0
 
     background: Rectangle {
@@ -32,7 +35,7 @@ Popup {
     Timer {
         id: idleTimer
 
-        interval: Math.round(AdvSettings.values.windowSec * 1000)
+        interval: Math.round(AdvSettings.values.windowCloseSec * 1000)
 
         onTriggered: root.close()
     }

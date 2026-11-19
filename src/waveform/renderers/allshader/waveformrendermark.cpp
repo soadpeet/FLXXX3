@@ -636,16 +636,26 @@ void allshader::WaveformRenderMark::updatePlayPosMarkTexture(rendergraph::Contex
     // lines next to playpos
     // Note: don't draw lines where they would overlap the triangles,
     // otherwise both translucent strokes add up to a darker tone.
+#ifdef FLXXX3
+    // FLXXX3: the triangle sits at the bottom edge and points up.
+    const float edgeY = static_cast<float>(imgHeight);
+    const float inward = -1.f;
+    painter.drawLine(QLineF(lineX + 1.f, 0.f, lineX + 1.f, edgeY - 4.f));
+    painter.drawLine(QLineF(lineX - 1.f, 0.f, lineX - 1.f, edgeY - 4.f));
+#else
+    const float edgeY = 0.f;
+    const float inward = 1.f;
     painter.drawLine(QLineF(lineX + 1.f, 4.f, lineX + 1.f, imgHeight));
     painter.drawLine(QLineF(lineX - 1.f, 4.f, lineX - 1.f, imgHeight));
+#endif
 
-    // triangle at top edge
+    // triangle at the edge
     // Increase line/waveform contrast
     painter.setOpacity(0.8);
     {
-        QPointF baseL = QPointF(lineX - 5.f, 0.f);
-        QPointF baseR = QPointF(lineX + 5.f, 0.f);
-        QPointF tip = QPointF(lineX, 5.f);
+        QPointF baseL = QPointF(lineX - 5.f, edgeY);
+        QPointF baseR = QPointF(lineX + 5.f, edgeY);
+        QPointF tip = QPointF(lineX, edgeY + inward * 5.f);
         drawTriangle(&painter, m_playMarkerBackgroundColor, baseL, baseR, tip);
     }
     // draw colored play position indicators
@@ -653,11 +663,11 @@ void allshader::WaveformRenderMark::updatePlayPosMarkTexture(rendergraph::Contex
     painter.setOpacity(1.0);
     // play position line
     painter.drawLine(QLineF(lineX, 0.f, lineX, imgHeight));
-    // triangle at top edge
+    // triangle at the edge
     {
-        QPointF baseL = QPointF(lineX - 4.f, 0.f);
-        QPointF baseR = QPointF(lineX + 4.f, 0.f);
-        QPointF tip = QPointF(lineX, 4.f);
+        QPointF baseL = QPointF(lineX - 4.f, edgeY);
+        QPointF baseR = QPointF(lineX + 4.f, edgeY);
+        QPointF tip = QPointF(lineX, edgeY + inward * 4.f);
         drawTriangle(&painter, m_playMarkerForegroundColor, baseL, baseR, tip);
     }
     painter.end();

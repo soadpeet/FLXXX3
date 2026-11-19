@@ -32,11 +32,13 @@ Rectangle {
         onLoadSelectedTrack: (group, play) => {
             if (!root.visible)
                 return;
+            root.flushPendingMove();
             view.loadSelectedTrack(group, play);
         }
         onLoadSelectedTrackIntoNextAvailableDeck: play => {
             if (!root.visible)
                 return;
+            root.flushPendingMove();
             view.loadSelectedTrackIntoNextAvailableDeck(play);
         }
         onMoveVertical: offset => {
@@ -143,6 +145,15 @@ Rectangle {
     // scrolling later finds them ready. At most three requests wait at a time, so that the
     // rows that are on screen come first.
     property int pendingMove: 0
+    // LOAD right after fast turning of the BROWSE knob: the steps that are still collected must
+    // move the selection first, else the track that was selected before is loaded (or none).
+    function flushPendingMove() {
+        moveTimer.stop();
+        const steps = root.pendingMove;
+        root.pendingMove = 0;
+        if (steps !== 0)
+            view.selectionModel.moveSelectionVertical(steps);
+    }
     Timer {
         id: moveTimer
 
@@ -1009,6 +1020,7 @@ Rectangle {
             const rows = this.selectionModel.selectedIndexes;
             if (rows.length > 0)
                 Mixxx.Config.setAndroidSetting("listPos" + group, String(rows[0].row + 1));
+            AdvSettings.trackLoadRequested(group);
             Mixxx.PlayerManager.getPlayer(group).loadTrackFromLocationUrl(urls[0], play);
         }
         function loadSelectedTrackIntoNextAvailableDeck(play) {
@@ -1017,6 +1029,7 @@ Rectangle {
                 return;
 
             this.prepareSelectedTrack();
+            AdvSettings.trackLoadRequested("");
             Mixxx.PlayerManager.loadLocationUrlIntoNextAvailableDeck(urls[0], play);
         }
         function updateColumnSize() {

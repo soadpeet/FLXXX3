@@ -21,7 +21,7 @@ Rectangle {
     property bool isMaster: false
     signal masterRequested()
     // Quantize beat value from the UTILITY menu (display; "1/8" .. "1").
-    property string quantizeBeat: "1/4"
+    property string quantizeBeat: "1"
     // CDJ view: the BEAT LOOP / KEY SHIFT / BEAT JUMP buttons of the header and the INFO symbol
     // (the panels themselves are shown by the main window); openPopup = the one that is open.
     property string openPopup: ""
@@ -80,7 +80,8 @@ Rectangle {
         const c = root.camelotOf(rawText);
         if (c.n < 1 || c.n > 12)
             return rawText || "";
-        const steps = (((semitones * 7) % 12) + 12) % 12;
+        // Whole semitones only: RESET (reset_key) can leave a fraction like 5.9999999.
+        const steps = (((Math.round(semitones) * 7) % 12) + 12) % 12;
         const n = ((c.n - 1 + steps) % 12) + 1;
         if (root.keyCamelot)
             return n + c.letter;
@@ -393,10 +394,11 @@ Rectangle {
             top: parent.top
         }
 
-        // Like the CDJ-3000: the row with the track data stands out in dark grey.
+        // Like the CDJ-3000: the row with the track data stands out in dark grey
+        // (darker than before: #262626 was too bright).
         Rectangle {
             anchors.fill: parent
-            color: "#262626"
+            color: "#141414"
         }
         Rectangle {
             id: sourceBox

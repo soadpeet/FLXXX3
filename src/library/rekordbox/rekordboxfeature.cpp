@@ -10,6 +10,7 @@
 #include <QRegularExpression>
 #include <algorithm>
 #include <limits>
+#include <cstdlib>
 #include <cmath>
 #include <rekordbox_pdb.h>
 
@@ -960,6 +961,34 @@ mixxx::RgbColor snapToRekordboxHotcuePalette(int red, int green, int blue) {
     }
     return mixxx::RgbColor(best);
 }
+
+// FLXXX3: the hotcue colour from its Rekordbox colour code. The RGB values of the export
+// are the colours of the pad lights of the players (0000FF for blue, 0070FF for light
+// blue ...), too coarse to tell the colours apart; the code names the colour of the
+// Rekordbox palette. Code 0 (no colour chosen): fall back to the RGB values.
+mixxx::RgbColor rekordboxHotcueColor(int code, int red, int green, int blue) {
+    static const struct {
+        int code;
+        unsigned int color;
+    } kCodes[16] = {{0x01, 0x305AFF}, {0x05, 0x50B4FF}, {0x09, 0x00E0FF},
+            {0x0E, 0x1FA392}, {0x12, 0x10B176}, {0x16, 0x28E214}, {0x1A, 0xA5E116},
+            {0x1E, 0xB4BE04}, {0x20, 0xC3AF04}, {0x26, 0xE0641B}, {0x2A, 0xE62828},
+            {0x2D, 0xFF127B}, {0x31, 0xDE44CF}, {0x34, 0xB432FF}, {0x38, 0xAA72FF},
+            {0x3C, 0x6473FF}};
+    if (code <= 0 || code > 0x3F) {
+        return snapToRekordboxHotcuePalette(red, green, blue);
+    }
+    unsigned int best = kCodes[0].color;
+    int bestDistance = std::numeric_limits<int>::max();
+    for (const auto& entry : kCodes) {
+        const int distance = std::abs(entry.code - code);
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = entry.color;
+        }
+    }
+    return mixxx::RgbColor(best);
+}
 #endif
 
 void setHotCue(TrackPointer track,
@@ -1544,7 +1573,8 @@ void readAnalyze(TrackPointer track,
                             hotCueIndex,
                             fromUtf16BeString(cueExtendedEntry->comment()),
 #ifdef FLXXX3
-                            snapToRekordboxHotcuePalette(
+                            rekordboxHotcueColor(
+                                    static_cast<int>(cueExtendedEntry->color_code()),
                                     static_cast<int>(cueExtendedEntry->color_red()),
                                     static_cast<int>(cueExtendedEntry->color_green()),
                                     static_cast<int>(cueExtendedEntry->color_blue())));
@@ -1800,9 +1830,18 @@ static void applyRekordboxTrackData(const TrackPointer& track,
     // Earlier versions allow any format
     // Decision: We normalize the KeyText here to not write garbage to the
     // file metadata and it is unlikely to loose extra info.
+#ifdef FLXXX3
+    // FLXXX3: Rekordbox writes some keys with two names ("D#m/Ebm"), which Mixxx
+    // does not recognise: the deck had no key (MATCHING KEYS showed nothing for it).
+    // The first name counts.
+    track->setKeys(KeyFactory::makeBasicKeysNormalized(
+            keyText.section(QLatin1Char('/'), 0, 0).trimmed(),
+            mixxx::track::io::key::USER));
+#else
     track->setKeys(KeyFactory::makeBasicKeysNormalized(
             keyText,
             mixxx::track::io::key::USER));
+#endif
 
     track->setColor(mixxx::RgbColor::fromQVariant(colorValue));
 }
@@ -1818,6 +1857,25 @@ QHash<QString, TrackPointer> s_trackCache;
 // read the same track twice.
 QMutex s_applyMutex;
 QSet<QString> s_prefetchRunning;
+
+// The single worker thread of prefetchTrack() (waveform previews of the list rows).
+QThreadPool* prefetchPool() {
+    static QThreadPool* const pPool = [] {
+        auto* pool = new QThreadPool();
+        pool->setMaxThreadCount(1);
+        return pool;
+    }();
+    return pPool;
+}
+
+// A track is about to be loaded: the previews that are still waiting (fast scrolling
+// queues many) are dropped, so the load only waits for the one that is running.
+// The rows ask for their previews again when they are shown.
+void dropWaitingPreviews() {
+    prefetchPool()->clear();
+    QMutexLocker locker(&s_trackCacheMutex);
+    s_prefetchRunning.clear();
+}
 
 TrackPointer cachedTrack(const QString& location) {
     QMutexLocker locker(&s_trackCacheMutex);
@@ -1852,6 +1910,7 @@ TrackPointer RekordboxPlaylistModel::getTrack(const QModelIndex& index) const {
     }
 
 #ifdef FLXXX3
+    dropWaitingPreviews();
     {
         QMutexLocker applyLocker(&s_applyMutex);
         // The worker thread may have finished this track while we waited.
@@ -1930,11 +1989,7 @@ bool RekordboxPlaylistModel::prefetchTrack(const QModelIndex& index) const {
         }
     }
 
-    static QThreadPool* const pPool = [] {
-        auto* pool = new QThreadPool();
-        pool->setMaxThreadCount(1);
-        return pool;
-    }();
+    QThreadPool* const pPool = prefetchPool();
     QPointer<const RekordboxPlaylistModel> pModel(this);
     QtConcurrent::run(pPool, [pModel, location, anlzPath, keyText, color, durationSeconds]() {
         if (QFile(location).exists() && durationSeconds > 0.0) {

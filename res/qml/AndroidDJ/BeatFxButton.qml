@@ -7,7 +7,7 @@ import QtQuick.Controls 2.12
 // selected Beat FX stands vertically on it (blue while the effect is on, grey
 // while it is off). The window with all Beat FX settings (the FX panel) lies
 // over the button: it opens with a tap on the button. FX SELECT of the controller shows
-// only the list of the effects (the window closes with it). It closes again 3 seconds
+// only the list of the effects (the window closes with it). It closes again (ADVANCED SETTINGS > WINDOW, 10 s)
 // after the last change or touch.
 Rectangle {
     id: root
@@ -24,7 +24,7 @@ Rectangle {
     // False for the first seconds after the start (the effect system sets up
     // its first effect then).
     property bool windowEnabled: false
-    // All windows of the touch interface close 3 seconds after the last change
+    // All windows of the touch interface close (ADVANCED SETTINGS > WINDOW) after the last change
     // (controller) or touch.
     // True while the window was opened by FX SELECT (not by a tap): only the list of the
     // effects is shown then and the window closes with the list.
@@ -46,10 +46,11 @@ Rectangle {
     // the text in the active colour (not a solid blue fill).
     readonly property color activeColor: "#27a8e0"
 
-    border.color: root.active ? root.activeColor : "#4a4a4a"
-    border.width: 1
+    // While the window is open: orange frame and tint (like the chosen button of the top bar).
+    border.color: win.opened ? "#ff6a3d" : (root.active ? root.activeColor : "#4a4a4a")
+    border.width: win.opened ? 2 : 1
     // Solid (not see-through): the waveform behind must not shine through the text.
-    color: root.active ? "#10303f" : "#202020"
+    color: win.opened ? "#3a2016" : (root.active ? "#10303f" : "#202020")
     opacity: 1.0
 
     Mixxx.ControlProxy { id: enabledProxy; group: "[EffectRack1_EffectUnit1_Effect1]"; key: "enabled" }
@@ -65,7 +66,7 @@ Rectangle {
     Timer {
         id: autoCloseTimer
 
-        interval: Math.round(AdvSettings.values.windowSec * 1000)
+        interval: Math.round(AdvSettings.values.windowCloseSec * 1000)
 
         onTriggered: win.close()
     }
@@ -114,7 +115,7 @@ Rectangle {
             text: panel.fxChannelShortTexts[panel.fxChannel]
         }
     }
-    // The beat (1/2, 1, ...): small, at the upper edge (behind the name).
+    // The beat (1/2, 1, ...) or the percent: small, at the upper edge (behind the name).
     Item {
         anchors {
             horizontalCenter: parent.horizontalCenter
@@ -133,7 +134,9 @@ Rectangle {
             font.bold: true
             font.pixelSize: Math.round(root.width * 0.3)
             rotation: -90
-            text: panel.beatEffect ? panel.valueText : ""
+            // Reverb (no beat time): the amount in percent.
+            text: panel.beatEffect ? panel.valueText
+                    : (panel.effectSlot && panel.effectSlot.loaded ? panel.valueText + "%" : "")
         }
     }
     TapHandler {
@@ -152,10 +155,14 @@ Rectangle {
         id: win
 
         closePolicy: Popup.CloseOnPressOutside | Popup.CloseOnEscape
+        // Modal: a touch beside the window only closes it (it must not move the waveform);
+        // a touch on the button at the edge closes it that way, too.
+        modal: true
+        dim: false
         height: root.panelHeight
         padding: 0
-        // Right edge on the right edge of the button: the window covers it.
-        x: root.width - win.width
+        // Left of the button: its name stays visible, a tap on it closes the window.
+        x: -win.width
         y: 0
         width: root.panelWidth
 

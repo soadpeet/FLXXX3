@@ -19,7 +19,7 @@ Rectangle {
     property bool autoCue: false
     property bool cdjView: false
     property int beatMatchMode: 1
-    property string quantizeBeat: "1/4"
+    property string quantizeBeat: "1"
 
     // Blocks touches for the main window below (BEAT FX etc.).
     MouseArea {
@@ -69,6 +69,11 @@ Rectangle {
         orientation1.value = root.crossfaderOn ? 0 : 1;
         orientation2.value = root.crossfaderOn ? 2 : 1;
     }
+    // Recording ([Recording] status: 0 off, 1 starting, 2 recording).
+    Mixxx.ControlProxy { id: recordStatus; group: "[Recording]"; key: "status" }
+    Mixxx.ControlProxy { id: recordToggle; group: "[Recording]"; key: "toggle_recording" }
+    readonly property bool recording: recordStatus.value > 0
+    property string recordFormat: Mixxx.Config.androidSetting("recordFormat", "WAV")
     Mixxx.ControlProxy { id: brightnessProxy; group: "[AndroidDJ]"; key: "brightness" }
 
     // Opens ADVANCED SETTINGS: bottom right, below the (shorter) right column, so that it never
@@ -433,38 +438,87 @@ Rectangle {
                 }
             }
         }
-        Column {
-            spacing: 3
+        Row {
+            spacing: root.u * 1.2
 
-            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "CHANNEL FADER CURVE" }
-            Row {
-                id: curveRow
+            Column {
+                spacing: 3
 
-                readonly property int current: Math.round(faderCurve.value)
+                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "CHANNEL FADER CURVE" }
+                Row {
+                    id: curveRow
 
-                Repeater {
-                    model: 3
+                    readonly property int current: Math.round(faderCurve.value)
 
-                    Rectangle {
-                        id: curveTile
+                    Repeater {
+                        model: 3
 
-                        required property int index
+                        Rectangle {
+                            id: curveTile
 
-                        border.color: "#cfcfcf"
-                        color: curveRow.current === index ? "#1fb0f0" : "#2a2a2a"
+                            required property int index
+
+                            border.color: "#cfcfcf"
+                            color: curveRow.current === index ? "#1fb0f0" : "#2a2a2a"
+                            height: root.u * 2.8
+                            width: root.u * 5
+
+                            DJ.FadeCurve {
+                                anchors.fill: parent
+                                kind: curveTile.index
+                                selected: curveRow.current === curveTile.index
+                            }
+                            TapHandler {
+                                onTapped: {
+                                    faderCurve.value = curveTile.index;
+                                    Mixxx.Config.setAndroidSetting("faderCurve", String(curveTile.index));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Recording of the set (the master output): WAV or MP3, in Music/FLXXX3.
+            Column {
+                spacing: 3
+
+                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "RECORDING" }
+                Row {
+                    spacing: root.u * 0.4
+
+                    DJ.Segmented {
+                        // The format can only change while nothing is recorded.
+                        enabled: !root.recording
+                        currentIndex: root.recordFormat === "MP3" ? 1 : 0
+                        fontSize: root.u * 0.8
                         height: root.u * 2.8
-                        width: root.u * 5
+                        labels: ["WAV", "MP3"]
+                        opacity: root.recording ? 0.5 : 1
+                        width: root.u * 6.6
 
-                        DJ.FadeCurve {
-                            anchors.fill: parent
-                            kind: curveTile.index
-                            selected: curveRow.current === curveTile.index
+                        onActivated: index => {
+                            root.recordFormat = index === 1 ? "MP3" : "WAV";
+                            Mixxx.Config.setAndroidSetting("recordFormat", root.recordFormat);
+                        }
+                    }
+                    // REC: starts / stops; while recording it is red and shows the time.
+                    Rectangle {
+                        border.color: root.recording ? "#ff4040" : "#cfcfcf"
+                        color: root.recording ? "#c81e1e" : (recTap.pressed ? "#3a3a3a" : "#2a2a2a")
+                        height: root.u * 2.8
+                        width: root.u * 4.8
+
+                        Text {
+                            anchors.centerIn: parent
+                            color: "#ffffff"
+                            font.bold: true
+                            font.pixelSize: root.u * 0.85
+                            text: root.recording ? (Mixxx.Recording.durationText || "00:00") : "\u25CF REC"
                         }
                         TapHandler {
-                            onTapped: {
-                                faderCurve.value = curveTile.index;
-                                Mixxx.Config.setAndroidSetting("faderCurve", String(curveTile.index));
-                            }
+                            id: recTap
+
+                            onTapped: recordToggle.trigger()
                         }
                     }
                 }

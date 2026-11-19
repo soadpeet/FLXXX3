@@ -1,4 +1,5 @@
 import ".." as Skin
+import "../AdvSettings"
 import "." as LibraryComponent
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
@@ -48,6 +49,7 @@ Rectangle {
         if (root.selectedIndex < 0 || root.selectedIndex >= root.count)
             return;
         root.notePosition(group, root.selectedIndex);
+        AdvSettings.trackLoadRequested(group);
         Mixxx.PlayerManager.getPlayer(group).loadTrackFromLocationUrl(root.entries[root.selectedIndex].url, false);
     }
     // The deck shows the position in the list as TRACK (like the CDJ): remember it before loading.
@@ -67,6 +69,7 @@ Rectangle {
         onLoadSelectedTrackIntoNextAvailableDeck: play => {
             if (!root.visible || !root.scrollEnabled || root.selectedIndex < 0)
                 return;
+            AdvSettings.trackLoadRequested("");
             Mixxx.PlayerManager.loadLocationUrlIntoNextAvailableDeck(root.entries[root.selectedIndex].url, false);
         }
         onMoveVertical: offset => {
@@ -328,6 +331,7 @@ Rectangle {
                         onTapped: {
                             menu.close();
                             root.notePosition("[Channel" + loadButton.modelData.deck + "]", root.menuIndex);
+                            AdvSettings.trackLoadRequested("[Channel" + loadButton.modelData.deck + "]");
                             Mixxx.PlayerManager.getPlayer("[Channel" + loadButton.modelData.deck + "]")
                                     .loadTrackFromLocationUrl(root.entries[root.menuIndex].url, false);
                         }

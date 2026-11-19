@@ -194,7 +194,10 @@ PioneerDDJFLX4.channelFaderLSB = function(channel, control, value, status, group
     } else if (curve === 2) {
         y = Math.min(1, x * 1.6); // fast start
     }
-    engine.setValue(group, "volume", y);
+    // As a parameter (fader position), not as a value: the volume control has the
+    // audio taper of a mixer fader (about -16 dB at half way). As a value it was the
+    // gain itself, half way was -6 dB and much too loud.
+    engine.setParameter(group, "volume", y);
 };
 
 // Jog wheel constants

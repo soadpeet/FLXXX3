@@ -832,6 +832,12 @@ void EngineBuffer::slotControlPlayRequest(double v) {
 #ifdef __VINYLCONTROL__
                 && m_pVinylControlControl && !m_pVinylControlControl->isEnabled()
 #endif
+#ifdef FLXXX3
+                // FLXXX3: like the Pioneer players, PLAY starts where the track
+                // waits (first beat, cue); only with SYNC on it jumps into the
+                // phase of the other deck.
+                && m_pSyncControl && m_pSyncControl->isSynchronized()
+#endif
         ) {
             requestQuantizedPhase();
         }

@@ -859,8 +859,15 @@ void EngineMixer::addChannel(std::unique_ptr<EngineChannel> pChannel) {
     // take ownership of the pointer explicitly
     pChannelInfo->m_pChannel = std::move(pChannel);
     pChannelInfo->m_handle = m_pChannelHandleFactory->getOrCreateHandle(group);
+#ifdef FLXXX3
+    // FLXXX3: channel fader like the one of a Pioneer mixer: about -16 dB at half
+    // way (Mixxx: -20 dB range, about -12 dB at half way, still loud).
+    pChannelInfo->m_pVolumeControl = std::make_unique<ControlAudioTaperPot>(
+            ConfigKey(group, "volume"), -30, 0, 1);
+#else
     pChannelInfo->m_pVolumeControl = std::make_unique<ControlAudioTaperPot>(
             ConfigKey(group, "volume"), -20, 0, 1);
+#endif
     pChannelInfo->m_pVolumeControl->setDefaultValue(1.0);
     pChannelInfo->m_pVolumeControl->set(1.0);
     pChannelInfo->m_pMuteControl = std::make_unique<ControlPushButton>(

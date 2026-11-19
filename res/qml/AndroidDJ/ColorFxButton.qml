@@ -1,3 +1,4 @@
+import "../AdvSettings"
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
 import QtQuick.Controls 2.12
@@ -19,10 +20,11 @@ Rectangle {
     // the text in the active colour (not a solid blue fill).
     readonly property color activeColor: "#27a8e0"
 
-    border.color: root.active ? root.activeColor : "#4a4a4a"
-    border.width: 1
+    // While the list is open: orange frame and tint (like the chosen button of the top bar).
+    border.color: list.opened ? "#ff6a3d" : (root.active ? root.activeColor : "#4a4a4a")
+    border.width: list.opened ? 2 : 1
     // Solid (not see-through): the waveform behind must not shine through the text.
-    color: root.active ? "#10303f" : "#202020"
+    color: list.opened ? "#3a2016" : (root.active ? "#10303f" : "#202020")
     opacity: 1.0
 
     Mixxx.ControlProxy { id: colorFx; group: "[AndroidDJ]"; key: "color_fx" }
@@ -52,7 +54,8 @@ Rectangle {
     Timer {
         id: autoCloseTimer
 
-        interval: 3000
+        // Same time as the other windows (ADVANCED SETTINGS > WINDOW).
+        interval: Math.round(AdvSettings.values.windowCloseSec * 1000)
 
         onTriggered: list.close()
     }
@@ -100,9 +103,13 @@ Rectangle {
         property bool tapped: false
 
         closePolicy: Popup.CloseOnPressOutside | Popup.CloseOnEscape
+        // Modal: a touch beside the window only closes it (it must not move the waveform);
+        // a touch on the button at the edge closes it that way, too.
+        modal: true
+        dim: false
         padding: 4
-        // The list covers the button (more of the waveform stays visible).
-        x: 0
+        // Next to the button: its name stays visible, a tap on it closes the list.
+        x: root.width
         y: 0
 
         background: Rectangle {
