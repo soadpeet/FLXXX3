@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
 # KI-Disclaimer: Dieses Skript wurde von einem KI-Agenten (Claude) geschrieben.
-# Baut die Android-APK, richtet sie aus, signiert sie (debug.keystore) und installiert sie per adb.
+# Baut die Android-APK, richtet sie aus, signiert sie und installiert sie per adb.
+# Signatur: mit dem Release-Schluessel von FLXXX3 (flxxx3-release.jks, Passwort in
+# flxxx3-release.pass daneben), sonst mit dem alten debug.keystore. Der Release-Schluessel
+# darf NIE verloren gehen: ohne ihn kann keine Version mehr ueber eine installierte gespielt werden.
 # Aufruf:  bash build-install.sh [--no-install]
-# Optional: KEYSTORE_PASS=... (Standard: "android"), ADB_TARGET=<ip:port> fuer WLAN-Debugging.
+# Optional: KEYSTORE / KEYSTORE_ALIAS / KEYSTORE_PASS, ADB_TARGET=<ip:port> fuer WLAN-Debugging.
 set -euo pipefail
 
 # Alle Werte koennen per Umgebungsvariable ueberschrieben werden; die Standardwerte
 # entsprechen dem bisherigen Verhalten (siehe docs/android-port/build/README.md).
 BASE="${MIXXX_ANDROID_BASE:-$HOME/mixxx-android}"
 BUILD="${BUILD_DIR:-$BASE/build-flxxx3}"
-KEYSTORE="${KEYSTORE:-/mnt/x/Dev/android-tools/debug.keystore}"
-ALIAS="${KEYSTORE_ALIAS:-mixxxdebug}"
-PASS="${KEYSTORE_PASS:-android}"
+TOOLS_DIR="${ANDROID_TOOLS_DIR:-/mnt/x/Dev/android-tools}"
+if [ -z "${KEYSTORE:-}" ] && [ -f "$TOOLS_DIR/flxxx3-release.jks" ]; then
+  KEYSTORE="$TOOLS_DIR/flxxx3-release.jks"
+  ALIAS="${KEYSTORE_ALIAS:-flxxx3}"
+  PASS="${KEYSTORE_PASS:-$(tr -d '\r\n' < "$TOOLS_DIR/flxxx3-release.pass")}"
+else
+  KEYSTORE="${KEYSTORE:-$TOOLS_DIR/debug.keystore}"
+  ALIAS="${KEYSTORE_ALIAS:-mixxxdebug}"
+  PASS="${KEYSTORE_PASS:-android}"
+fi
 BT="${BUILD_TOOLS:-/usr/lib/android-sdk/build-tools/35.0.0}"
 ADB="${ADB:-/usr/lib/android-sdk/platform-tools/adb}"
 
