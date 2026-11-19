@@ -3,7 +3,8 @@
 #include <QBuffer>
 #include <QMap>
 #include <QStandardPaths>
-#include <QTextCodec>
+#include <QStringDecoder>
+#include <algorithm>
 #include <QtConcurrentRun>
 #include <QtDebug>
 #include <QtEndian>
@@ -128,7 +129,9 @@ int insertTrackIntoPlaylist(const QSqlDatabase& database, int playlistId, int tr
 }
 
 inline QString utf16beToQString(const QByteArray& data, const quint32 size) {
-    return QTextCodec::codecForName("UTF-16BE")->toUnicode(data, size);
+    QStringDecoder decoder(QStringConverter::Utf16BE);
+    return decoder(QByteArrayView(data.constData(),
+            std::min(static_cast<qsizetype>(size), data.size())));
 }
 
 inline bool bytesToBoolean(const QByteArray& data) {

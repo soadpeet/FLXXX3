@@ -3891,7 +3891,11 @@ set(QT_EXTRA_COMPONENTS "")
 find_package(QT 6.2 NAMES Qt6 COMPONENTS Core REQUIRED)
 list(APPEND QT_EXTRA_COMPONENTS "ShaderTools")
 list(APPEND QT_EXTRA_COMPONENTS "SvgWidgets")
-list(APPEND QT_EXTRA_COMPONENTS "Core5Compat")
+# FLXXX3: no Qt Core5Compat (the code uses QStringDecoder / QRegularExpression). The library
+# carried its own copy of the ICU data, about 34 MB in the APK.
+if(NOT FLXXX3)
+  list(APPEND QT_EXTRA_COMPONENTS "Core5Compat")
+endif()
 if(QT_VERSION VERSION_GREATER_EQUAL 6.10)
   # from Qt 6.10 GuiPrivate required for QShader/rendergraph (rhi/qshader.h)
   list(APPEND QT_EXTRA_COMPONENTS "GuiPrivate")

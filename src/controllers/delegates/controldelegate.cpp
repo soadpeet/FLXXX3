@@ -1,7 +1,7 @@
 #include "controllers/delegates/controldelegate.h"
 
 #include <QLineEdit>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QStringList>
 
 #include "controllers/controlpickermenu.h"
@@ -103,14 +103,16 @@ QString ControlDelegate::translateConfigKeyGroup(const QString& group) const {
     while (numIt.hasNext()) {
         numIt.next();
         QString regExpStr = QString("\\[%1([1-9]\\d*|)\\]").arg(numIt.key());
-        QRegExp numGroupMatcher(regExpStr);
-        if (numGroupMatcher.exactMatch(group)) {
+        const QRegularExpression numGroupMatcher(
+                QRegularExpression::anchoredPattern(regExpStr));
+        const QRegularExpressionMatch numGroupMatch = numGroupMatcher.match(group);
+        if (numGroupMatch.hasMatch()) {
             // special case for legacy group [Microphone] > "Microphone 1"
-            if (numIt.key() == "Microphone" && numGroupMatcher.cap(1).isEmpty()) {
+            if (numIt.key() == "Microphone" && numGroupMatch.captured(1).isEmpty()) {
                 return QString("%1 1").arg(numIt.value());
             }
             bool ok = false;
-            int num = numGroupMatcher.cap(1).toInt(&ok);
+            int num = numGroupMatch.captured(1).toInt(&ok);
             if (ok) {
                 return numIt.value().arg(QString::number(num));
             }
@@ -122,8 +124,9 @@ QString ControlDelegate::translateConfigKeyGroup(const QString& group) const {
     while (oIt.hasNext()) {
         oIt.next();
         QString regExpStr = QString("\\[%1\\]").arg(oIt.key());
-        QRegExp otherGroupMatcher(regExpStr);
-        if (otherGroupMatcher.exactMatch(group)) {
+        const QRegularExpression otherGroupMatcher(
+                QRegularExpression::anchoredPattern(regExpStr));
+        if (otherGroupMatcher.match(group).hasMatch()) {
             return oIt.value();
         }
     }

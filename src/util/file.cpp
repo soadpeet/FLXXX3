@@ -1,7 +1,6 @@
 #include "util/file.h"
 
 #include <QFileDialog>
-#include <QRegExp> // required for 'indexIn(QString &str, int pos)
 #include <QRegularExpression>
 
 #include "util/assert.h"
@@ -11,7 +10,7 @@ namespace {
 const QRegularExpression kExtractExtensionRegex(R"(\(\*\.(.*)\)$)");
 // extract all extensions from the file filters string "Abc (*.m3u);;Cbx (*.pls)..."
 // lazy match doesn't work here unfortunately "(\(\*\.(.*?)\))"
-const QRegExp kFileFilterRegex(R"(\(\*\.(.[^\)]*)\))");
+const QRegularExpression kFileFilterRegex(R"(\(\*\.(.[^\)]*)\))");
 
 } //anonymous namespace
 
@@ -37,15 +36,13 @@ QString filePathWithSelectedExtension(const QString& fileLocationInput,
         fileLocation += QChar('.') + ext;
     } else if (fileName.suffix() != ext) {
         // Check if fileLocation ends with any of the available extensions
-        int pos = 0;
         // Extract all extensions from the filter list
-        while ((pos = kFileFilterRegex.indexIn(fileFilters, pos)) != -1) {
-            if (ext == kFileFilterRegex.cap(1)) {
+        for (const QRegularExpressionMatch& match : kFileFilterRegex.globalMatch(fileFilters)) {
+            if (ext == match.captured(1)) {
                 // If it matches chop the current extension incl. dot and break
                 fileLocation.chop(ext.length() + 1);
                 break;
             }
-            pos += kFileFilterRegex.matchedLength();
         }
         fileLocation.append(".").append(ext);
     }

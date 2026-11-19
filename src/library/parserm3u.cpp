@@ -16,7 +16,8 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QRegularExpression>
-#include <QTextCodec>
+#include <QStringDecoder>
+#include <QStringEncoder>
 #include <QUrl>
 #include <QtDebug>
 
@@ -70,9 +71,9 @@ QList<QString> ParserM3u::parseAllLocations(const QString& playlistFile) {
     if (Parser::isUtf8(byteArray.constData())) {
         fileContents = QString::fromUtf8(byteArray);
     } else {
-        // FIXME: replace deprecated QTextCodec with direct usage of libicu
-        fileContents = QTextCodec::codecForName(kStandardM3uTextEncoding)
-                               ->toUnicode(byteArray);
+        // Windows-1250 comes from ICU (in Qt Core); without it the bytes are read as Latin-1.
+        QStringDecoder decoder(kStandardM3uTextEncoding);
+        fileContents = decoder.isValid() ? QString(decoder(byteArray)) : QString::fromLatin1(byteArray);
     }
 
     if (!fileContents.startsWith(kM3uHeader)) {
@@ -105,7 +106,8 @@ bool ParserM3u::writeM3UFile(const QString &file_str, const QList<QString> &item
     // On Linux and OS X \n is <CR> (which remains \n)
     bool urlEncodingUsed = false;
     QDir baseDirectory(QFileInfo(file_str).canonicalPath());
-    QTextCodec* codec = QTextCodec::codecForName(kStandardM3uTextEncoding);
+    QStringEncoder encoder(kStandardM3uTextEncoding);
+    QStringDecoder decoder(kStandardM3uTextEncoding);
     QString fileContents(QStringLiteral("#EXTM3U\n"));
     for (const QString& item : items) {
         fileContents += QStringLiteral("#EXTINF\n");
@@ -116,8 +118,9 @@ bool ParserM3u::writeM3UFile(const QString &file_str, const QList<QString> &item
                 fileContents += item + QStringLiteral("\n");
             }
         } else {
-            QByteArray trackByteArray = codec->fromUnicode(item);
-            QString trackName = codec->toUnicode(trackByteArray);
+            QByteArray trackByteArray = encoder.isValid() ? QByteArray(encoder(item)) : item.toLatin1();
+            QString trackName = decoder.isValid() ? QString(decoder(trackByteArray))
+                                                  : QString::fromLatin1(trackByteArray);
             if (trackName == item) {
                 if (useRelativePath) { //Issue: URL Location is not working properly for Relative Paths
                     fileContents += baseDirectory.relativeFilePath(item) + QStringLiteral("\n");
@@ -137,9 +140,8 @@ bool ParserM3u::writeM3UFile(const QString &file_str, const QList<QString> &item
     if (useUtf8) {
         outputByteArray = fileContents.toUtf8();
     } else {
-        // FIXME: replace deprecated QTextCodec with direct usage of libicu
-        outputByteArray = QTextCodec::codecForName(kStandardM3uTextEncoding)
-                                  ->fromUnicode(fileContents);
+        outputByteArray = encoder.isValid() ? QByteArray(encoder(fileContents))
+                                            : fileContents.toLatin1();
     }
 
     QFile file(file_str);

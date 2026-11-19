@@ -4,7 +4,6 @@
 #include <QString>
 #include <QStringList>
 #include <QStyle>
-#include <QTextCodec>
 #include <QThread>
 #include <QtDebug>
 #include <QtGlobal>

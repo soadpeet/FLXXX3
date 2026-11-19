@@ -4,7 +4,7 @@
 #include <QColor>
 #include <QLocale>
 #include <QString>
-#include <QStringRef>
+#include <QStringView>
 #include <cstring>
 #include <cwchar>
 #include <limits>
@@ -25,7 +25,7 @@ class StringCollator {
         return m_collator.compare(s1, s2);
     }
 
-    int compare(const QStringRef& s1, const QStringRef& s2) const {
+    int compare(QStringView s1, QStringView s2) const {
         return m_collator.compare(s1, s2);
     }
 

@@ -30,7 +30,7 @@
 #include <QString>
 #include <QStorageInfo>
 #include <QStringList>
-#include <QTextCodec>
+#include <QStringDecoder>
 #include <QtDebug>
 
 #include "engine/engine.h"
@@ -356,14 +356,15 @@ inline bool instanceof (const T* ptr) {
 
 QString fromUtf16LeString(const std::string& toConvert) {
     // Kaitai uses std::string as single container for all string encodings.
-    return QTextCodec::codecForName("UTF-16LE")
-            ->toUnicode(toConvert.data(), static_cast<int>(toConvert.length()));
+    QStringDecoder decoder(QStringConverter::Utf16LE);
+    return decoder(QByteArrayView(toConvert.data(), static_cast<qsizetype>(toConvert.length())));
 }
 
 QString fromUtf16BeString(const std::string& toConvert) {
     // Kaitai uses std::string as single container for all string encodings.
     int length = static_cast<int>(toConvert.length()) - 2; // strip off trailing nullbyte
-    return QTextCodec::codecForName("UTF-16BE")->toUnicode(toConvert.data(), length);
+    QStringDecoder decoder(QStringConverter::Utf16BE);
+    return decoder(QByteArrayView(toConvert.data(), std::max(length, 0)));
 }
 
 // Functions getText and parseDeviceDB are roughly based on the following Java file:
