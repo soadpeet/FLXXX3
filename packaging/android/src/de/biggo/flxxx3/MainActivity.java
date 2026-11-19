@@ -85,6 +85,17 @@ public class MainActivity extends QtActivityBase {
         // Disable drawing over cutout - isn't working
         WindowManager.LayoutParams lp = this.getWindow().getAttributes();
         lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER;
+        // Set here, before anything is drawn (before, the QML set them when its main window was
+        // ready, about 6 s after the start: every change of the window attributes laid out the
+        // window again while Qt was drawing, which crashed the app in the system graphics
+        // (libgui / RenderThread), mostly at the first start after an installation):
+        // the screen stays on while the app is in front, and a fixed refresh rate (the adaptive
+        // refresh of some phones makes a still picture flicker when the rate changes).
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        lp.preferredRefreshRate = 60.0f;
+        getWindow().setAttributes(lp);
+        // IMMERSIVE_STICKY | HIDE_NAVIGATION | FULLSCREEN | LAYOUT_*
+        getWindow().getDecorView().setSystemUiVisibility(0x1706);
 
         // Disable system and navigation bar to prevent accidental back or app switch
         WindowInsetsControllerCompat windowInsetsController =

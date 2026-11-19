@@ -26,6 +26,13 @@ ApplicationWindow {
         if (!Mixxx.Core.ready) {
             return;
         }
+        // FLXXX3 on Android: the activity is full screen from its start (MainActivity.onCreate).
+        // Switching the window to full screen here, about 5 s after the start while Qt was
+        // drawing, laid the Android window out again, which crashed the app now and then in the
+        // system graphics (libgui / RenderThread), mostly at the first start after an installation.
+        if (isMobile && Mixxx.Product.ui) {
+            return;
+        }
         // FLXXX3 starts full screen everywhere (desktop: F11 switches to a maximized window).
         root.visibility = Mixxx.Config.configStartInFullscreenKey || isMobile || Mixxx.Product.ui
                 ? Window.FullScreen

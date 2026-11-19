@@ -158,6 +158,11 @@ void setScreenBrightness(double value) {
         if (!attributes.isValid()) {
             return;
         }
+        // Only on a real change: every change of the attributes lays the window out again
+        // (at the start NORMAL is set, which is the value the window already has).
+        if (attributes.getField<jfloat>("screenBrightness") == static_cast<jfloat>(value)) {
+            return;
+        }
         attributes.setField<jfloat>("screenBrightness", static_cast<jfloat>(value));
         window.callMethod<void>("setAttributes",
                 "(Landroid/view/WindowManager$LayoutParams;)V",
@@ -166,32 +171,9 @@ void setScreenBrightness(double value) {
 }
 
 void keepScreenOn() {
-    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() {
-        QJniObject activity = QNativeInterface::QAndroidApplication::context();
-        if (!activity.isValid()) {
-            return;
-        }
-        QJniObject window = activity.callObjectMethod("getWindow", "()Landroid/view/Window;");
-        if (window.isValid()) {
-            // FLAG_KEEP_SCREEN_ON: the screen stays on while the app is in front.
-            window.callMethod<void>("addFlags", "(I)V", 0x00000080);
-            // Fixed refresh rate: the adaptive (variable) refresh of some phones makes
-            // a still picture flicker when the rate changes.
-            QJniObject attributes = window.callObjectMethod(
-                    "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
-            if (attributes.isValid()) {
-                attributes.setField<jfloat>("preferredRefreshRate", 60.0f);
-                window.callMethod<void>("setAttributes",
-                        "(Landroid/view/WindowManager$LayoutParams;)V",
-                        attributes.object());
-            }
-            QJniObject decor = window.callObjectMethod("getDecorView", "()Landroid/view/View;");
-            if (decor.isValid()) {
-                // IMMERSIVE_STICKY | HIDE_NAVIGATION | FULLSCREEN | LAYOUT_*
-                decor.callMethod<void>("setSystemUiVisibility", "(I)V", 0x1706);
-            }
-        }
-    });
+    // The screen-on flag, the refresh rate and the full screen are set by MainActivity.onCreate,
+    // before anything is drawn: changing them here (when the QML was ready) laid the window out
+    // again while Qt was drawing, which crashed the app in the system graphics now and then.
 }
 
 void log(const QString& text) {
