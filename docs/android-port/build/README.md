@@ -8,12 +8,13 @@ Stand: 2026-11-11, Quellstand `8c99f51a5f` plus uncommittete Änderungen. Dieser
 | Datei | Zweck |
 |---|---|
 | `env.sh.example` | Kopie von `~/mixxx-android/env.sh` (Buildenv, SDK, NDK, JDK). Pfade enthalten `/home/biggo` und sind anzupassen. |
-| `uname-shim` | Kopie von `~/mixxx-android/shim/uname`; umgeht die WSL-Sperre `CMakeLists.txt:268-276`. |
+| `uname-shim` | Früher nötig gegen die WSL-Sperre in `CMakeLists.txt`; seit 2026-11-20 nicht mehr (die Sperre gilt nur noch für Linux-Builds für den Rechner selbst, nicht für den Android-Cross-Build). |
 | `configure.sh` | Konfigurationsaufruf, **rekonstruiert**, nicht neu ausgeführt (siehe Kopf der Datei). |
 | `build-options.md` | Tatsächliche CMake-Optionen des Build-Ordners `build-flxxx3` (Stand 2026-11-11). |
 | `../build-install.sh` | Bauen, ausrichten, signieren, installieren (`BUILD_DIR`, `OUT_APK` einstellbar). |
 | `build-deps-api29.sh` | Baut die Mixxx-Abhängigkeiten (vcpkg, Stand `1c20f84a`, ~90 Pakete inkl. Qt/FFmpeg) für **Android 10 (API 29)** statt API 35; `setup`/`start`/`stop`/`status`, fortsetzbar. Dauer ca. 3 h. |
-| `configure-api29.sh` | Konfiguriert den zweiten Build-Ordner `~/mixxx-android/build-flxxx3-api29` mit diesen Abhängigkeiten (`ANDROID_API_LEVEL=29`, `ANDROID_MIN_SDK=29`). |
+| `configure-api29.sh` | Konfiguriert den zweiten Build-Ordner `~/mixxx-android/build-flxxx3-api29` mit diesen Abhängigkeiten. Die Optionen stehen in `CMakePresets.json` (Preset `android-api29`, gleicher Optionssatz wie Windows). Ein vorhandener Verweis `buildenv/mixxx-deps-2.7-arm64-android-api29/installed` bleibt, wie er ist (anderer Ordner nur mit `FLXXX3_DEPS_WORK`). |
+| `pack-deps-api29.sh` | Packt die benutzten API-29-Abhängigkeiten (ohne Debug-Bibliotheken, ca. 1,2 GB) in eine Datei für den GitHub-Workflow `.github/workflows/flxxx3-android.yml`. Die Datei liegt als Anhang im GitHub-Release `deps-android-api29-<Datum>` des Forks; Name und SHA256 stehen im Workflow. Nach jedem Neubau der Abhängigkeiten neu packen, hochladen und den Workflow anpassen. |
 
 ## Android 10 und neuer (seit 2026-11-19)
 
@@ -32,7 +33,7 @@ Zusätzliche Systempakete (Ubuntu 24.04): `libgl1-mesa-dev libdrm-dev libgbm-dev
 - `icu`: ohne Zeitzonen-, Währungs-, Sprachnamen- und ähnliche Daten (ICU-Daten 13 statt 33 MB).
 - `ffmpeg`: AAC (M4A) mit dem Decoder von FFmpeg selbst statt libfdk-aac, dessen Lizenz nicht GPL-verträglich ist; `setup` streicht `fdk-aac` auch aus `vcpkg.json`. Derselbe Port baut FFmpeg für Windows (`tools/windows/build_ffmpeg.bat`, `use_ffmpeg.sh`).
 
-Nach einem Wechsel der Abhängigkeiten im vorhandenen Build-Ordner die zwischengespeicherten Fundstellen löschen (mit dem uname-Shim im `PATH`): `cmake -U '*FdkAac*' -U '*fdk-aac*' -U 'FFmpeg_*' -U '*PC_FFmpeg*' ~/mixxx-android/build-flxxx3-api29`.
+Nach einem Wechsel der Abhängigkeiten im vorhandenen Build-Ordner die zwischengespeicherten Fundstellen löschen: `cmake -U '*FdkAac*' -U '*fdk-aac*' -U 'FFmpeg_*' -U '*PC_FFmpeg*' ~/mixxx-android/build-flxxx3-api29`.
 
 Geprüft: alle 103 Bibliotheken der APK gegen die API-29-Systembibliotheken des NDK (keine fehlenden Funktionen); Test auf dem Tablet (Android 16) mit FLX4.
 
@@ -66,7 +67,7 @@ Optionale Umgebungsvariablen von `build-install.sh` (Standardwerte = bisheriges 
 ## Neue Umgebung aufsetzen (noch nicht erprobt)
 
 1. WSL2/Ubuntu 24.04, `sudo apt install libsm6` und die Pakete aus `tools/android_buildenv.sh setup` (JDK 17, Android-cmdline-tools, NDK/SDK-Versionen siehe oben).
-2. Ordner `~/mixxx-android/` anlegen, `env.sh.example` als `env.sh` kopieren und Pfade anpassen, `uname-shim` nach `~/mixxx-android/shim/uname` (ausführbar).
+2. Ordner `~/mixxx-android/` anlegen, `env.sh.example` als `env.sh` kopieren und Pfade anpassen.
 3. Buildenv laden und prüfen (Zip von `downloads.mixxx.org`, SHA256 aus `env.sh`).
 4. `configure.sh` ausführen (Pfade und Optionen vorher prüfen).
 5. Wie oben bauen.

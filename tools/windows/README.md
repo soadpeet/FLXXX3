@@ -6,7 +6,9 @@ Android and Windows are built from the same source tree and branch.
 
 | Script | Purpose |
 | --- | --- |
-| `build.bat [configure]` | Builds the Windows version (`configure` runs CMake first, needed after CMake changes). Work folder: `FLXXX3_WIN_DIR`, default `X:\Dev\FLXXX3-win`. |
+| `build.bat [configure]` | Builds the Windows version (`configure` runs CMake first, needed after CMake changes). Work folder: `FLXXX3_WIN_DIR`, default `X:\Dev\FLXXX3-win`. The CMake options are the preset `windows` in `CMakePresets.json`. |
+| `build_ffmpeg.bat`, `use_ffmpeg.sh` | FFmpeg with its own AAC decoder instead of libfdk-aac, put into the dependency package (once after unpacking it). |
+| `stage_windows.py`, `make_installer.sh` | The folder the installer installs, and the Inno Setup installer (`Releases/v<version>`). |
 | `winshot.ps1 <process> <out.png>` | Screenshot of the app window only (also when covered by other windows). |
 | `winlist.ps1 <process>` | Lists the visible windows of a process (finds hidden dialogs). |
 
@@ -18,6 +20,9 @@ build\mixxx.exe --qml --settings-path <work folder>\settings
 
 The QML files are loaded from the source tree (`res\qml`), a QML change needs no new build.
 The log is `settings\mixxx.log`.
+
+GitHub: `.github/workflows/flxxx3-windows.yml` does the same on every push to `android-midi`
+and on version tags; the installer is a workflow artifact (not signed).
 
 Notes:
 

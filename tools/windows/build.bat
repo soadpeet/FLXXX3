@@ -20,20 +20,18 @@ SET "MIXXX_VCPKG_ROOT=%W%\buildenv\mixxx-deps-2.7-x64-windows-1c20f84a"
 SET "VCPKG_DEFAULT_TRIPLET=x64-windows"
 SET "X_VCPKG_APPLOCAL_DEPS_INSTALL=ON"
 
-CALL "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" >NUL || EXIT /B 1
+REM Visual Studio: the Build Tools at the usual place, otherwise any edition vswhere finds.
+SET "VCVARS=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+IF NOT EXIST "%VCVARS%" FOR /F "usebackq delims=" %%I IN (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) DO SET "VCVARS=%%I\VC\Auxiliary\Build\vcvars64.bat"
+CALL "%VCVARS%" >NUL || EXIT /B 1
 SET "PATH=%W%\tools\cmake-3.31.6-windows-x86_64\bin;%W%\tools;%PATH%"
 
 SET "TARGET="
 IF /I "%~1"=="configure" (SET "TARGET=%~2") ELSE (SET "TARGET=%~1")
 IF /I "%~1"=="configure" (
-    cmake -S "%SRC%" -B "%BUILD%" -G Ninja ^
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo ^
-        -DMIXXX_VCPKG_ROOT="%MIXXX_VCPKG_ROOT%" ^
-        -DCMAKE_TOOLCHAIN_FILE="%MIXXX_VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" ^
-        -DVCPKG_TARGET_TRIPLET=x64-windows ^
-        -DQML=ON -DPORTMIDI=ON -DWARNINGS_FATAL=OFF ^
-        -DSTEM=OFF -DBROADCAST=OFF -DVINYLCONTROL=OFF -DENGINEPRIME=OFF -DLILV=OFF -DMODPLUG=OFF -DBUILD_TESTING=%TESTING% -DBUILD_BENCH=OFF || EXIT /B 1
+    REM Options: CMakePresets.json, preset "windows" (the same set as the Android build).
+    cmake --preset windows -S "%SRC%" -B "%BUILD%" -DBUILD_TESTING=%TESTING% || EXIT /B 1
 )
 IF "%TARGET%"=="" (SET "TARGETARG=") ELSE (SET "TARGETARG=--target %TARGET%")
-cmake --build "%BUILD%" --parallel 24 %TARGETARG% -- -k 0 || EXIT /B 1
+cmake --build "%BUILD%" --parallel %NUMBER_OF_PROCESSORS% %TARGETARG% -- -k 0 || EXIT /B 1
 ENDLOCAL

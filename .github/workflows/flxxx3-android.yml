@@ -1,0 +1,119 @@
+# AI disclaimer: this file was written autonomously by an AI agent (Claude).
+#
+# FLXXX3: builds the Android APK (Android 10 and newer) the same way as on the development
+# computer (docs/android-port/build/configure-api29.sh, preset "android-api29" in
+# CMakePresets.json, docs/android-port/build-install.sh).
+# The dependencies (Qt, FFmpeg, ... for API 29) are built on the development computer
+# (build-deps-api29.sh, about 3 h) and packed by pack-deps-api29.sh; the file lies in the
+# GitHub release DEPS_TAG of this repository.
+# Signature: with the release key if the secrets FLXXX3_KEYSTORE_B64 (the .jks, base64) and
+# FLXXX3_KEYSTORE_PASS are set, otherwise with a key made for this run only (such an APK cannot
+# update an installed FLXXX3).
+name: FLXXX3 Android build
+
+on:
+  push:
+    branches: [android-midi]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android arm64 (API 29)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      DEPS_TAG: deps-android-api29-20261120
+      DEPS_FILE: flxxx3-deps-2.7-arm64-android-api29-20261120.tar.xz
+      DEPS_SHA256: 7bd3ed8f70ab4c2cabe3282cd7b3af22acb9baf7d122a1b563a210e747ae40b3
+      NDK_VERSION: 27.2.12479018
+      BASE: ${{ github.workspace }}/../mixxx-android
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/.ghcup /opt/ghc /usr/local/share/boost /usr/local/lib/node_modules
+          df -h .
+
+      - name: System packages
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libgl1-mesa-dev libdrm-dev libgbm-dev libsm-dev libsm6 libudev-dev \
+            libxrandr-dev nasm zip ninja-build libtool autopoint gperf texinfo
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK parts
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "ndk;$NDK_VERSION" "build-tools;35.0.0" "platforms;android-35" "platform-tools" > /dev/null
+          mkdir -p "$BASE"
+          cat > "$BASE/env.sh" <<EOF
+          export ANDROID_SDK=$ANDROID_HOME
+          export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION
+          export JAVA_HOME=$JAVA_HOME
+          EOF
+
+      - name: Dependencies (release ${{ env.DEPS_TAG }})
+        run: |
+          mkdir -p "$BASE/buildenv"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$DEPS_FILE" \
+            "https://github.com/${{ github.repository }}/releases/download/$DEPS_TAG/$DEPS_FILE"
+          echo "$DEPS_SHA256  $RUNNER_TEMP/$DEPS_FILE" | sha256sum -c -
+          tar -xJf "$RUNNER_TEMP/$DEPS_FILE" -C "$BASE/buildenv"
+          rm "$RUNNER_TEMP/$DEPS_FILE"
+          df -h .
+
+      - name: Configure
+        run: MIXXX_ANDROID_BASE="$BASE" bash docs/android-port/build/configure-api29.sh "$BASE/build"
+
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.FLXXX3_KEYSTORE_B64 }}
+          KEYSTORE_PASS: ${{ secrets.FLXXX3_KEYSTORE_PASS }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASS" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "KEYSTORE_ALIAS=flxxx3" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PASS=$KEYSTORE_PASS" >> "$GITHUB_ENV"
+            echo "SIGNED_WITH=release" >> "$GITHUB_ENV"
+          else
+            PASS="$(openssl rand -hex 16)"
+            echo "::add-mask::$PASS"
+            keytool -genkeypair -keystore "$RUNNER_TEMP/ci.jks" -alias ci -keyalg RSA -keysize 2048 \
+              -validity 30 -storepass "$PASS" -keypass "$PASS" -dname "CN=FLXXX3 CI" > /dev/null
+            echo "KEYSTORE=$RUNNER_TEMP/ci.jks" >> "$GITHUB_ENV"
+            echo "KEYSTORE_ALIAS=ci" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PASS=$PASS" >> "$GITHUB_ENV"
+            echo "SIGNED_WITH=ci" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build the APK
+        run: |
+          MIXXX_ANDROID_BASE="$BASE" BUILD_DIR="$BASE/build" OUT_APK="$RUNNER_TEMP/out/flxxx3.apk" \
+            BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0" GRADLE_OFFLINE=0 \
+            bash -c 'mkdir -p "$(dirname "$OUT_APK")" && bash docs/android-port/build-install.sh --no-install'
+          v="$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' packaging/android/AndroidManifest.xml)"
+          mv "$RUNNER_TEMP/out/flxxx3.apk" "$RUNNER_TEMP/out/FLXXX3-v$v-$SIGNED_WITH-signed.apk"
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+          ls -l "$RUNNER_TEMP/out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FLXXX3-v${{ env.VERSION }}-android-${{ env.SIGNED_WITH }}-signed
+          path: ${{ runner.temp }}/out/*.apk
+          if-no-files-found: error
+          retention-days: 30

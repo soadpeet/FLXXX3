@@ -29,12 +29,17 @@ import shutil
 import subprocess
 import sys
 
-SRC = "/mnt/x/Dev/FLXXX3"
-BUILD = "/mnt/x/Dev/FLXXX3-win/build"
-STAGE = "/mnt/x/Dev/FLXXX3-win/stage/FLXXX3"
+# Defaults: the development computer (WSL). The GitHub workflow (Windows) sets the folders
+# with FLXXX3_SRC, FLXXX3_BUILD_DIR, FLXXX3_STAGE, FLXXX3_DEPS_BIN and VC_REDIST.
+SRC = os.environ.get("FLXXX3_SRC", "/mnt/x/Dev/FLXXX3")
+BUILD = os.environ.get("FLXXX3_BUILD_DIR", "/mnt/x/Dev/FLXXX3-win/build")
+STAGE = os.environ.get("FLXXX3_STAGE", "/mnt/x/Dev/FLXXX3-win/stage/FLXXX3")
 # Libraries the build folder does not have (some QML modules of Qt need them).
-DEPS_BIN = "/mnt/x/Dev/FLXXX3-win/buildenv/mixxx-deps-2.7-x64-windows-1c20f84a/installed/x64-windows/bin"
-VC_REDIST = "/mnt/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Redist/MSVC"
+DEPS_BIN = os.environ.get(
+    "FLXXX3_DEPS_BIN",
+    "/mnt/x/Dev/FLXXX3-win/buildenv/mixxx-deps-2.7-x64-windows-1c20f84a/installed/x64-windows/bin")
+VC_REDIST = os.environ.get(
+    "VC_REDIST", "/mnt/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Redist/MSVC")
 
 # Qt plugin folders next to the program (copied by the build) and what is left out.
 PLUGIN_DIRS = ["platforms", "styles", "imageformats", "sqldrivers", "tls", "iconengines"]
@@ -55,8 +60,13 @@ CONTROLLER_FILES = ["Pioneer-DDJ-FLX4.midi.xml", "Pioneer-DDJ-FLX4-script.js",
 
 def pe_imports(path):
     """Names of the DLLs a Windows program or library loads (lower case)."""
-    out = subprocess.run(["objdump", "-p", path], capture_output=True, text=True).stdout
-    return [m.lower() for m in re.findall(r"DLL Name: (\S+)", out)]
+    if shutil.which("objdump"):
+        out = subprocess.run(["objdump", "-p", path], capture_output=True, text=True).stdout
+        return [m.lower() for m in re.findall(r"DLL Name: (\S+)", out)]
+    # Windows without binutils: dumpbin of Visual Studio (in the PATH after vcvars64.bat).
+    out = subprocess.run(["dumpbin", "/nologo", "/dependents", path],
+                         capture_output=True, text=True).stdout
+    return [m.lower() for m in re.findall(r"^\s+(\S+\.dll)\s*$", out, re.M | re.I)]
 
 
 def copy_file(src, dst):

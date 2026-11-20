@@ -1,0 +1,113 @@
+# AI disclaimer: this file was written autonomously by an AI agent (Claude).
+#
+# FLXXX3: builds the Windows version and its installer, the same way as on the development
+# computer (tools/windows/build.bat, preset "windows" in CMakePresets.json):
+#   1. the Mixxx dependency package (downloads.mixxx.org, checked by SHA256),
+#   2. FFmpeg with its own AAC decoder instead of libfdk-aac (overlay port, kept in the cache),
+#   3. the program, the installed folder (stage_windows.py) and the Inno Setup installer.
+# The installer is kept as a workflow artifact (not signed).
+name: FLXXX3 Windows build
+
+on:
+  push:
+    branches: [android-midi]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 240
+    env:
+      W: D:\flx
+      DEPS_NAME: mixxx-deps-2.7-x64-windows-1c20f84a
+      DEPS_SHA256: 77b75ab17f06e07b1c140e90f86aafb8658d66d8d581d488ab9b9545996fdc6e
+      VCPKG_COMMIT: 1c20f84aa1ffca2ef18a7d9c6bd7cdd1f5f2e265
+    steps:
+      # Two skin files are symbolic links (res/skins/LateNight/palemoon/buttons); without this
+      # Git on Windows checks them out as text files with the target path.
+      - name: Symbolic links in the checkout
+        run: git config --global core.symlinks true
+
+      - uses: actions/checkout@v4
+
+      - name: Mixxx dependency package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "$env:W\buildenv" | Out-Null
+          $zip = "$env:W\$env:DEPS_NAME.zip"
+          curl.exe -fsSL --retry 3 -o $zip "https://downloads.mixxx.org/dependencies/2.7/Windows/$env:DEPS_NAME.zip"
+          $sha = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
+          if ($sha -ne $env:DEPS_SHA256) { throw "SHA256 mismatch: $sha" }
+          7z x -y -bso0 "-o$env:W\buildenv" $zip
+          Remove-Item $zip
+          if (-not (Test-Path "$env:W\buildenv\$env:DEPS_NAME\installed\x64-windows\bin")) { throw "unexpected package layout" }
+
+      - name: Cache FFmpeg without libfdk-aac
+        id: cache-ffmpeg
+        uses: actions/cache@v4
+        with:
+          path: D:\flx\ffmpeg-noaac
+          key: ffmpeg-noaac-${{ env.VCPKG_COMMIT }}-${{ hashFiles('docs/android-port/build/overlay-ports/ffmpeg/**') }}
+
+      - name: Build FFmpeg without libfdk-aac
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          git clone -q https://github.com/mixxxdj/vcpkg.git %W%\vcpkg-src || exit /b 1
+          git -C %W%\vcpkg-src checkout -q %VCPKG_COMMIT% || exit /b 1
+          rmdir /s /q %W%\vcpkg-src\overlay\ports\ffmpeg 2>NUL
+          xcopy /e /i /q docs\android-port\build\overlay-ports\ffmpeg %W%\vcpkg-src\overlay\ports\ffmpeg || exit /b 1
+          set FLXXX3_WIN_DIR=%W%
+          call tools\windows\build_ffmpeg.bat || exit /b 1
+          rmdir /s /q %W%\ffmpeg-noaac-build 2>NUL
+          exit /b 0
+
+      - name: Put FFmpeg into the dependency package
+        shell: bash
+        run: FLXXX3_WIN_DIR="$(cygpath -u "$W")" bash tools/windows/use_ffmpeg.sh
+
+      - name: Build
+        shell: cmd
+        run: |
+          set FLXXX3_WIN_DIR=%W%
+          call tools\windows\build.bat configure
+
+      - name: Version (from the Android manifest)
+        shell: bash
+        run: |
+          v="$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' packaging/android/AndroidManifest.xml)"
+          [ -n "$v" ] || { echo "no versionName" >&2; exit 1; }
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+
+      - name: Installer
+        shell: cmd
+        run: |
+          for /f "usebackq delims=" %%I in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set "VS=%%I"
+          call "%VS%\VC\Auxiliary\Build\vcvars64.bat" >NUL || exit /b 1
+          set "FLXXX3_SRC=%CD%"
+          set "FLXXX3_BUILD_DIR=%W%\build"
+          set "FLXXX3_STAGE=%W%\stage\FLXXX3"
+          set "FLXXX3_DEPS_BIN=%W%\buildenv\%DEPS_NAME%\installed\x64-windows\bin"
+          set "VC_REDIST=%VS%\VC\Redist\MSVC"
+          python tools\windows\stage_windows.py || exit /b 1
+          where iscc >NUL 2>NUL || choco install innosetup -y --no-progress || exit /b 1
+          set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+          if not exist "%ISCC%" for /f "delims=" %%I in ('where iscc') do set "ISCC=%%I"
+          "%ISCC%" /Q "/DAppVersion=%VERSION%" "/DStageDir=%W%\stage\FLXXX3" "/DOutputDir=%W%\out" packaging\windows\flxxx3.iss || exit /b 1
+          dir %W%\out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FLXXX3-v${{ env.VERSION }}-windows-setup
+          path: D:\flx\out\*.exe
+          if-no-files-found: error
+          retention-days: 30

@@ -5,7 +5,8 @@
 # flxxx3-release.pass daneben), sonst mit dem alten debug.keystore. Der Release-Schluessel
 # darf NIE verloren gehen: ohne ihn kann keine Version mehr ueber eine installierte gespielt werden.
 # Aufruf:  bash build-install.sh [--no-install]
-# Optional: KEYSTORE / KEYSTORE_ALIAS / KEYSTORE_PASS, ADB_TARGET=<ip:port> fuer WLAN-Debugging.
+# Optional: KEYSTORE / KEYSTORE_ALIAS / KEYSTORE_PASS, ADB_TARGET=<ip:port> fuer WLAN-Debugging,
+# BUILD_TOOLS, GRADLE_OFFLINE=0 (GitHub-Workflow).
 set -euo pipefail
 
 # Alle Werte koennen per Umgebungsvariable ueberschrieben werden; die Standardwerte
@@ -27,7 +28,6 @@ ADB="${ADB:-/usr/lib/android-sdk/platform-tools/adb}"
 
 # shellcheck disable=SC1091
 source "$BASE/env.sh"
-export PATH="$BASE/shim:$PATH"   # uname-Shim wegen WSL-Sperre (CMakeLists.txt:268-276)
 
 cmake --build "$BUILD" --target apk -j"$(nproc)"
 # FLXXX3 uses the Qt Quick Controls style "Basic" only (QQuickStyle::setStyle). androiddeployqt
@@ -42,7 +42,10 @@ if [ -d "$LIBS_DIR" ]; then
 fi
 # A change in QML files only is copied into the assets, but the apk target does not notice
 # it and keeps the old APK: run gradle once more (a no-op when nothing changed).
-( cd "$BUILD/android-build" && ANDROID_SDK_ROOT="$ANDROID_SDK" ./gradlew assembleRelease --offline -q )
+# GRADLE_OFFLINE=0 (GitHub workflow): Gradle may download what is not in its cache.
+GRADLE_ARGS=(assembleRelease -q)
+[ "${GRADLE_OFFLINE:-1}" = "1" ] && GRADLE_ARGS+=(--offline)
+( cd "$BUILD/android-build" && ANDROID_SDK_ROOT="$ANDROID_SDK" ./gradlew "${GRADLE_ARGS[@]}" )
 
 UNSIGNED="$BUILD/android-build/build/outputs/apk/release/android-build-release-unsigned.apk"
 ALIGNED="${OUT_APK:-$BASE/flx.apk}.aligned"

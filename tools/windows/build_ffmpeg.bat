@@ -5,6 +5,7 @@ rem Builds FFmpeg for Windows like the Mixxx dependency package, but with the AA
 rem FFmpeg instead of libfdk-aac (GPL-incompatible license). The port is the FLXXX3 overlay
 rem docs\android-port\build\overlay-ports\ffmpeg (the same as for Android).
 rem
+rem Work folder: FLXXX3_WIN_DIR, default X:\Dev\FLXXX3-win (paths below are the default).
 rem Needs (once):
 rem   git clone https://github.com/mixxxdj/vcpkg.git X:\Dev\FLXXX3-win\vcpkg-src
 rem   git -C X:\Dev\FLXXX3-win\vcpkg-src checkout 1c20f84aa1ffca2ef18a7d9c6bd7cdd1f5f2e265
@@ -14,7 +15,7 @@ rem Result: X:\Dev\FLXXX3-win\ffmpeg-noaac\x64-windows-release (bin\*.dll, lib\*
 rem bin and lib into the dependency package with tools\windows\use_ffmpeg.sh.
 
 setlocal
-set WIN=X:\Dev\FLXXX3-win
+if "%FLXXX3_WIN_DIR%"=="" (set "WIN=X:\Dev\FLXXX3-win") else (set "WIN=%FLXXX3_WIN_DIR%")
 set VCPKG_DISABLE_METRICS=1
 "%WIN%\buildenv\mixxx-deps-2.7-x64-windows-1c20f84a\vcpkg.exe" install ^
   "ffmpeg[core,avcodec,avdevice,avfilter,avformat,swresample,swscale,fedora-ffmpeg-free-safe]:x64-windows-release" ^

@@ -268,7 +268,9 @@ function(fatal_error_missing_env)
   endif()
 endfunction()
 
-if(UNIX AND NOT APPLE)
+# FLXXX3: the Android build is a cross build with its own toolchain (NDK) and works in WSL;
+# the check is only for Linux builds for the host.
+if(UNIX AND NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "Android")
   execute_process(
     COMMAND uname -r
     OUTPUT_VARIABLE UNAME_R

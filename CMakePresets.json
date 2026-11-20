@@ -1,0 +1,80 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "flxxx3-base",
+      "hidden": true,
+      "description": "FLXXX3 options common to Android and Windows (AI disclaimer: written by an AI agent, Claude). MIXXX_VCPKG_ROOT (environment) points to the dependencies: docs/android-port/build/README.md, tools/windows/README.md.",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "MIXXX_VCPKG_ROOT": "$env{MIXXX_VCPKG_ROOT}",
+        "CMAKE_TOOLCHAIN_FILE": "$env{MIXXX_VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "FLXXX3": "ON",
+        "QML": "ON",
+        "WARNINGS_FATAL": "OFF",
+        "STEM": "OFF",
+        "BROADCAST": "OFF",
+        "VINYLCONTROL": "OFF",
+        "ENGINEPRIME": "OFF",
+        "LILV": "OFF",
+        "MODPLUG": "OFF",
+        "BUILD_TESTING": "OFF",
+        "BUILD_BENCH": "OFF"
+      }
+    },
+    {
+      "name": "android-api29",
+      "displayName": "Android 10+ (arm64, API 29)",
+      "description": "Release build of the APK, with the dependencies of build-deps-api29.sh. Environment from ~/mixxx-android/env.sh (ANDROID_SDK, ANDROID_NDK_HOME, JAVA_HOME); MIXXX_VCPKG_ROOT = ~/mixxx-android/buildenv/mixxx-deps-2.7-arm64-android-api29.",
+      "inherits": "flxxx3-base",
+      "generator": "Unix Makefiles",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
+      "cacheVariables": {
+        "CMAKE_SYSTEM_NAME": "Android",
+        "VCPKG_TARGET_TRIPLET": "arm64-android-api29",
+        "VCPKG_DEFAULT_HOST_TRIPLET": "x64-linux-release",
+        "ANDROID_API_LEVEL": "29",
+        "ANDROID_MIN_SDK": "29",
+        "QT6": "ON",
+        "HID": "ON",
+        "BULK": "ON",
+        "PORTMIDI": "OFF",
+        "FAAD": "OFF",
+        "FFMPEG": "ON",
+        "KEYFINDER": "ON",
+        "RUBBERBAND": "ON",
+        "OPUS": "ON",
+        "WAVPACK": "ON",
+        "MAD": "ON",
+        "QTKEYCHAIN": "ON",
+        "LOCALECOMPARE": "ON"
+      }
+    },
+    {
+      "name": "windows",
+      "displayName": "Windows (x64, MSVC)",
+      "description": "Windows build. Run from a Visual Studio 2022 x64 command prompt (vcvars64.bat); MIXXX_VCPKG_ROOT = <FLXXX3-win>\\buildenv\\mixxx-deps-2.7-x64-windows-1c20f84a. tools/windows/build.bat does both.",
+      "inherits": "flxxx3-base",
+      "generator": "Ninja",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
+        "PORTMIDI": "ON"
+      }
+    },
+    {
+      "name": "windows-test",
+      "displayName": "Windows with unit tests",
+      "description": "Windows build with mixxx-test (tools/run_tests.sh).",
+      "inherits": "windows",
+      "cacheVariables": { "BUILD_TESTING": "ON" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "android-api29", "configurePreset": "android-api29", "targets": ["apk"] },
+    { "name": "windows", "configurePreset": "windows" },
+    { "name": "windows-test", "configurePreset": "windows-test", "targets": ["mixxx-test"] }
+  ]
+}

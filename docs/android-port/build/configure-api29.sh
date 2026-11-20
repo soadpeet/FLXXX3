@@ -15,11 +15,21 @@ set -euo pipefail
 BASE="${MIXXX_ANDROID_BASE:-$HOME/mixxx-android}"
 SRC="${SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 BUILD="${1:-$BASE/build-flxxx3-api29}"
-DEPS_WORK="${FLXXX3_DEPS_WORK:-$BASE/deps-api29}"
 VCPKG_SRC="${FLXXX3_VCPKG_SRC:-$BASE/vcpkg-src}"
 TRIPLET=arm64-android-api29
 # Same layout as the downloaded Mixxx package: scripts/ (toolchain) and installed/.
 DEPS_ROOT="$BASE/buildenv/mixxx-deps-2.7-arm64-android-api29"
+# The dependencies in use: FLXXX3_DEPS_WORK if given, otherwise the folder the package root
+# points to already (it is switched by hand after a new dependency build), otherwise deps-api29.
+if [ -d "$DEPS_ROOT/installed" ] && [ ! -L "$DEPS_ROOT/installed" ]; then
+    DEPS_WORK="$DEPS_ROOT" # an unpacked package of pack-deps-api29.sh (GitHub workflow)
+elif [ -n "${FLXXX3_DEPS_WORK:-}" ]; then
+    DEPS_WORK="$FLXXX3_DEPS_WORK"
+elif [ -L "$DEPS_ROOT/installed" ]; then
+    DEPS_WORK="$(dirname "$(readlink "$DEPS_ROOT/installed")")"
+else
+    DEPS_WORK="$BASE/deps-api29"
+fi
 
 if [ ! -d "$DEPS_WORK/installed/$TRIPLET/lib" ]; then
     echo "No dependencies for $TRIPLET in $DEPS_WORK/installed (build-deps-api29.sh start)" >&2
@@ -30,28 +40,17 @@ if [ -e "$BUILD/CMakeCache.txt" ]; then
     exit 1
 fi
 
-mkdir -p "$DEPS_ROOT"
-ln -sfn "$VCPKG_SRC/scripts" "$DEPS_ROOT/scripts"
-ln -sfn "$DEPS_WORK/installed" "$DEPS_ROOT/installed"
-ln -sfn "$VCPKG_SRC/triplets" "$DEPS_ROOT/triplets"
-ln -sfn "$VCPKG_SRC/vcpkg" "$DEPS_ROOT/vcpkg"
-touch "$DEPS_ROOT/.vcpkg-root" # the vcpkg toolchain finds its root by this file
+if [ "$DEPS_WORK" != "$DEPS_ROOT" ]; then
+    mkdir -p "$DEPS_ROOT"
+    ln -sfn "$VCPKG_SRC/scripts" "$DEPS_ROOT/scripts"
+    ln -sfn "$DEPS_WORK/installed" "$DEPS_ROOT/installed"
+    ln -sfn "$VCPKG_SRC/triplets" "$DEPS_ROOT/triplets"
+    ln -sfn "$VCPKG_SRC/vcpkg" "$DEPS_ROOT/vcpkg"
+    touch "$DEPS_ROOT/.vcpkg-root" # the vcpkg toolchain finds its root by this file
+fi
 
 source "$BASE/env.sh"
 export MIXXX_VCPKG_ROOT="$DEPS_ROOT"
-export VCPKG_TARGET_TRIPLET="$TRIPLET"
-export PATH="$BASE/shim:$PATH" # uname shim for WSL (CMakeLists.txt)
 
-cmake -S "$SRC" -B "$BUILD" \
-    -DCMAKE_TOOLCHAIN_FILE="$DEPS_ROOT/scripts/buildsystems/vcpkg.cmake" \
-    -DCMAKE_SYSTEM_NAME=Android \
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DVCPKG_TARGET_TRIPLET="$TRIPLET" \
-    -DVCPKG_DEFAULT_HOST_TRIPLET=x64-linux-release \
-    -DANDROID_API_LEVEL=29 \
-    -DANDROID_MIN_SDK=29 \
-    -DQT6=ON -DQML=ON -DHID=ON -DBULK=ON -DPORTMIDI=OFF -DFAAD=OFF \
-    -DFFMPEG=ON -DSTEM=OFF -DKEYFINDER=ON -DRUBBERBAND=ON -DOPUS=ON -DWAVPACK=ON -DMAD=ON \
-    -DQTKEYCHAIN=ON -DLOCALECOMPARE=ON \
-    -DBROADCAST=OFF -DVINYLCONTROL=OFF -DENGINEPRIME=OFF -DLILV=OFF -DMODPLUG=OFF \
-    -DBUILD_TESTING=OFF -DBUILD_BENCH=OFF
+# Options: CMakePresets.json, preset android-api29 (the same set as the Windows build).
+cmake --preset android-api29 -S "$SRC" -B "$BUILD"

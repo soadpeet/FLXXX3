@@ -8,7 +8,7 @@
 # The replaced files are kept once in $BACKUP (to go back: copy them back).
 set -euo pipefail
 
-WIN=/mnt/x/Dev/FLXXX3-win
+WIN="${FLXXX3_WIN_DIR:-/mnt/x/Dev/FLXXX3-win}"
 NEW="$WIN/ffmpeg-noaac/x64-windows-release"
 DEPS="$WIN/buildenv/mixxx-deps-2.7-x64-windows-1c20f84a/installed/x64-windows"
 BACKUP="$WIN/buildenv/backup-ffmpeg-fdk-aac"
