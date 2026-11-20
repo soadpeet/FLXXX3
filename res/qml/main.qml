@@ -9,6 +9,9 @@ import "AndroidDJ" as AndroidDJ
 ApplicationWindow {
     id: root
 
+    // FLXXX3: name in the taskbar (empty = the application name, "Mixxx").
+    title: Mixxx.Product.ui ? "FLXXX3" : ""
+
     readonly property bool isMobile: Qt.platform.os === "android" || Qt.platform.os === "ios"
     readonly property int designWidth: 1792
     readonly property int designHeight: 1008

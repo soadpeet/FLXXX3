@@ -57,7 +57,12 @@ CmdlineArgs::CmdlineArgs()
           m_developer(false),
           m_stats(false),
 #ifdef MIXXX_USE_QML
+#ifdef FLXXX3
+          // FLXXX3: the product interface is the QML one (no --qml needed, see parse()).
+          m_qml(true),
+#else
           m_qml(false),
+#endif
 #endif
           m_safeMode(false),
           m_useLegacyVuMeter(false),
@@ -93,6 +98,12 @@ CmdlineArgs::CmdlineArgs()
           m_settingsPath(
                   QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
                           .append("/Library/Application Support/Mixxx"))
+#elif defined(FLXXX3) && defined(Q_OS_WIN)
+          // FLXXX3 on Windows: its own folder (%LOCALAPPDATA%\FLXXX3), not the one of an
+          // installed Mixxx (both are called "Mixxx" for Qt).
+          m_settingsPath(
+                  QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+                          .append("/FLXXX3/"))
 #else
 
           // TODO(XXX) Trailing slash not needed anymore as we switches from String::append
@@ -477,7 +488,12 @@ bool CmdlineArgs::parse(const QStringList& arguments, CmdlineArgs::ParseMode mod
     m_developer = parser.isSet(developer);
     m_stats = parser.isSet(stats);
 #ifdef MIXXX_USE_QML
+#ifdef FLXXX3
+    // FLXXX3: always the QML interface (the default above), with or without --qml.
+    m_qml = true;
+#else
     m_qml = parser.isSet(qml);
+#endif
     if (parser.isSet(qmlDeprecated)) {
         m_qml |= true;
         qWarning() << "The argument '--qml' is deprecated and will be soon "

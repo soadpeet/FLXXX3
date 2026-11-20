@@ -1,0 +1,58 @@
+// AI disclaimer: this file was written autonomously by an AI agent (Claude).
+// FLXXX3: Windows resources of the program (icon in Explorer and in the taskbar, version info).
+// Replaces src/mixxx.rc in FLXXX3 builds; FLXXX3_VERSION comes from CMake.
+
+IDI_ICON1               ICON    DISCARDABLE     "packaging/windows/flxxx3.ico"
+
+#include <windows.h>
+
+#include "mixxx.rc.include"
+
+#define VER_PRODUCTNAME_STR         "FLXXX3\0"
+#define VER_FILEDESCRIPTION_STR     "FLXXX3 DJ software for the DDJ-FLX4\0"
+#define VER_COMPANYNAME_STR         "FLXXX3\0"
+// \xA9 for (c) symbol. The Microsoft Resource Compiler assumes Latin-1 strings.
+#define VER_LEGALCOPYRIGHT_STR      "\xA9 2001-" CUR_YEAR " Mixxx Development Team and FLXXX3 contributors, GPL\0"
+#define VER_ORIGINALFILENAME_STR    "FLXXX3.exe\0"
+#define VER_FILEVERSION_STR         FLXXX3_VERSION "\0"
+#define VER_PRODUCTVERSION_STR      FLXXX3_VERSION "\0"
+
+#ifndef DEBUG
+    #define VER_DEBUG               0
+#else
+    #define VER_DEBUG               VS_FF_DEBUG
+#endif
+
+#ifndef PRERELEASE
+    #define VER_PRERELEASE          0
+#else
+    #define VER_PRERELEASE          VS_FF_PRERELEASE
+#endif
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     VER_FILEVERSION
+PRODUCTVERSION  VER_PRODUCTVERSION
+FILEFLAGSMASK   VS_FFI_FILEFLAGSMASK
+FILEFLAGS       (VER_DEBUG|VER_PRERELEASE|VER_PATCHED)
+FILEOS          VOS__WINDOWS32
+FILETYPE        VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904E4"
+        BEGIN
+            VALUE "CompanyName",      VER_COMPANYNAME_STR
+            VALUE "FileDescription",  VER_FILEDESCRIPTION_STR
+            VALUE "FileVersion",      VER_FILEVERSION_STR
+            VALUE "LegalCopyright",   VER_LEGALCOPYRIGHT_STR
+            VALUE "OriginalFilename", VER_ORIGINALFILENAME_STR
+            VALUE "ProductName",      VER_PRODUCTNAME_STR
+            VALUE "ProductVersion",   VER_PRODUCTVERSION_STR
+        END
+    END
+
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0, 1200
+    END
+END
