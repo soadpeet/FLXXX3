@@ -17,9 +17,11 @@ on:
 permissions:
   contents: read
 
+# A running build is not cancelled by a newer push (the first one also fills the FFmpeg cache);
+# the newer run waits.
 concurrency:
   group: windows-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   windows:

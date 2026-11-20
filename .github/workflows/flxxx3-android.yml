@@ -77,7 +77,10 @@ jobs:
           df -h .
 
       - name: Configure
-        run: MIXXX_ANDROID_BASE="$BASE" bash docs/android-port/build/configure-api29.sh "$BASE/build"
+        run: |
+          set -o pipefail
+          MIXXX_ANDROID_BASE="$BASE" bash docs/android-port/build/configure-api29.sh "$BASE/build" 2>&1 \
+            | tee "$RUNNER_TEMP/configure.log" || { bash tools/ci/annotate_failure.sh Configure "$RUNNER_TEMP/configure.log"; exit 1; }
 
       - name: Signing key
         env:
@@ -105,7 +108,8 @@ jobs:
         run: |
           MIXXX_ANDROID_BASE="$BASE" BUILD_DIR="$BASE/build" OUT_APK="$RUNNER_TEMP/out/flxxx3.apk" \
             BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0" GRADLE_OFFLINE=0 \
-            bash -c 'mkdir -p "$(dirname "$OUT_APK")" && bash docs/android-port/build-install.sh --no-install'
+            bash -c 'mkdir -p "$(dirname "$OUT_APK")" && set -o pipefail && bash docs/android-port/build-install.sh --no-install 2>&1 | tee "$RUNNER_TEMP/build.log"' \
+            || { bash tools/ci/annotate_failure.sh Build "$RUNNER_TEMP/build.log"; exit 1; }
           v="$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' packaging/android/AndroidManifest.xml)"
           mv "$RUNNER_TEMP/out/flxxx3.apk" "$RUNNER_TEMP/out/FLXXX3-v$v-$SIGNED_WITH-signed.apk"
           echo "VERSION=$v" >> "$GITHUB_ENV"
