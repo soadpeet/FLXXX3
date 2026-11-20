@@ -1,0 +1,59 @@
+FLXXX3 - SOFTWARE IT IS BUILT FROM
+
+FLXXX3 is a fork of Mixxx (https://mixxx.org). It contains the source code
+of Mixxx, changed and extended. FLXXX3 is not affiliated with or endorsed by
+the Mixxx project.
+
+Mixxx and the changes of FLXXX3: GNU General Public License version 2 or
+(at your option) any later version. The app as a whole is distributed under
+the GNU General Public License version 3, because it contains libraries
+under GPL-3.0. The source code of every release is published at
+https://github.com/soadpeet/FLXXX3 (branch android-midi, tag of the release).
+
+Libraries used by the app (license of each library; the full texts are in
+the source code of the libraries):
+
+  Qt 6.10: LGPL-3.0 (used as shared libraries)
+  ICU: Unicode License (ICU)
+  FFmpeg (libavcodec, libavformat, libavutil, libswresample): LGPL-2.1 or later
+  TagLib: LGPL-2.1 / MPL-1.1
+  SoundTouch: LGPL-2.1
+  Rubber Band: GPL-2.0 or later
+  libkeyfinder: GPL-3.0 or later
+  Queen Mary DSP: GPL-2.0 or later
+  FFTW 3: GPL-2.0 or later
+  libmad, libid3tag: GPL-2.0 or later
+  mpg123: LGPL-2.1
+  LAME (MP3 recording): LGPL-2.0
+  FDK AAC: Fraunhofer FDK AAC license
+  Opus, opusfile: BSD-3-Clause
+  Ogg, Vorbis, FLAC: BSD-3-Clause
+  WavPack: BSD-3-Clause
+  libsndfile: LGPL-2.1
+  libsamplerate: BSD-2-Clause
+  libebur128: MIT
+  Chromaprint: MIT (core) / LGPL-2.1
+  SQLite: Public domain
+  Protocol Buffers: BSD-3-Clause
+  Abseil: Apache-2.0
+  Kaitai Struct runtime: MIT
+  Rekordbox metadata (crate-digger format descriptions): EPL-1.0
+  libusb: LGPL-2.1
+  hidapi: BSD-3-Clause (one of its license options)
+  Oboe: Apache-2.0
+  PortAudio: MIT style
+  SLEEF: Boost Software License 1.0
+  fidlib: LGPL-2.1
+  mp3guessenc: LGPL-2.1
+  Reverb (from Calf / Mixxx), ReplayGain analysis: GPL / LGPL (see the source files)
+  QtKeychain: BSD-2-Clause
+  Open Sans (font): Apache-2.0
+  Ubuntu (font): Ubuntu Font Licence 1.0
+  LLVM OpenMP runtime, libc++: Apache-2.0 with LLVM exception
+
+TRADEMARKS
+
+rekordbox, Pioneer DJ, AlphaTheta, DDJ-FLX4, XDJ-RX3 and CDJ are trademarks
+of their owners. They are only named to describe compatibility. FLXXX3 is not
+affiliated with or endorsed by them. Qt, Android and ASIO belong to their
+owners as well.

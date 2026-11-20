@@ -2377,7 +2377,19 @@ endif()
 # product checks FLXXX3; only code that talks to the operating system checks the platform.
 option(FLXXX3 "Build the FLXXX3 product interface and behaviour" ON)
 if(FLXXX3)
+  # The version of FLXXX3 comes from the Android manifest (versionName), the one place it is set.
+  file(READ "${CMAKE_CURRENT_SOURCE_DIR}/packaging/android/AndroidManifest.xml" _flxxx3_manifest)
+  string(REGEX MATCH "android:versionName=\"([^\"]+)\"" _flxxx3_match "${_flxxx3_manifest}")
+  set(FLXXX3_VERSION "${CMAKE_MATCH_1}")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/packaging/android/AndroidManifest.xml")
+  message(STATUS "FLXXX3 version: ${FLXXX3_VERSION}")
+endif()
+if(FLXXX3)
   add_compile_definitions(FLXXX3)
+  # Only this file knows the version (a new version does not rebuild everything).
+  set_source_files_properties(src/qml/qmlproductproxy.cpp
+    PROPERTIES COMPILE_DEFINITIONS "FLXXX3_VERSION=\"${FLXXX3_VERSION}\"")
 endif()
 
 # qt_add_executable() is the recommended initial call for qt_finalize_target()
@@ -3196,6 +3208,10 @@ endif()
 
 target_sources(mixxx PRIVATE res/mixxx.qrc)
 set_target_properties(mixxx PROPERTIES AUTORCC ON)
+if(FLXXX3)
+  # FLXXX3: license texts for ADVANCED SETTINGS > ABOUT (read with Mixxx.Product.licenseText).
+  target_sources(mixxx PRIVATE res/licenses/licenses.qrc)
+endif()
 if(BUILD_TESTING)
   target_sources(mixxx-test PRIVATE res/mixxx.qrc)
   set_target_properties(mixxx-test PROPERTIES AUTORCC ON)
@@ -3268,10 +3284,18 @@ if(WIN32)
   configure_file("src/mixxx.rc.include.in" "src/mixxx.rc.include" @ONLY)
   add_dependencies(mixxx mixxx-gitinfo)
 
+  if(FLXXX3)
+    # FLXXX3: own icon (Explorer, taskbar) and version info.
+    set(_mixxx_rc src/flxxx3.rc)
+    set_source_files_properties(src/flxxx3.rc
+      PROPERTIES COMPILE_DEFINITIONS "FLXXX3_VERSION=\"${FLXXX3_VERSION}\"")
+  else()
+    set(_mixxx_rc src/mixxx.rc)
+  endif()
   target_sources(
     mixxx
     PRIVATE
-      src/mixxx.rc
+      ${_mixxx_rc}
       "${CMAKE_CURRENT_BINARY_DIR}/src/mixxx.rc.include"
       "${CMAKE_CURRENT_BINARY_DIR}/src/gitinfo.h"
   )

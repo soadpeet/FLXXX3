@@ -17,7 +17,7 @@ Item {
     // controller and the trackLoading signal of the deck did not always reach the window.)
     signal trackLoadRequested(string group)
 
-    readonly property var areas: ["AUDIO", "WAVEFORM", "WINDOW", "JOGWHEEL", "START", "INFO"]
+    readonly property var areas: ["AUDIO", "WAVEFORM", "WINDOW", "JOGWHEEL", "START", "INFO", "ABOUT"]
 
     // kind: "number" (min, max, step, fine, decimals, unit) or "choice" (choices: [{t, v}])
     readonly property var defs: [

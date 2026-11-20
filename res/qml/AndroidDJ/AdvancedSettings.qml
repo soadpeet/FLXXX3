@@ -302,7 +302,7 @@ Rectangle {
                 color: "#8a8a8a"
                 font.pixelSize: root.u * 1.0
                 text: "Settings for this area follow."
-                visible: root.area !== "INFO" && AdvSettings.inArea(root.area).length === 0
+                visible: root.area !== "INFO" && root.area !== "ABOUT" && AdvSettings.inArea(root.area).length === 0
             }
             // INFO / DIAGNOSTICS (read only)
             Column {
@@ -339,8 +339,83 @@ Rectangle {
                     onClicked: Mixxx.DeviceStatus.shareLog()
                 }
             }
+            // ABOUT: version, source code, licenses (the GPL asks for the license text and the
+            // offer of the source code to come with the program).
+            Column {
+                spacing: root.u * 0.5
+                visible: root.area === "ABOUT"
+                width: settingsView.width - root.u
+
+                Text {
+                    color: "#ffffff"
+                    font.bold: true
+                    font.pixelSize: root.u * 1.6
+                    text: "FLXXX3 " + Mixxx.Product.version
+                }
+                Text {
+                    color: "#cfcfcf"
+                    font.pixelSize: root.u * 1.0
+                    text: "Standalone DJ app for the Pioneer DJ DDJ-FLX4, based on Mixxx (mixxx.org)."
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    color: "#cfcfcf"
+                    font.pixelSize: root.u * 1.0
+                    text: "Free software under the GNU General Public License version 3. You may use, share and change it under its terms. There is NO WARRANTY."
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    color: "#cfcfcf"
+                    font.pixelSize: root.u * 1.0
+                    text: "Source code: " + Mixxx.Product.sourceUrl
+                    width: parent.width
+                    wrapMode: Text.WrapAnywhere
+                }
+                Text {
+                    color: "#8a8a8a"
+                    font.pixelSize: root.u * 0.9
+                    text: "Not affiliated with or endorsed by Pioneer DJ / AlphaTheta, rekordbox or the Mixxx project. Trademarks belong to their owners."
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                }
+                Item {
+                    height: root.u * 0.4
+                    width: 1
+                }
+                Row {
+                    spacing: root.u * 0.6
+
+                    Btn {
+                        active: root.aboutLicense === "GPL-3.0"
+                        text: "LICENSE (GPL-3.0)"
+                        width: root.u * 13
+                        onClicked: root.aboutLicense = root.aboutLicense === "GPL-3.0" ? "" : "GPL-3.0"
+                    }
+                    Btn {
+                        active: root.aboutLicense === "THIRD_PARTY"
+                        text: "THIRD-PARTY LICENSES"
+                        width: root.u * 15
+                        onClicked: root.aboutLicense = root.aboutLicense === "THIRD_PARTY" ? "" : "THIRD_PARTY"
+                    }
+                }
+                // The chosen license text (scrolls with the page).
+                Text {
+                    color: "#d8d8d8"
+                    font.pixelSize: root.u * 0.8
+                    text: root.aboutLicense !== "" ? Mixxx.Product.licenseText(root.aboutLicense) : ""
+                    visible: root.aboutLicense !== ""
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                }
+            }
         }
     }
+
+    // ABOUT: the license text that is shown ("" = none).
+    property string aboutLicense: ""
+    onAreaChanged: aboutLicense = ""
 
     // Lines of the INFO area (refreshed every second while it is shown).
     property int infoTick: 0
