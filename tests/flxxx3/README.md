@@ -3,6 +3,10 @@
 
 Run everything (in WSL): `tools/run_tests.sh` — exit code 0 when all tests pass.
 
+On GitHub the workflow `.github/workflows/flxxx3-tests.yml` runs the QML tests on every push
+(Linux, Qt 6.10.3, `tests/flxxx3/run_qml_tests.sh`) and checks that the mapping XML is
+well-formed. The C++ tests need the self-built dependencies and only run locally.
+
 | Part | What | Needs |
 |---|---|---|
 | `controllers/tst_flx4script.qml` | DDJ-FLX4 mapping: every script function named in `Pioneer-DDJ-FLX4.midi.xml` exists, `init`/`shutdown` run, CUE/LOOP CALL (memory cues, memory loops, loop halve/double), LOAD and INSTANT DOUBLES. The script runs against a stand-in engine (`controllers/mixxxmock.js`) with a test clock. | Only the Windows dependency package (qmltestrunner), no build |

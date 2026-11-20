@@ -1,0 +1,52 @@
+# AI disclaimer: this file was written autonomously by an AI agent (Claude).
+#
+# FLXXX3: runs the tests that need no build of the app on every push and pull request:
+# the DDJ-FLX4 mapping tests (tests/flxxx3, qmltestrunner of Qt 6.10.3 on Linux) and a
+# check that the controller mapping XML is well-formed.
+# The C++ tests (Rekordbox import) need the self-built dependencies and run on the
+# development computer (tools/run_tests.sh).
+name: FLXXX3 tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mapping:
+    name: FLX4 mapping
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      QT_VERSION: "6.10.3"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the mapping XML
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libxml2-utils libegl1 libgl1 libxkbcommon0 libfontconfig1
+          xmllint --noout res/controllers/Pioneer-DDJ-FLX4.midi.xml
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache Qt
+        id: cache-qt
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/Qt
+          key: qt-${{ env.QT_VERSION }}-linux_gcc_64
+
+      - name: Install Qt
+        if: steps.cache-qt.outputs.cache-hit != 'true'
+        run: |
+          pip install aqtinstall==3.3.0
+          aqt install-qt linux desktop "$QT_VERSION" linux_gcc_64 -O "$RUNNER_TEMP/Qt"
+
+      - name: Run the QML tests
+        run: QTDIR="$RUNNER_TEMP/Qt/$QT_VERSION/gcc_64" bash tests/flxxx3/run_qml_tests.sh
