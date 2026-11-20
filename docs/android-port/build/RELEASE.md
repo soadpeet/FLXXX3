@@ -1,5 +1,19 @@
 <!-- KI-Disclaimer: Dieser Text wurde autonom von einem KI-Agenten (Claude) erzeugt. -->
-# Release-Konzept (Entwurf, noch nicht umgesetzt)
+# Release
+
+## Ablauf über GitHub (seit 2026-11-20)
+
+1. `packaging/android/AndroidManifest.xml`: `versionName` auf die neue Version, `versionCode` um eins erhöhen.
+2. Release-Text `packaging/release-notes/v<version>.md` (englisch) schreiben.
+3. Beides committen und pushen, dann `git tag v<version>` und `git push fork v<version>`.
+4. Der Workflow `.github/workflows/flxxx3-release.yml` prüft Tag und `versionName`, baut die APK (mit Release-Schlüssel, danach Startprobe in Android 11–13) und den Windows-Installer und legt einen **Entwurf** des GitHub-Releases mit `SHA256SUMS.txt` an.
+5. Inhaber prüft den Entwurf und veröffentlicht ihn.
+
+Voraussetzung: die Repository-Secrets `FLXXX3_KEYSTORE_B64` (Inhalt von `flxxx3-release.jks`, base64) und `FLXXX3_KEYSTORE_PASS` (Inhalt von `flxxx3-release.pass`), Alias `flxxx3`. Ohne sie bricht der Release-Workflow ab; normale Pushes signieren dann mit einem Schlüssel nur für den Lauf.
+
+Lokal geht es weiter wie bisher (`../build-install.sh`, `tools/windows/make_installer.sh`, Ablage in `Releases/`).
+
+# Release-Konzept (Entwurf vom 2026-11-11, überholt)
 
 Ziel: Von der Debug-signierten Entwicklungs-APK zu nachvollziehbaren Release-Ständen. Hier steht nur das Konzept; am Build hat sich dadurch nichts geändert.
 

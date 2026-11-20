@@ -1,0 +1,78 @@
+# AI disclaimer: this file was written autonomously by an AI agent (Claude).
+#
+# FLXXX3: a version tag (v0.1.3, ...) makes a DRAFT GitHub release with the APK (release key,
+# start test passed) and the Windows installer. The owner checks it and publishes it.
+#   1. versionName in packaging/android/AndroidManifest.xml = the tag without "v"
+#      (and versionCode raised), committed and pushed.
+#   2. Release notes in packaging/release-notes/v<version>.md (English), committed.
+#   3. git tag v<version> && git push fork v<version>
+# Needs the secrets FLXXX3_KEYSTORE_B64 and FLXXX3_KEYSTORE_PASS (release key).
+name: FLXXX3 release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Version and release notes
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Tag = versionName, release notes there
+        run: |
+          v="$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' packaging/android/AndroidManifest.xml)"
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "::error title=Version::tag $GITHUB_REF_NAME, but versionName is $v (packaging/android/AndroidManifest.xml)"
+            exit 1
+          fi
+          if [ ! -s "packaging/release-notes/$GITHUB_REF_NAME.md" ]; then
+            echo "::error title=Release notes::packaging/release-notes/$GITHUB_REF_NAME.md is missing"
+            exit 1
+          fi
+
+  android:
+    needs: check
+    uses: ./.github/workflows/flxxx3-android.yml
+    with:
+      release: true
+    secrets: inherit
+
+  windows:
+    needs: check
+    uses: ./.github/workflows/flxxx3-windows.yml
+
+  release:
+    name: Draft release
+    needs: [android, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.android.outputs.artifact }}
+          path: dist
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.windows.outputs.artifact }}
+          path: dist
+
+      - name: Create the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          ls -l
+          sha256sum *.apk *.exe > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "FLXXX3 $GITHUB_REF_NAME" \
+            --notes-file "../packaging/release-notes/$GITHUB_REF_NAME.md" \
+            *.apk *.exe SHA256SUMS.txt

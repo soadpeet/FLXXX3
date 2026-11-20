@@ -23,7 +23,7 @@ jobs:
     env:
       QT_VERSION: "6.10.3"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check the mapping XML
         run: |
@@ -31,13 +31,13 @@ jobs:
           sudo apt-get install -y -q libxml2-utils libegl1 libgl1 libxkbcommon0 libfontconfig1
           xmllint --noout res/controllers/Pioneer-DDJ-FLX4.midi.xml
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
       - name: Cache Qt
         id: cache-qt
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/Qt
           key: qt-${{ env.QT_VERSION }}-linux_gcc_64

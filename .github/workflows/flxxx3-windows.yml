@@ -5,14 +5,19 @@
 #   1. the Mixxx dependency package (downloads.mixxx.org, checked by SHA256),
 #   2. FFmpeg with its own AAC decoder instead of libfdk-aac (overlay port, kept in the cache),
 #   3. the program, the installed folder (stage_windows.py) and the Inno Setup installer.
-# The installer is kept as a workflow artifact (not signed).
+# The installer is kept as a workflow artifact (not signed). Also called by the release
+# workflow (flxxx3-release.yml).
 name: FLXXX3 Windows build
 
 on:
   push:
     branches: [android-midi]
-    tags: ["v*"]
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      artifact:
+        description: "Name of the artifact with the installer"
+        value: ${{ jobs.windows.outputs.artifact }}
 
 permissions:
   contents: read
@@ -28,6 +33,8 @@ jobs:
     name: Windows x64
     runs-on: windows-2022
     timeout-minutes: 240
+    outputs:
+      artifact: FLXXX3-v${{ steps.version.outputs.version }}-windows-setup
     env:
       W: D:\flx
       DEPS_NAME: mixxx-deps-2.7-x64-windows-1c20f84a
@@ -39,7 +46,7 @@ jobs:
       - name: Symbolic links in the checkout
         run: git config --global core.symlinks true
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Mixxx dependency package
         shell: pwsh
@@ -55,7 +62,7 @@ jobs:
 
       - name: Cache FFmpeg without libfdk-aac
         id: cache-ffmpeg
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: D:\flx\ffmpeg-noaac
           key: ffmpeg-noaac-${{ env.VCPKG_COMMIT }}-${{ hashFiles('docs/android-port/build/overlay-ports/ffmpeg/**') }}
@@ -84,11 +91,13 @@ jobs:
           call tools\windows\build.bat configure
 
       - name: Version (from the Android manifest)
+        id: version
         shell: bash
         run: |
           v="$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' packaging/android/AndroidManifest.xml)"
           [ -n "$v" ] || { echo "no versionName" >&2; exit 1; }
           echo "VERSION=$v" >> "$GITHUB_ENV"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Installer
         shell: cmd
@@ -107,7 +116,7 @@ jobs:
           "%ISCC%" /Q "/DAppVersion=%VERSION%" "/DStageDir=%W%\stage\FLXXX3" "/DOutputDir=%W%\out" packaging\windows\flxxx3.iss || exit /b 1
           dir %W%\out
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: FLXXX3-v${{ env.VERSION }}-windows-setup
           path: D:\flx\out\*.exe

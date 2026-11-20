@@ -8,14 +8,27 @@
 # GitHub release DEPS_TAG of this repository.
 # Signature: with the release key if the secrets FLXXX3_KEYSTORE_B64 (the .jks, base64) and
 # FLXXX3_KEYSTORE_PASS are set, otherwise with a key made for this run only (such an APK cannot
-# update an installed FLXXX3).
+# update an installed FLXXX3). Called by the release workflow (flxxx3-release.yml) with
+# release: true, the release key is required.
+# Start test: the APK is started in Android emulators (x86_64 images that translate ARM code,
+# Android 11 to 13; there is no such image of Android 10) and must still run after 90 s
+# (tools/ci/android_start_test.sh). Real graphics drivers and the FLX4 are not tested there.
 name: FLXXX3 Android build
 
 on:
   push:
     branches: [android-midi]
-    tags: ["v*"]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      release:
+        description: "Release build: sign with the release key (required)"
+        type: boolean
+        default: false
+    outputs:
+      artifact:
+        description: "Name of the artifact with the APK"
+        value: ${{ jobs.android.outputs.artifact }}
 
 permissions:
   contents: read
@@ -29,6 +42,8 @@ jobs:
     name: Android arm64 (API 29)
     runs-on: ubuntu-24.04
     timeout-minutes: 180
+    outputs:
+      artifact: ${{ steps.apk.outputs.artifact }}
     env:
       DEPS_TAG: deps-android-api29-20261120
       DEPS_FILE: flxxx3-deps-2.7-arm64-android-api29-20261120.tar.xz
@@ -36,7 +51,7 @@ jobs:
       NDK_VERSION: 27.2.12479018
       BASE: ${{ github.workspace }}/../mixxx-android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Free disk space
         run: |
@@ -54,7 +69,7 @@ jobs:
             libxcb-render-util0 libxcb-render0 libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-util1 \
             libxcb-xfixes0 libxcb-xinput0 libxcb-xkb1 libxrender1 libice6
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -94,7 +109,12 @@ jobs:
         env:
           KEYSTORE_B64: ${{ secrets.FLXXX3_KEYSTORE_B64 }}
           KEYSTORE_PASS: ${{ secrets.FLXXX3_KEYSTORE_PASS }}
+          RELEASE: ${{ inputs.release || false }}
         run: |
+          if [ "$RELEASE" = "true" ] && { [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASS" ]; }; then
+            echo "::error title=Release key::secrets FLXXX3_KEYSTORE_B64 and FLXXX3_KEYSTORE_PASS are not set"
+            exit 1
+          fi
           if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASS" ]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             echo "KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
@@ -113,19 +133,68 @@ jobs:
           fi
 
       - name: Build the APK
+        id: apk
         run: |
           MIXXX_ANDROID_BASE="$BASE" BUILD_DIR="$BASE/build" OUT_APK="$RUNNER_TEMP/out/flxxx3.apk" \
             BUILD_TOOLS="$ANDROID_HOME/build-tools/35.0.0" GRADLE_OFFLINE=0 \
             bash -c 'mkdir -p "$(dirname "$OUT_APK")" && set -o pipefail && bash docs/android-port/build-install.sh --no-install 2>&1 | tee "$RUNNER_TEMP/build.log"' \
             || { bash tools/ci/annotate_failure.sh Build "$RUNNER_TEMP/build.log"; exit 1; }
           v="$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' packaging/android/AndroidManifest.xml)"
-          mv "$RUNNER_TEMP/out/flxxx3.apk" "$RUNNER_TEMP/out/FLXXX3-v$v-$SIGNED_WITH-signed.apk"
-          echo "VERSION=$v" >> "$GITHUB_ENV"
+          if [ "$SIGNED_WITH" = release ]; then name="FLXXX3-v$v.apk"; else name="FLXXX3-v$v-$SIGNED_WITH-signed.apk"; fi
+          mv "$RUNNER_TEMP/out/flxxx3.apk" "$RUNNER_TEMP/out/$name"
+          echo "artifact=FLXXX3-v$v-android-$SIGNED_WITH-signed" >> "$GITHUB_OUTPUT"
           ls -l "$RUNNER_TEMP/out"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
-          name: FLXXX3-v${{ env.VERSION }}-android-${{ env.SIGNED_WITH }}-signed
+          name: ${{ steps.apk.outputs.artifact }}
           path: ${{ runner.temp }}/out/*.apk
           if-no-files-found: error
           retention-days: 30
+
+  start-test:
+    name: Start test Android ${{ matrix.version }} (API ${{ matrix.api }})
+    needs: android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { api: 30, version: "11" }
+          - { api: 31, version: "12" }
+          - { api: 32, version: "12L" }
+          - { api: 33, version: "13" }
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: ${{ needs.android.outputs.artifact }}
+          path: ${{ runner.temp }}/apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Start the app in the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          disk-size: 4096M
+          emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -no-snapshot
+          disable-animations: true
+          script: bash tools/ci/android_start_test.sh "$(ls ${{ runner.temp }}/apk/*.apk | head -1)" "${{ runner.temp }}/start-test"
+
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: start-test-api${{ matrix.api }}
+          path: ${{ runner.temp }}/start-test
+          if-no-files-found: ignore
+          retention-days: 14
