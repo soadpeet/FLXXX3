@@ -30,6 +30,16 @@ source "$BASE/env.sh"
 export PATH="$BASE/shim:$PATH"   # uname-Shim wegen WSL-Sperre (CMakeLists.txt:268-276)
 
 cmake --build "$BUILD" --target apk -j"$(nproc)"
+# FLXXX3 uses the Qt Quick Controls style "Basic" only (QQuickStyle::setStyle). androiddeployqt
+# still adds the other styles of QtQuick.Controls (about 11 MB): they are removed here, the
+# libraries and their entries in libs.xml (Qt loads the listed libraries at the start). Fusion
+# stays, libmixxx is linked against it.
+LIBS_DIR="$BUILD/android-build/libs/arm64-v8a"
+STYLES='Material|Universal|Imagine|FluentWinUI3'
+if [ -d "$LIBS_DIR" ]; then
+  find "$LIBS_DIR" -maxdepth 1 -name '*.so' | grep -E "QuickControls2($STYLES)|Controls_($STYLES)_" | xargs -r rm -f
+  sed -i -E "/QuickControls2($STYLES)/d" "$BUILD/android-build/res/values/libs.xml"
+fi
 # A change in QML files only is copied into the assets, but the apk target does not notice
 # it and keeps the old APK: run gradle once more (a no-op when nothing changed).
 ( cd "$BUILD/android-build" && ANDROID_SDK_ROOT="$ANDROID_SDK" ./gradlew assembleRelease --offline -q )
