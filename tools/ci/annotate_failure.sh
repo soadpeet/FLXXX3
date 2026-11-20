@@ -7,7 +7,7 @@
 #   annotate_failure.sh <title> <log file>
 title="$1"
 log="$2"
-lines="$(grep -n -E -A12 'CMake Error|FATAL_ERROR|error:|Error [0-9]|No dependencies|No rule to make|not found|FAILED' "$log" | head -60)"
+lines="$(grep -n -E -A12 'What went wrong|Could not (resolve|download|GET)|CMake Error|FATAL_ERROR|error:|No dependencies|No rule to make|not found|FAILED' "$log" | head -60)"
 [ -n "$lines" ] || lines="$(tail -40 "$log")"
 # Workflow commands: % and line breaks must be encoded.
 lines="${lines//'%'/'%25'}"
