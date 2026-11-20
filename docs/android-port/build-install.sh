@@ -37,7 +37,7 @@ cmake --build "$BUILD" --target apk -j"$(nproc)"
 LIBS_DIR="$BUILD/android-build/libs/arm64-v8a"
 STYLES='Material|Universal|Imagine|FluentWinUI3'
 if [ -d "$LIBS_DIR" ]; then
-  find "$LIBS_DIR" -maxdepth 1 -name '*.so' | grep -E "QuickControls2($STYLES)|Controls_($STYLES)_" | xargs -r rm -f
+  find "$LIBS_DIR" -maxdepth 1 -name '*.so' | { grep -E "QuickControls2($STYLES)|Controls_($STYLES)_" || true; } | xargs -r rm -f
   sed -i -E "/QuickControls2($STYLES)/d" "$BUILD/android-build/res/values/libs.xml"
 fi
 # A change in QML files only is copied into the assets, but the apk target does not notice

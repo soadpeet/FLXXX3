@@ -1,5 +1,6 @@
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
+import QtQuick.Shapes 1.12
 
 // AI disclaimer: this file was written autonomously by an AI agent (Claude).
 //
@@ -360,17 +361,49 @@ Rectangle {
                                 font.pixelSize: Math.round(root.u * 1.3)
                                 text: root.sizeText(jumpPair.modelData)
                             }
-                            // Direction mark in the corner.
-                            Text {
-                                color: "#9a9a9a"
-                                font.pixelSize: Math.round(root.u * 0.8)
-                                text: jumpButton.modelData === "forward" ? "▸▸" : "◂◂"
+                            // Direction: a double arrow at the top, on the inner side of the pair
+                            // (back: right corner, pointing left; forward: left corner, pointing
+                            // right). Drawn, the arrow characters are missing in the Android font.
+                            Shape {
+                                id: jumpArrow
+
+                                readonly property bool forward: jumpButton.modelData === "forward"
+                                readonly property real s: Math.round(root.u * 0.55)
+
+                                height: s
+                                width: s * 2
+                                layer.enabled: true
+                                layer.samples: 4
 
                                 anchors {
-                                    right: parent.right
-                                    rightMargin: 3
+                                    left: jumpArrow.forward ? parent.left : undefined
+                                    leftMargin: 4
+                                    right: jumpArrow.forward ? undefined : parent.right
+                                    rightMargin: 4
                                     top: parent.top
-                                    topMargin: 1
+                                    topMargin: 4
+                                }
+
+                                // Two triangles; tip = the side the jump goes to.
+                                ShapePath {
+                                    fillColor: "#b0b0b0"
+                                    startX: jumpArrow.forward ? 0 : jumpArrow.s
+                                    startY: 0
+                                    strokeColor: "transparent"
+
+                                    PathLine { x: jumpArrow.forward ? jumpArrow.s : 0; y: jumpArrow.s / 2 }
+                                    PathLine { x: jumpArrow.forward ? 0 : jumpArrow.s; y: jumpArrow.s }
+                                    PathLine { x: jumpArrow.forward ? 0 : jumpArrow.s; y: 0 }
+                                }
+                                ShapePath {
+                                    fillColor: "#b0b0b0"
+                                    startX: jumpArrow.forward ? jumpArrow.s : 2 * jumpArrow.s
+                                    startY: 0
+                                    strokeColor: "transparent"
+
+                                    PathLine { x: jumpArrow.forward ? 2 * jumpArrow.s : jumpArrow.s; y: jumpArrow.s / 2 }
+                                    PathLine { x: jumpArrow.forward ? jumpArrow.s : 2 * jumpArrow.s; y: jumpArrow.s }
+                                    PathLine { x: jumpArrow.forward ? jumpArrow.s : 2 * jumpArrow.s; y: 0 }
                                 }
                             }
                             TapHandler {
@@ -390,19 +423,18 @@ Rectangle {
                 }
             }
         }
-        // Page switch "1 | 2".
+        // Page switch "1 | 2": lower than the jump buttons, so that it stands apart from them.
         Row {
             id: pageSwitch
 
+            height: Math.round((parent.height - 8) * 0.55)
+            width: Math.round(root.u * 4.4)
+
             anchors {
-                bottom: parent.bottom
-                bottomMargin: 4
                 right: parent.right
                 rightMargin: 4
-                top: parent.top
-                topMargin: 4
+                verticalCenter: parent.verticalCenter
             }
-            width: Math.round(root.u * 4.4)
 
             Repeater {
                 model: [0, 1]
@@ -419,7 +451,7 @@ Rectangle {
                         anchors.centerIn: parent
                         color: root.jumpPage === parent.modelData ? "#ffffff" : "#8a8a8a"
                         font.bold: true
-                        font.pixelSize: Math.round(root.u * 1.3)
+                        font.pixelSize: Math.round(root.u * 1.1)
                         text: parent.modelData + 1
                     }
                     TapHandler {

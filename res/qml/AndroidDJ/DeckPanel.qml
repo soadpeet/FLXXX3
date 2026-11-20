@@ -3,6 +3,7 @@ import "../AdvSettings"
 import "../Theme"
 import Mixxx 1.0 as Mixxx
 import QtQuick 2.12
+import QtQuick.Shapes 1.12
 import "." as DJ
 
 // One deck panel modelled on the XDJ-RX3: deck number, title, time, tempo,
@@ -260,6 +261,8 @@ Rectangle {
             }
         }
         Text {
+            id: deckNumberText
+
             anchors {
                 horizontalCenter: parent.horizontalCenter
                 top: deckLabel.bottom
@@ -268,6 +271,52 @@ Rectangle {
             font.bold: true
             font.pixelSize: Math.round(root.unit * 2.4)
             text: root.deckNumber
+        }
+        // XDJ view: arrow that opens KEY SHIFT (over the waveform of the deck). Orange while
+        // KEY SHIFT is open or the key is shifted.
+        Rectangle {
+            id: keyShiftButton
+
+            readonly property bool active: root.openPopup === "KEY" || Math.abs(pitchAdjustControl.value) > 0.001
+
+            border.color: root.openPopup === "KEY" ? "#ff9a2e" : "#4a4a4a"
+            border.width: root.openPopup === "KEY" ? 2 : 1
+            color: keyShiftTap.pressed ? "#3a3a3a" : "transparent"
+            height: Math.round(root.unit * 2.25)
+            visible: !root.cdj && root.loaded
+            width: Math.round(root.unit * 2.2)
+
+            anchors {
+                horizontalCenter: parent.horizontalCenter
+                top: deckNumberText.bottom
+                topMargin: Math.round(root.unit * 0.2)
+            }
+
+            Shape {
+                id: keyShiftArrow
+
+                anchors.centerIn: parent
+                height: Math.round(parent.height * 0.5)
+                width: Math.round(height * 0.85)
+                layer.enabled: true
+                layer.samples: 4
+
+                ShapePath {
+                    fillColor: keyShiftButton.active ? "#ff9a2e" : "#d0d0d0"
+                    startX: 0
+                    startY: 0
+                    strokeColor: "transparent"
+
+                    PathLine { x: keyShiftArrow.width; y: keyShiftArrow.height / 2 }
+                    PathLine { x: 0; y: keyShiftArrow.height }
+                    PathLine { x: 0; y: 0 }
+                }
+            }
+            TapHandler {
+                id: keyShiftTap
+
+                onTapped: root.popupRequested("KEY")
+            }
         }
         // Track number and quantize setting at the bottom of the column (XDJ view; in the CDJ view
         // the track number lies in the row next to the switches).
@@ -329,7 +378,8 @@ Rectangle {
         Rectangle {
             id: keyBox
 
-            border.color: "#4a4a4a"
+            // No frame around the key.
+            border.width: 0
             color: "transparent"
             visible: root.loaded
             width: Math.round(titleRow.height * 1.5)
@@ -344,10 +394,11 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                color: root.track && root.track.color && root.track.keyText ? "#7fe0a0" : "#ffffff"
+                // White; orange while KEY SHIFT moves the key (shown with the shift, like the CDJ view).
+                color: Math.abs(pitchAdjustControl.value) > 0.001 ? "#ff9a2e" : "#ffffff"
                 font.bold: true
                 font.pixelSize: Math.round(titleRow.height * 0.5)
-                text: root.track ? root.formatKey(root.track.keyText) : ""
+                text: root.track ? root.shiftedKey(root.track.keyText, pitchAdjustControl.value) : ""
             }
         }
         Text {
@@ -665,8 +716,9 @@ Rectangle {
 
                 color: "#ffffff"
                 font.bold: true
-                font.pixelSize: Math.round(Math.min(root.cdj ? root.cdjLowerHeight * 0.29 : metrics.height * 0.62,
-                        (metrics.width - trackBlock.width - switchColumn.width - tempoBlock.width - bpmBox.width - 40) / (root.cdj ? 4.3 : 4.7)))
+                // XDJ view: about as large as in the CDJ view.
+                font.pixelSize: Math.round(Math.min(root.cdj ? root.cdjLowerHeight * 0.29 : root.unit * 2.6,
+                        (metrics.width - trackBlock.width - switchColumn.width - tempoBlock.width - bpmBox.width - 40) / 4.3))
                 text: root.loaded ? root.formatTime(root.showRemain ? root.remaining : root.elapsed) : "00:00"
 
                 anchors {
@@ -786,7 +838,7 @@ Rectangle {
                 rightMargin: 8
                 top: parent.top
             }
-            width: root.cdj ? Math.round(root.cdjF * 11) : Math.round(root.unit * 9)
+            width: Math.round(root.cdjF * 11)
 
             Text {
                 id: tempoLabel
@@ -815,9 +867,9 @@ Rectangle {
                     bottom: parent.bottom
                     right: parent.right
                 }
-                color: Math.abs(root.tempoPercent) < 0.005 ? (root.cdj ? "#ffffff" : "#cfcfcf") : "#7fe0a0"
-                font.pixelSize: Math.round(root.cdj ? Math.min(root.cdjLowerHeight * 0.22, tempoBlock.width / 3.1)
-                        : Math.min(metrics.height * 0.6, tempoBlock.width / 4.6))
+                color: Math.abs(root.tempoPercent) < 0.005 ? "#ffffff" : "#7fe0a0"
+                font.pixelSize: Math.round(Math.min(root.cdj ? root.cdjLowerHeight * 0.22 : root.unit * 2.0,
+                        tempoBlock.width / 3.1))
                 text: (root.tempoPercent >= 0 ? "" : "-") + Math.abs(root.tempoPercent).toFixed(2) + "%"
             }
         }
@@ -977,28 +1029,21 @@ Rectangle {
                 onTapped: keylockControl.value = keylockControl.value > 0 ? 0 : 1
             }
         }
-        Text {
-            id: keyLabel
-
-            color: "#9a9a9a"
-            font.pixelSize: Math.round(root.cdjLowerHeight * 0.07)
-            text: "KEY"
-
+        // The key without a label, larger, in the middle of the space below MT.
+        Item {
             anchors {
-                horizontalCenter: parent.horizontalCenter
+                bottom: parent.bottom
+                left: parent.left
+                right: parent.right
                 top: mtButton.bottom
-                topMargin: Math.round(root.cdjF * 0.2)
             }
-        }
-        Text {
-            color: Math.abs(pitchAdjustControl.value) > 0.001 ? "#ff9a2e" : "#ffffff"
-            font.bold: true
-            font.pixelSize: Math.round(root.cdjLowerHeight * 0.1)
-            text: root.loaded && root.track ? root.shiftedKey(root.track.keyText, pitchAdjustControl.value) : ""
 
-            anchors {
-                horizontalCenter: parent.horizontalCenter
-                top: keyLabel.bottom
+            Text {
+                anchors.centerIn: parent
+                color: Math.abs(pitchAdjustControl.value) > 0.001 ? "#ff9a2e" : "#ffffff"
+                font.bold: true
+                font.pixelSize: Math.round(Math.min(root.cdjLowerHeight * 0.15, parent.width / 2.6))
+                text: root.loaded && root.track ? root.shiftedKey(root.track.keyText, pitchAdjustControl.value) : ""
             }
         }
     }

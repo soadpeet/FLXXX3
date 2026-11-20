@@ -738,8 +738,10 @@ Item {
             }
         }
         // CDJ view: the panels of BEAT LOOP / KEY SHIFT / BEAT JUMP over the top of a waveform.
+        // XDJ view: only KEY SHIFT (arrow below the deck number), over the left half of the
+        // waveform of the deck.
         Repeater {
-            model: root.cdjView ? 2 : 0
+            model: 2
 
             DJ.DeckPopup {
                 required property int index
@@ -751,11 +753,14 @@ Item {
                 kind: (index === 0 ? root.popup1 : root.popup2) || "LOOP"
                 shiftedKey: (index === 0 ? deckPanel1 : deckPanel2).shiftedKey
                 u: Math.round(root.cdjLayoutHeight / 14)
-                visible: (index === 0 ? root.popup1 : root.popup2) !== "" && !root.waveCovered(index)
+                visible: (root.cdjView ? (index === 0 ? root.popup1 : root.popup2) !== ""
+                                       : (index === 0 ? root.popup1 : root.popup2) === "KEY")
+                        && !root.waveCovered(index)
                 // The side buttons (FILTER / JOGWHEEL left, DELAY / BRIGHTNESS right) keep their room.
                 width: Math.round(parent.width / 2) - 1 - root.sideButtonWidth
-                x: index * (Math.round(parent.width / 2) + 1) + (index === 0 ? root.sideButtonWidth : 0)
-                y: 0
+                x: root.cdjView ? index * (Math.round(parent.width / 2) + 1) + (index === 0 ? root.sideButtonWidth : 0)
+                                : root.sideButtonWidth
+                y: root.cdjView ? 0 : index * root.waveformHeight
                 z: 6
 
                 onActivity: root.popupActivity(index + 1)
