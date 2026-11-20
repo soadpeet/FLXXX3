@@ -17,6 +17,26 @@ Zugehörige Dokumente: `PROJECT_ASSESSMENT.md` (Ist-Stand), `LICENSE_AUDIT.md` (
 | 3 Windows | fertig | Windows-Build (`tools/windows/`), FLX4 (MIDI, feste Kanäle, WASAPI 22 ms, ASIO falls Treiber, MIDI-Hotplug), Sticks und Ordner mit Rekordbox-Export, zwei Decks gemischt, eigene Einstellungen `%LOCALAPPDATA%\FLXXX3` | WASAPI exklusiv nicht möglich (FLX4 will Kanalmaske 0), Latenz mit ASIO-Treiber messen |
 | 4 Beta | begonnen | Releases v0.1.0–v0.1.2, Android-Release-Signatur und Versionierung, APK 62 MB statt 259 MB, Windows-Installer (Inno Setup, `tools/windows/make_installer.sh`), ABOUT-Seite, Log und Absturzprotokoll mit SHARE LOG, CI für Tests ohne App-Build (`.github/workflows/flxxx3-tests.yml`: FLX4-Mapping, XML-Prüfung), CI-Build Windows mit Installer (`flxxx3-windows.yml`) und Android-APK (`flxxx3-android.yml`, Abhängigkeitspaket im Release `deps-android-api29-20261120`), Build ohne WSL-Shim (WSL-Sperre in `CMakeLists.txt` gilt nicht mehr für den Android-Cross-Build), Startprobe der APK in Emulatoren (Android 12, 12L, 14; 11 nur zur Information), Release-Workflow (Tag → Entwurf mit APK, Installer, Prüfsummen; `flxxx3-release.yml`) | Code-Signatur Windows (Zertifikat, Inhaber), Release-Schlüssel als GitHub-Secret (optional, Inhaber), Dauertests und Testprotokoll je Release, Tests auf echten Android-10–13-Geräten (der Emulator deckt Android 10 und 13 nicht ab und keine echten Grafiktreiber), Release v0.1.3 |
 
+
+### Funktionslücken (Abgleich mit dem Code, 2026-11-20)
+
+Ersetzt die Liste in `docs/android-port/CHANGES_INVENTORY.md` §3 (Stand 2026-11-08).
+
+| Bereich | Stand | Was fehlt |
+|---|---|---|
+| BROWSE | erledigt | Kategorien TRACK, ARTIST, ALBUM, GENRE, KEY, BPM, STARS, HISTORY, dazu TRACK FILTER, SORT, Buchstabensprung, INFO; PLAYLIST, SEARCH, TAG LIST in der Kopfleiste. Offen nur: FOLDER-Ansicht (Ordner des Sticks durchblättern) |
+| SOURCE | erledigt | Ordner-Schalter OFF/ACTIVE filtert die Liste pro Ordner |
+| Beat FX | erledigt | alle zehn: DELAY, ECHO, PING PONG, SPIRAL, HELIX, REVERB, FLANGER, PHASER, TRANS, FILTER (mit Tempo) |
+| Beat FX: Bänder LOW/MID/HI | offen | einfache Frequenzweiche (250 Hz / 2,5 kHz, Biquad) ohne Ausgleich der Laufzeit; Pioneer-Klang nicht nachgemessen |
+| Audio-Einstellungen | offen | USB-Puffer und Samplerate wirken erst nach Neustart (so beschriftet); MASTER HEADROOM ist eine feste Absenkung, kein Limiter |
+| MIDI-Hotplug | erledigt | Android und Windows (FLX4 ab- und anstecken) |
+| Stick ziehen im Betrieb | teils | geladene Titel laufen aus dem Cache weiter; offen (nicht neu geprüft): Zeitfenster bis die Kopie fertig ist, Analyse liest evtl. noch vom Stick |
+| Memory Loops | ungeprüft | Import und CUE/LOOP CALL eingebaut, aber nie mit echten Daten getestet (keine auf dem Stick des Inhabers) |
+| Zoom über FLX4 | ungeprüft | Hänger bei starkem Zoomen: ob er ganz weg ist, ist nicht belegt |
+| Windows-Waveform | ungeprüft | die große Waveform (Rekordbox 3-Band) war zeitweise unsichtbar, danach nicht mehr nachstellbar |
+| Abstürze bei Testern (v0.1.0) | offen | Freeze auf Snapdragon 865, Absturz auf Xiaomi Pad 5 (beide Adreno 6xx); Logs fehlen. Die Startprobe in den Emulatoren besteht, zeigt aber keine Grafiktreiber-Fehler |
+| FLX4 ON/OFF-LED | offen | Werte durch Probieren ermittelt, keine Herstellerangabe |
+
 ---
 
 ## Leitentscheidungen (vorab vom Inhaber zu bestätigen)
@@ -80,7 +100,7 @@ Ziel: Der funktionierende Android-Stand kann nicht mehr verloren gehen.
 
 ## Phase 4 – Gemeinsame Beta (≈ 6–10 Wochen)
 
-- Funktionslücken schließen, die beide Plattformen betreffen (BROWSE-Kategorien, MIDI-Hotplug, Ordnerfilter; siehe `CHANGES_INVENTORY.md` §3).
+- Funktionslücken schließen, die beide Plattformen betreffen (aktuelle Liste oben unter „Funktionslücken“; BROWSE-Kategorien, MIDI-Hotplug und Ordnerfilter sind erledigt).
 - Windows-Installer und Code-Signatur; Android-Release-Signatur und Versionierung.
 - Reproduzierbarer Build ohne WSL-Shim (VM/Container mit echtem Linux-Kernel) und CI für beide Ziele.
 - Dauertests (Last, Wärme, Akku, Stick ziehen), Testprotokoll je Release.

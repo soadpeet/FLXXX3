@@ -41,6 +41,7 @@ Noch zu prüfen (nicht angefasst):
 - Reste im FLX4-Skript: keine bekannt; Tempo-Regler eines Sync-Followers wird bewusst ignoriert (Pick-up nach Sync-Aus).
 
 ## 3. Bekannte Lücken
+- **Überholt (Stand 2026-11-08).** Die aktuelle, mit dem Code abgeglichene Liste steht in `ROADMAP.md`, Abschnitt „Funktionslücken“ (2026-11-20).
 - Stand 2026-11-08: Die Diagnose-Logs (Waveform SUM/NO-DRAW, Color FX, TRIM, `masterkey`, `STICKSCAN`) sind aus dem Quelltext entfernt (per Suche geprüft, nicht am Gerät); `androidopenslout.*` ist entfernt (Commit `e583d485ea`).
 - ADVANCED SETTINGS: USB-Puffer und Samplerate wirken erst nach einem Neustart; Master-Headroom ist eine feste Pegelabsenkung (Mixxx hat keinen Limiter); Beat-Grid-Helligkeit am Gerät nicht gesondert bestätigt.
 - Ordner-Schalter OFF/ACTIVE in SOURCE filtert die Tablet-Liste noch nicht pro Ordner (zeigt alle Titel, sobald ein Ordner aktiv ist).
