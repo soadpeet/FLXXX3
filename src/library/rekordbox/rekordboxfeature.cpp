@@ -1043,6 +1043,10 @@ struct RekordboxWaveformColumns {
 
 constexpr double kRekordboxWaveformColumnsPerSecond = 150.0;
 
+// FLXXX3: scaleToByte and the little endian reading of PWV5 below (bit layout, the order of
+// the two fine bits, height = coarse * 4 + fine of 127) follow NauticMixxx
+// (https://github.com/nauticsoftware/NauticMixxx, patches/0010-rekordbox-usb-only-runtime.patch),
+// GNU GPL v3.0. These parts of this file are under GPL-3.0; see NOTICE.md.
 quint8 scaleToByte(quint32 value, quint32 maximum) {
     return maximum == 0 ? 0 : static_cast<quint8>(qMin<quint32>(255, (value * 255 + maximum / 2) / maximum));
 }
@@ -1128,22 +1132,11 @@ RekordboxWaveformColumns decodeMonoScrollWaveform(const std::string& entries) {
 
 #ifdef FLXXX3
 // PWV7 (in the .2EX file): 3 bytes per column, the levels (0..255) of the three
-// bands. The order of the bytes is read from the file ".../files/wf3_order" (a
-// string like "012": byte of low, mid, high) for testing; default low, mid, high.
+// bands in the order low, mid, high.
 RekordboxWaveformColumns decodeThreeBandWaveform(const std::string& entries, uint32_t entryBytes) {
     RekordboxWaveformColumns columns;
     if (entryBytes != 3 || entries.size() < 3) {
         return columns;
-    }
-    int order[3] = {0, 1, 2};
-    QFile orderFile(QStringLiteral("/sdcard/Android/data/de.biggo.flxxx3/files/wf3_order"));
-    if (orderFile.open(QIODevice::ReadOnly)) {
-        const QByteArray text = orderFile.readAll().trimmed();
-        if (text.size() == 3) {
-            for (int i = 0; i < 3; ++i) {
-                order[i] = qBound(0, text[i] - '0', 2);
-            }
-        }
     }
     const int count = static_cast<int>(entries.size() / 3);
     columns.low.reserve(count);
@@ -1154,13 +1147,13 @@ RekordboxWaveformColumns decodeThreeBandWaveform(const std::string& entries, uin
         const auto byteAt = [&](int k) {
             return static_cast<quint8>(entries[3 * i + k]);
         };
-        columns.low.push_back(byteAt(order[0]));
-        columns.mid.push_back(byteAt(order[1]));
-        columns.high.push_back(byteAt(order[2]));
+        columns.low.push_back(byteAt(0));
+        columns.mid.push_back(byteAt(1));
+        columns.high.push_back(byteAt(2));
         // "all" is only used for the automatic height (loudest columns of the track).
-        columns.all.push_back(qMax(byteAt(order[0]), qMax(byteAt(order[1]), byteAt(order[2]))));
+        columns.all.push_back(qMax(byteAt(0), qMax(byteAt(1), byteAt(2))));
     }
-    RB_LOG("mixxx-wf", "3-band waveform: %d columns, order %d%d%d", count, order[0], order[1], order[2]);
+    RB_LOG("mixxx-wf", "3-band waveform: %d columns", count);
     return columns;
 }
 

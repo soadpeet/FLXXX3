@@ -40,7 +40,7 @@ Welche Dateien neu von FLXXX3 stammen und welche aus Mixxx: `docs/android-port/A
 | `lib/mp3guessenc-0.27.4` | GPL |
 | `lib/portaudio` | MIT-artig (`LICENSE.txt`) |
 | `lib/kaitai` | MIT (`LICENSE`) |
-| `lib/rekordbox-metadata` | generiert aus Formatbeschreibungen von Deep Symmetry (crate-digger), deklariert als **EPL-1.0** – Klärung offen (`LICENSE_AUDIT.md` L2) |
+| `lib/rekordbox-metadata` | generiert aus den Formatbeschreibungen von Deep Symmetry (crate-digger): **EPL-2.0 oder MPL-2.0 oder LGPL-3.0-only**, FLXXX3 nutzt sie unter LGPL-3.0 (`LICENSE_AUDIT.md` L2) |
 | `lib/rigtorp/SPSCQueue`, `lib/hidapi`, `lib/replaygain`, `lib/reverb`, `lib/apple` | jeweils eigene Dateiköpfe |
 
 ## Bibliotheken im Android-Build (Buildenv `mixxx-deps-2.7-arm64-android-1c20f84a`)
@@ -53,6 +53,6 @@ Qt 6.10.3 (LGPL/GPL, dynamisch), FFmpeg (LGPL), libusb (LGPL), libdjinterop (LGP
 
 ## Referenzprojekte
 
-Das Rekordbox-Waveform-Layout wurde anhand der Beschreibung im Projekt NauticMixxx (GPL-3.0) nachvollzogen; ob und in welchem Umfang Code übernommen wurde, ist noch zu prüfen (`LICENSE_AUDIT.md` L7).
+Aus **NauticMixxx** (https://github.com/nauticsoftware/NauticMixxx, GNU GPL v3.0) stammen in `src/library/rekordbox/rekordboxfeature.cpp` die Hilfsfunktion `scaleToByte` und das Lesen der PWV5-Waveform (Bitlage, Reihenfolge der Fein-Bits, Höhe aus grob × 4 + fein); diese Teile stehen unter GPL-3.0 und sind im Code gekennzeichnet. Der übrige Rekordbox-Code von FLXXX3 ist eigener Code (zeilenweiser Vergleich mit allen NauticMixxx-Patches am 2026-11-20, `LICENSE_AUDIT.md` L7).
 
 <!-- Ende KI-generierter Text -->

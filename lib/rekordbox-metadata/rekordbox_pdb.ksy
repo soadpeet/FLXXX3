@@ -4,7 +4,9 @@ meta:
   application: rekordbox
   file-extension:
     - pdb
-  license: EPL-1.0
+  # FLXXX3: as corrected upstream (Deep-Symmetry/crate-digger 4d1e7268a1, issue 49): the
+  # repository has been EPL-2.0 with MPL-2.0 and LGPL-3.0 as secondary licenses since 2022.
+  license: EPL-2.0 OR MPL-2.0 OR LGPL-3.0-only
   endian: le
 
 doc: |

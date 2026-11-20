@@ -36,7 +36,8 @@ the source code of the libraries):
   Protocol Buffers: BSD-3-Clause
   Abseil: Apache-2.0
   Kaitai Struct runtime: MIT
-  Rekordbox metadata (crate-digger format descriptions): EPL-1.0
+  Rekordbox metadata (crate-digger format descriptions): EPL-2.0 OR MPL-2.0 OR LGPL-3.0-only, used under LGPL-3.0
+  NauticMixxx (Rekordbox PWV5 waveform reading in rekordboxfeature.cpp): GPL-3.0
   libusb: LGPL-2.1
   hidapi: BSD-3-Clause (one of its license options)
   Oboe: Apache-2.0
