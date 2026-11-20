@@ -157,17 +157,21 @@ jobs:
     needs: android
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    # Android 11: the ARM translation of that image stops at a SIMD instruction it does not know
-    # (libndk_translation, not FLXXX3); it runs for information and does not fail the build.
+    # info_only: runs for information and does not fail the build. Android 11: the ARM
+    # translation of that image stops at a SIMD instruction it does not know (libndk_translation,
+    # not FLXXX3).
     continue-on-error: ${{ matrix.info_only }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { api: 30, version: "11", info_only: true }
-          - { api: 31, version: "12", info_only: false }
-          - { api: 32, version: "12L", info_only: false }
-          - { api: 33, version: "13", info_only: false }
+          - { api: 30, version: "11", target: google_apis, info_only: true }
+          - { api: 31, version: "12", target: google_apis, info_only: false }
+          - { api: 32, version: "12L", target: google_apis, info_only: false }
+          # The google_apis image of Android 13 has no ARM translation (ABI list x86_64 only);
+          # tried: the Play Store image, and Android 14.
+          - { api: 33, version: "13", target: google_apis_playstore, info_only: true }
+          - { api: 34, version: "14", target: google_apis, info_only: true }
     steps:
       - uses: actions/checkout@v5
 
@@ -186,7 +190,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
-          target: google_apis
+          target: ${{ matrix.target }}
           arch: x86_64
           ram-size: 4096M
           disk-size: 4096M
