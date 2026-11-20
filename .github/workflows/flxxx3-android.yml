@@ -10,8 +10,9 @@
 # FLXXX3_KEYSTORE_PASS are set, otherwise with a key made for this run only (such an APK cannot
 # update an installed FLXXX3). Called by the release workflow (flxxx3-release.yml) with
 # release: true, the release key is required.
-# Start test: the APK is started in Android emulators (x86_64 images that translate ARM code,
-# Android 11 to 13; there is no such image of Android 10) and must still run after 90 s
+# Start test: the APK is started in Android emulators (x86_64 images that translate ARM code:
+# Android 12, 12L and 14; Android 11 for information only; there is no such image of Android
+# 10 and 13) and must still run after 90 s
 # (tools/ci/android_start_test.sh). Real graphics drivers and the FLX4 are not tested there.
 name: FLXXX3 Android build
 
@@ -168,10 +169,9 @@ jobs:
           - { api: 30, version: "11", target: google_apis, info_only: true }
           - { api: 31, version: "12", target: google_apis, info_only: false }
           - { api: 32, version: "12L", target: google_apis, info_only: false }
-          # The google_apis image of Android 13 has no ARM translation (ABI list x86_64 only);
-          # tried: the Play Store image, and Android 14.
-          - { api: 33, version: "13", target: google_apis_playstore, info_only: true }
-          - { api: 34, version: "14", target: google_apis, info_only: true }
+          # Android 13 is missing: neither its google_apis nor its Play Store image translates ARM
+          # code (ABI list x86_64 only), the APK cannot be installed there.
+          - { api: 34, version: "14", target: google_apis, info_only: false }
     steps:
       - uses: actions/checkout@v5
 

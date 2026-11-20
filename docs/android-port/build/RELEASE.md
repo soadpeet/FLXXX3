@@ -6,7 +6,7 @@
 1. `packaging/android/AndroidManifest.xml`: `versionName` auf die neue Version, `versionCode` um eins erhöhen.
 2. Release-Text `packaging/release-notes/v<version>.md` (englisch) schreiben.
 3. Beides committen und pushen, dann `git tag v<version>` und `git push fork v<version>`.
-4. Der Workflow `.github/workflows/flxxx3-release.yml` prüft Tag und `versionName`, baut die APK (mit Release-Schlüssel, danach Startprobe in Android 11–13) und den Windows-Installer und legt einen **Entwurf** des GitHub-Releases mit `SHA256SUMS.txt` an.
+4. Der Workflow `.github/workflows/flxxx3-release.yml` prüft Tag und `versionName`, baut die APK (mit Release-Schlüssel, danach Startprobe in Emulatoren mit Android 12, 12L und 14) und den Windows-Installer und legt einen **Entwurf** des GitHub-Releases mit `SHA256SUMS.txt` an.
 5. Inhaber prüft den Entwurf und veröffentlicht ihn.
 
 Voraussetzung: die Repository-Secrets `FLXXX3_KEYSTORE_B64` (Inhalt von `flxxx3-release.jks`, base64) und `FLXXX3_KEYSTORE_PASS` (Inhalt von `flxxx3-release.pass`), Alias `flxxx3`. Ohne sie bricht der Release-Workflow ab; normale Pushes signieren dann mit einem Schlüssel nur für den Lauf.
