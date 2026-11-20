@@ -324,10 +324,10 @@ void handleMessage(
         // write debug messages into the log file, but skip controller I/O
         // to avoid flooding the log file.
         // Skip expensive string comparisons if WriteFlag::File is already set.
-#ifndef __ANDROID__
+#ifndef FLXXX3
         // FLXXX3: debug messages are not written to the log file (the
         // file I/O of the many debug messages cost ~15 % of the GUI thread on
-        // the tablet).
+        // the tablet; the same on every platform).
         if (!writeFlags.testFlag(WriteFlag::File) && !isControllerLoggingCategory(categoryName)) {
             writeFlags |= WriteFlag::File;
         }

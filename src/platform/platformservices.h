@@ -41,6 +41,9 @@ void setScreenBrightness(double value);
 void keepScreenOn();
 /// Writes a line to the system log (Android logcat tag mixxx-qml), for debugging QML.
 void log(const QString& text);
+/// Writes a diagnostic line with a tag (e.g. "mixxx-rekordbox"): Android logcat with that
+/// tag, the normal log (info) elsewhere.
+void logDiagnostic(const char* tag, const QString& text);
 /// Names of the MIDI inputs the system has right now, also for devices plugged in after
 /// the start (PortMidi only knows the list of its start). Windows only; *pSupported is
 /// false elsewhere.

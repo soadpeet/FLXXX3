@@ -1149,8 +1149,13 @@ TEST_F(HotcueControlTest, SavedLoopToggleDoesNotSeek) {
     EXPECT_FRAMEPOS_EQ_CONTROL(loopStartPosition, m_pHotcue1Position);
     EXPECT_FRAMEPOS_EQ_CONTROL(loopStartPosition + loopLengthFrames, m_pHotcue1EndPosition);
 
+#ifdef FLXXX3
+    // FLXXX3 (like the Pioneer players): activating a hot loop jumps to its start.
+    EXPECT_NEAR(loopStartPosition.value(), currentFramePosition().value(), 1024);
+#else
     // Check that re-enabling loop didn't seek
     EXPECT_NEAR(beforeLoopPosition.value(), currentFramePosition().value(), 1024);
+#endif
 
     // Disable loop
     m_pHotcue1Activate->set(1);
@@ -1216,7 +1221,12 @@ TEST_F(HotcueControlTest, SavedLoopActivate) {
     EXPECT_DOUBLE_EQ(static_cast<double>(HotcueControl::Status::Active), m_pHotcue1Status->get());
     EXPECT_FRAMEPOS_EQ_CONTROL(loopStartPosition, m_pHotcue1Position);
     EXPECT_FRAMEPOS_EQ_CONTROL(loopStartPosition + loopLengthFrames, m_pHotcue1EndPosition);
+#ifdef FLXXX3
+    // FLXXX3 (like the Pioneer players): activating a hot loop jumps to its start.
+    EXPECT_NEAR(loopStartPosition.value(), currentFramePosition().value(), 1000);
+#else
     EXPECT_NEAR(positionBeforeActivate.value(), currentFramePosition().value(), 1000);
+#endif
 
     // Seek to position after saved loop
     setCurrentFramePosition(afterLoopPosition);

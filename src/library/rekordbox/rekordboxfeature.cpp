@@ -14,13 +14,8 @@
 #include <cmath>
 #include <rekordbox_pdb.h>
 
-#ifdef __ANDROID__
-#include <android/log.h>
 // Diagnostic lines of the Rekordbox import: logcat on Android, the normal log elsewhere.
-#define RB_LOG(tag, ...) __android_log_print(ANDROID_LOG_INFO, tag, __VA_ARGS__)
-#else
-#define RB_LOG(tag, ...) qInfo().noquote() << tag << QString::asprintf(__VA_ARGS__)
-#endif
+#define RB_LOG(tag, ...) mixxx::platform::logDiagnostic(tag, QString::asprintf(__VA_ARGS__))
 
 #include <QDir>
 #include <QElapsedTimer>
@@ -1347,6 +1342,19 @@ void readAnalyze(TrackPointer track,
     rekordbox_anlz_t anlz = rekordbox_anlz_t(&ks);
 
     const double sampleRateKhz = sampleRate / 1000.0;
+    // FLXXX3: a hot loop of Rekordbox (hot cue with a loop end) becomes a hot cue of
+    // type loop, so that its pad starts the loop like on the players; before, the end
+    // was dropped and the pad only jumped to the start.
+    const auto hotLoopEnd = [&](bool isLoop, uint32_t loopTimeMs) {
+        if (!isLoop) {
+            return mixxx::audio::kInvalidFramePos;
+        }
+        int endTime = static_cast<int>(loopTimeMs) - timingOffset;
+        if (endTime < 1) {
+            endTime = 1;
+        }
+        return mixxx::audio::FramePos(sampleRateKhz * static_cast<double>(endTime));
+    };
 
     QList<memory_cue_loop_t> memoryCuesAndLoops;
     int lastHotCueIndex = 0;
@@ -1421,15 +1429,12 @@ void readAnalyze(TrackPointer track,
                 constexpr double kMaxRoundingDeviationMs = 10.0;
                 const bool constantTempo = tempoBpm > 0.0 &&
                         maxDeviationMs <= kMaxRoundingDeviationMs;
-#ifdef __ANDROID__
-                __android_log_print(ANDROID_LOG_INFO,
-                        "mixxx-rekordbox",
+                RB_LOG("mixxx-rekordbox",
                         "beat grid: %d beats, tempo %.2f, max deviation %.2f ms -> %s",
                         static_cast<int>(beatTimesMs.size()),
                         tempoBpm,
                         maxDeviationMs,
                         constantTempo ? "constant tempo" : "variable");
-#endif
                 if (constantTempo) {
                     pBeats = mixxx::Beats::fromConstTempo(
                             sampleRate,
@@ -1498,7 +1503,8 @@ void readAnalyze(TrackPointer track,
                     setHotCue(
                             track,
                             position,
-                            mixxx::audio::kInvalidFramePos,
+                            hotLoopEnd(cueEntry->type() == rekordbox_anlz_t::CUE_ENTRY_TYPE_LOOP,
+                                    cueEntry->loop_time()),
                             hotCueIndex,
                             QString(),
                             mixxx::RgbColor::nullopt());
@@ -1563,7 +1569,9 @@ void readAnalyze(TrackPointer track,
                     }
                     setHotCue(track,
                             position,
-                            mixxx::audio::kInvalidFramePos,
+                            hotLoopEnd(cueExtendedEntry->type() ==
+                                            rekordbox_anlz_t::CUE_ENTRY_TYPE_LOOP,
+                                    cueExtendedEntry->loop_time()),
                             hotCueIndex,
                             fromUtf16BeString(cueExtendedEntry->comment()),
 #ifdef FLXXX3

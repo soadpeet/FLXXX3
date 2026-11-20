@@ -1258,6 +1258,29 @@ void CueControl::hotcueActivate(HotcueControl* pControl, double value, HotcueSet
     // qDebug() << "CueControl::hotcueActivate" << value;
 
     CuePointer pCue = pControl->getCue();
+#ifdef FLXXX3
+    // FLXXX3 (like the Pioneer players): a hot loop (saved loop) jumps to its start and
+    // turns the loop on at once, while playing and while paused (then PLAY plays the
+    // loop). Mixxx only armed it while playing (no jump) and previewed it while paused
+    // (loop off again on release). Pressed again while it is the active loop: exit.
+    if (pCue && pCue->getType() == mixxx::CueType::Loop && pCue->getPosition().isValid() &&
+            pCue->getEndPosition().isValid() &&
+            m_currentlyPreviewingIndex == Cue::kNoHotCue) {
+        if (value > 0) {
+            const Cue::StartAndEndPositions pos = pCue->getStartAndEndPosition();
+            if (m_pCurrentSavedLoopControl == pControl &&
+                    pControl->getStatus() == HotcueControl::Status::Active &&
+                    m_pLoopEnabled->toBool()) {
+                setLoop(pos.startPosition, pos.endPosition, false);
+            } else {
+                seekAbs(pos.startPosition);
+                setCurrentSavedLoopControlAndActivate(pControl);
+            }
+        }
+        setHotcueFocusIndex(pControl->getHotcueIndex());
+        return;
+    }
+#endif
     if (value > 0) {
         // pressed
         if (pCue && pCue->getPosition().isValid() &&

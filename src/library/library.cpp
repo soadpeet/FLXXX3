@@ -137,7 +137,7 @@ Library::Library(
             &Library::exportCrate, // signal-to-signal
             Qt::DirectConnection);
 #endif
-#endif // !__ANDROID__
+#endif // !FLXXX3
 
     m_pBrowseFeature = make_parented<BrowseFeature>(
             this, m_pConfig, pRecordingManager);
@@ -216,7 +216,7 @@ Library::Library(
                     ConfigKey(kConfigGroup, "ShowTraktorLibrary"), true)) {
         addFeature(new TraktorFeature(this, m_pConfig));
     }
-#endif // !__ANDROID__
+#endif // !FLXXX3
 
     // TODO(XXX) Rekordbox feature added persistently as the only way to enable it to
     // dynamically appear/disappear when correctly prepared removable devices

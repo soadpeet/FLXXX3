@@ -158,7 +158,11 @@ void keepScreenOn() {
 }
 
 void log(const QString& text) {
-    qInfo().noquote() << "mixxx-qml:" << text;
+    logDiagnostic("mixxx-qml", text);
+}
+
+void logDiagnostic(const char* tag, const QString& text) {
+    qInfo().noquote() << QString::fromLatin1(tag) + QStringLiteral(":") << text;
 }
 
 void quitApp() {

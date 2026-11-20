@@ -4,7 +4,10 @@
 // (tests/flxxx3/data/rekordbox-demo: export.pdb and the analysis files, no audio).
 #include <gtest/gtest.h>
 
+#include <QColor>
 #include <QDir>
+#include <QMap>
+#include <tuple>
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QtConcurrentRun>
@@ -124,6 +127,60 @@ TEST_F(RekordboxFeatureTest, ReadsAnalysis) {
     // The 3-band waveform (.2EX) is put on the track.
     EXPECT_TRUE(pTrack->getWaveform());
     EXPECT_TRUE(pTrack->getWaveformSummary());
+}
+
+TEST_F(RekordboxFeatureTest, ReadsCuesAndLoops) {
+    // One track of a real export with hot cues, hot loops and memory cues (see
+    // tests/flxxx3/data/rekordbox-cues/README.md for the values).
+    const QString anlz = QDir::cleanPath(getOrInitTestDir().filePath(QStringLiteral(
+            "../../tests/flxxx3/data/rekordbox-cues/PIONEER/USBANLZ/P01C/00025FC8/ANLZ0000.DAT")));
+    ASSERT_TRUE(QFile::exists(anlz)) << anlz.toStdString();
+    TrackPointer pTrack = Track::newTemporary();
+    pTrack->setAudioProperties(mixxx::audio::ChannelCount(2),
+            mixxx::audio::SampleRate(44100),
+            mixxx::audio::Bitrate(1411),
+            mixxx::Duration::fromSeconds(300));
+    mixxx::rekordboxtest::readAnalysis(pTrack, mixxx::audio::SampleRate(44100), anlz);
+
+    EXPECT_NEAR(160.0, pTrack->getBpm(), 0.01);
+
+    const auto framesAt = [](double ms) {
+        return 44.1 * ms;
+    };
+    QMap<int, CuePointer> byIndex;
+    for (const CuePointer& pCue : pTrack->getCuePoints()) {
+        if (pCue->getHotCue() != Cue::kNoHotCue) {
+            byIndex.insert(pCue->getHotCue(), pCue);
+        }
+    }
+    EXPECT_EQ((QList<int>{0, 4, 5, 16, 17}), byIndex.keys());
+
+    // Hot cue A: a cue, its Rekordbox colour (green).
+    ASSERT_TRUE(byIndex.contains(0));
+    EXPECT_EQ(mixxx::CueType::HotCue, byIndex[0]->getType());
+    EXPECT_NEAR(framesAt(601), byIndex[0]->getPosition().value(), 1.0);
+    const QColor colorA = QColor::fromRgb(byIndex[0]->getColor());
+    EXPECT_GT(colorA.green(), colorA.red());
+    EXPECT_GT(colorA.green(), colorA.blue());
+
+    // Hot cues E and F: hot loops with their end (the pad starts the loop).
+    for (const auto& [index, startMs, endMs] :
+            {std::tuple{4, 131101.0, 132601.0}, std::tuple{5, 228601.0, 230101.0}}) {
+        ASSERT_TRUE(byIndex.contains(index)) << index;
+        EXPECT_EQ(mixxx::CueType::Loop, byIndex[index]->getType()) << index;
+        EXPECT_NEAR(framesAt(startMs), byIndex[index]->getPosition().value(), 1.0) << index;
+        EXPECT_NEAR(framesAt(endMs), byIndex[index]->getEndPosition().value(), 1.0) << index;
+    }
+
+    // Memory cues: behind the hot cues (index 16.. = hotcue_17.. of the controls), in
+    // time order, red, no loop.
+    for (const auto& [index, startMs] : {std::pair{16, 24601.0}, std::pair{17, 48601.0}}) {
+        ASSERT_TRUE(byIndex.contains(index)) << index;
+        EXPECT_EQ(mixxx::CueType::HotCue, byIndex[index]->getType()) << index;
+        EXPECT_NEAR(framesAt(startMs), byIndex[index]->getPosition().value(), 1.0) << index;
+        EXPECT_FALSE(byIndex[index]->getEndPosition().isValid()) << index;
+        EXPECT_EQ(mixxx::RgbColor(0xe03030), byIndex[index]->getColor()) << index;
+    }
 }
 
 TEST_F(RekordboxFeatureTest, MissingAnalysisFile) {

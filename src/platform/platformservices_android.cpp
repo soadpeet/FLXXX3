@@ -177,7 +177,11 @@ void keepScreenOn() {
 }
 
 void log(const QString& text) {
-    __android_log_print(ANDROID_LOG_INFO, "mixxx-qml", "%s", text.toUtf8().constData());
+    logDiagnostic("mixxx-qml", text);
+}
+
+void logDiagnostic(const char* tag, const QString& text) {
+    __android_log_print(ANDROID_LOG_INFO, tag, "%s", text.toUtf8().constData());
 }
 
 void quitApp() {

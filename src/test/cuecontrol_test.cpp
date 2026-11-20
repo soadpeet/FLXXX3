@@ -544,6 +544,59 @@ TEST_F(CueControlTest, Flxxx3AutoCueDoesNotWaitOnFirstBeat) {
     EXPECT_FRAMEPOS_EQ(mixxx::audio::kStartFramePos, getCurrentFramePos());
     autoCue.set(0.0);
 }
+
+TEST_F(CueControlTest, Flxxx3HotLoopWhilePausedJumpsAndStaysOn) {
+    // A hot loop pressed while paused jumps to its start and stays on after the pad is
+    // released, so that PLAY plays the loop (before: preview while held, loop off).
+    m_pQuantizeEnabled->set(0);
+    TrackPointer pTrack = createTestTrack();
+    constexpr auto kLoopStart = mixxx::audio::FramePos(44100.0);
+    constexpr auto kLoopEnd = mixxx::audio::FramePos(66150.0);
+    pTrack->createAndAddCue(mixxx::CueType::Loop, 4, kLoopStart, kLoopEnd);
+    loadTrack(pTrack);
+    ControlProxy activate(m_sGroup1, "hotcue_5_activate");
+    ControlProxy loopEnabled(m_sGroup1, "loop_enabled");
+    ControlProxy play(m_sGroup1, "play");
+
+    activate.set(1.0);
+    ProcessBuffer();
+    activate.set(0.0);
+    ProcessBuffer();
+
+    EXPECT_FRAMEPOS_EQ(kLoopStart, getCurrentFramePos());
+    EXPECT_TRUE(loopEnabled.toBool());
+    EXPECT_FALSE(play.toBool());
+}
+
+TEST_F(CueControlTest, Flxxx3HotLoopWhilePlayingJumps) {
+    // A hot loop pressed while playing jumps to its start (before: the loop was only
+    // armed and the track played on until it reached it); pressed again: loop off.
+    m_pQuantizeEnabled->set(0);
+    TrackPointer pTrack = createTestTrack();
+    constexpr auto kLoopStart = mixxx::audio::FramePos(88200.0);
+    constexpr auto kLoopEnd = mixxx::audio::FramePos(110250.0);
+    pTrack->createAndAddCue(mixxx::CueType::Loop, 5, kLoopStart, kLoopEnd);
+    loadTrack(pTrack);
+    ControlProxy activate(m_sGroup1, "hotcue_6_activate");
+    ControlProxy loopEnabled(m_sGroup1, "loop_enabled");
+    ControlProxy play(m_sGroup1, "play");
+    play.set(1.0);
+    ProcessBuffer();
+    ASSERT_LT(getCurrentFramePos(), kLoopStart);
+
+    activate.set(1.0);
+    ProcessBuffer();
+    activate.set(0.0);
+    EXPECT_TRUE(loopEnabled.toBool());
+    EXPECT_GE(getCurrentFramePos(), kLoopStart);
+    EXPECT_LT(getCurrentFramePos(), kLoopEnd);
+
+    activate.set(1.0);
+    ProcessBuffer();
+    activate.set(0.0);
+    EXPECT_FALSE(loopEnabled.toBool());
+    EXPECT_TRUE(play.toBool());
+}
 #endif
 
 TEST_F(CueControlTest, IntroCue_SetStartEnd_ClearStartEnd) {
