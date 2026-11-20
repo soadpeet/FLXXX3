@@ -157,14 +157,17 @@ jobs:
     needs: android
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    # Android 11: the ARM translation of that image stops at a SIMD instruction it does not know
+    # (libndk_translation, not FLXXX3); it runs for information and does not fail the build.
+    continue-on-error: ${{ matrix.info_only }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { api: 30, version: "11" }
-          - { api: 31, version: "12" }
-          - { api: 32, version: "12L" }
-          - { api: 33, version: "13" }
+          - { api: 30, version: "11", info_only: true }
+          - { api: 31, version: "12", info_only: false }
+          - { api: 32, version: "12L", info_only: false }
+          - { api: 33, version: "13", info_only: false }
     steps:
       - uses: actions/checkout@v5
 
