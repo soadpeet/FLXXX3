@@ -28,7 +28,7 @@ BUILD_DIR=~/mixxx-android/build-flxxx3-api29 OUT_APK=~/mixxx-android/flx-api29.a
     bash docs/android-port/build-install.sh --no-install
 ```
 
-Zusätzliche Systempakete (Ubuntu 24.04): `libgl1-mesa-dev libdrm-dev libgbm-dev libsm-dev libudev-dev libxrandr-dev nasm python3-venv zip ninja-build libtool autopoint gperf texinfo`.
+Zusätzliche Systempakete (Ubuntu 24.04): `libgl1-mesa-dev libdrm-dev libgbm-dev libsm-dev libudev-dev libxrandr-dev nasm python3-venv zip ninja-build libtool autopoint gperf texinfo`. Für die Qt-Werkzeuge, die beim Bauen auf dem Rechner selbst laufen (`qmlimportscanner` u. a.), außerdem die X11/xcb-Laufzeitpakete aus dem Schritt „System packages“ in `.github/workflows/flxxx3-android.yml` (fehlen sie, scheitert die Konfiguration mit „Failed to scan target mixxx for QML imports: 127“).
 `setup` legt die FLXXX3-Ports aus `overlay-ports/` über die von Mixxx (jeder ersetzt den gleichnamigen Port ganz):
 - `icu`: ohne Zeitzonen-, Währungs-, Sprachnamen- und ähnliche Daten (ICU-Daten 13 statt 33 MB).
 - `ffmpeg`: AAC (M4A) mit dem Decoder von FFmpeg selbst statt libfdk-aac, dessen Lizenz nicht GPL-verträglich ist; `setup` streicht `fdk-aac` auch aus `vcpkg.json`. Derselbe Port baut FFmpeg für Windows (`tools/windows/build_ffmpeg.bat`, `use_ffmpeg.sh`).
