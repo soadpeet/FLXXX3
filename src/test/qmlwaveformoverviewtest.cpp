@@ -120,8 +120,17 @@ TEST_F(QmlWaveformOverviewTest, MonoRgbColorUsesBothChannels) {
     for (int y = 0; y < image.height() && !hasCombinedColor; ++y) {
         for (int x = 0; x < image.width(); ++x) {
             const QColor color = image.pixelColor(x, y);
-            if (color.alpha() > 0 && color.red() > 200 && color.blue() > 200 &&
-                    color.green() < 80) {
+#ifdef FLXXX3
+            // FLXXX3: the mono overview mixes the band colours of the scrolling
+            // waveform (red low, blue high, both with some green: about 255/142/253
+            // for this column) instead of pure red and blue.
+            const bool combined = color.red() > 200 && color.blue() > 200 &&
+                    color.green() < color.red() - 60 && color.green() < color.blue() - 60;
+#else
+            const bool combined = color.red() > 200 && color.blue() > 200 &&
+                    color.green() < 80;
+#endif
+            if (color.alpha() > 0 && combined) {
                 hasCombinedColor = true;
                 break;
             }

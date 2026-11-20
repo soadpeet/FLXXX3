@@ -155,6 +155,10 @@ class ControllerScriptEngineLegacyTest : public ControllerScriptEngineLegacy,
         CoverArtCache::destroy();
         ControllerScriptEngineBase::registerPlayerManager(nullptr);
         ControllerScriptEngineBase::registerTrackCollectionManager(nullptr);
+        // FLXXX3 test fix: the KeyNotation tests set a custom notation (debug names
+        // like "B_FLAT_MINOR"); it is global and broke later tests in the same
+        // process (TrackMetadataExportTest.keepWithespaceKey). Back to the default.
+        KeyUtils::setNotation({});
     }
 
     ~ControllerScriptEngineLegacyTest() {
@@ -225,15 +229,17 @@ class ControllerScriptEngineLegacyTest : public ControllerScriptEngineLegacy,
 class ControllerScriptEngineLegacyTimerTest : public ControllerScriptEngineLegacyTest {
   protected:
     std::unique_ptr<ControlPotmeter> m_pCo;
-    std::unique_ptr<ControlPotmeter> m_pCoTimerId;
+    std::unique_ptr<ControlObject> m_pCoTimerId;
 
     void SetUp() override {
         ControllerScriptEngineLegacyTest::SetUp();
         m_pCo = std::make_unique<ControlPotmeter>(ConfigKey("[Test]", "co"), -10.0, 10.0);
         m_pCo->setParameter(0.0);
-        m_pCoTimerId = std::make_unique<ControlPotmeter>(
-                ConfigKey("[Test]", "coTimerId"), -10.0, 50.0);
-        m_pCoTimerId->setParameter(0.0);
+        // FLXXX3 test fix: a potmeter from -10 to 50 clamped the timer ids. On Windows
+        // (Qt 6) the ids of a full run are far above 40 (even above 1000000), so
+        // "timerId + 10" never arrived. A plain control has no range.
+        m_pCoTimerId = std::make_unique<ControlObject>(ConfigKey("[Test]", "coTimerId"));
+        m_pCoTimerId->set(0.0);
         EXPECT_TRUE(evaluateAndAssert("engine.setValue('[Test]', 'co', 0.0);"));
         EXPECT_DOUBLE_EQ(0.0, m_pCo->get());
     }

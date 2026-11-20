@@ -51,13 +51,31 @@ if [ ! -f "$TEST_EXE" ]; then
   echo "=== C++ tests skipped: no $TEST_EXE (see the test build above)"
   exit $status
 fi
-filter="RekordboxFeatureTest.*"
-[ $all -eq 1 ] && filter="*"
-echo "=== C++ tests ($filter)"
 log="$WIN/mixxx-test.log"
-(cd "$WIN/build-test" && cmd.exe /c "set QT_PLUGIN_PATH=$DEPS_WIN\\Qt6\\plugins&& $(wslpath -w "$TEST_EXE") --gtest_filter=$filter" > "$log" 2>&1)
-cpp=$?
-tr -d '\r' < "$log" | grep -E "^\[ *(OK|FAILED|PASSED|SKIPPED) *\]|^\[==========\]|error:|Expected|Which is" \
-  | grep -v -E "^\[ *OK *\]" | grep -v "^\[  FAILED  \] .*, listed below" || true
+: > "$log"
+# The test build folder only holds the DLLs that CMake copies; the plugins of Qt load
+# further DLLs (qjpeg.dll needs jpeg62.dll) and QML modules from the dependency package.
+run_cpp() {
+  (cd "$WIN/build-test" && cmd.exe /c "set QT_PLUGIN_PATH=$DEPS_WIN\\Qt6\\plugins&& set QML_IMPORT_PATH=$DEPS_WIN\\Qt6\\qml&& set PATH=$DEPS_WIN\\bin;%PATH%&& $(wslpath -w "$TEST_EXE") --gtest_filter=$1" >> "$log" 2>&1)
+}
+filters=("RekordboxFeatureTest.*")
+if [ $all -eq 1 ]; then
+  # The QML start test and QmlLibraryProxyTest create the whole application
+  # (CoreServices); after another instance in the same process they crash, so they run
+  # in a process of their own (ctest also runs every test in its own process).
+  filters=("*-QmlSkins/QmlStartupSmokeTest.*:QmlLibraryProxyTest.*"
+    "QmlLibraryProxyTest.*"
+    "QmlSkins/QmlStartupSmokeTest.Starts/LateNightQML"
+    "QmlSkins/QmlStartupSmokeTest.Starts/NewUi")
+fi
+cpp=0
+for filter in "${filters[@]}"; do
+  echo "=== C++ tests ($filter)"
+  start=$(wc -l < "$log")
+  run_cpp "$filter" || cpp=1
+  tail -n +"$((start + 1))" "$log" | tr -d '\r' \
+    | grep -E "^\[ *(OK|FAILED|PASSED|SKIPPED) *\]|^\[==========\]|error:|Expected|Which is" \
+    | grep -v -E "^\[ *OK *\]" | grep -v "^\[  FAILED  \] .*, listed below" || true
+done
 [ $cpp -ne 0 ] && status=1
 exit $status

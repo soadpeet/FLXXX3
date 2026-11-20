@@ -652,7 +652,11 @@ void CueControl::trackLoaded(TrackPointer pNewTrack) {
                 firstBeat = std::max(beat, mixxx::audio::kStartFramePos);
             }
         }
-        // The cue point (CUE marker) is where the track waits.
+        // The cue point (CUE marker) is where the track waits. Like on CDJs, a CUE point
+        // set in an earlier session is not kept (memory cues are). It is written into the
+        // track, not only the control: loadCuesFromTrack() sets the control from the
+        // track again whenever its cues change (hot cue set, analysis), and the CUE must
+        // not jump back to an older point then.
         pNewTrack->setMainCuePosition(firstBeat);
         seekOnLoad(firstBeat);
         return;

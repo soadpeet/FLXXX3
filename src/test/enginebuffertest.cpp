@@ -15,6 +15,7 @@
 #include "test/mixxxtest.h"
 #include "test/mockedenginebackendtest.h"
 #include "test/signalpathtest.h"
+#include "util/math.h"
 
 // In case any of the test in this file fail. You can use the audioplot.py tool
 // in the tools folder to visually compare the results of the enginebuffer
@@ -26,7 +27,21 @@ const QString kAppGroup = QStringLiteral("[App]");
 
 class EngineBufferTest : public MockedEngineBackendTest {};
 
+#ifdef FLXXX3
+class EngineBufferE2ETest : public SignalPathTest {
+  protected:
+    void SetUp() override {
+        SignalPathTest::SetUp();
+        // FLXXX3: a track without ReplayGain value (or AUTO GAIN off) plays at the
+        // reference level of -6 dB (EnginePregain::process). The golden buffers were
+        // recorded at 0 dB: +6 dB of pregain brings the deck back to that level, the
+        // rest of the signal path is tested unchanged.
+        ControlObject::set(ConfigKey(m_sGroup1, "pregain"), db2ratio(6.0));
+    }
+};
+#else
 class EngineBufferE2ETest : public SignalPathTest {};
+#endif
 
 TEST_F(EngineBufferTest, DisableKeylockResetsPitch) {
     // To prevent one-slider users from getting stuck on a key,

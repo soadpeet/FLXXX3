@@ -185,8 +185,17 @@ TEST_F(AdjustReplayGainTest, AdjustReplayGainUpdatesPregain) {
     // Pregain should not change on other decks with this track loaded.
     EXPECT_DOUBLE_EQ(1.0, ControlObject::getControl(ConfigKey(m_sGroup1, "pregain"))->get());
     EXPECT_DOUBLE_EQ(1.0, ControlObject::getControl(ConfigKey(m_sGroup2, "pregain"))->get());
-    EXPECT_DOUBLE_EQ(1.2, ControlObject::getControl(ConfigKey(m_sGroup1, "replaygain"))->get());
-    EXPECT_DOUBLE_EQ(1.2, ControlObject::getControl(ConfigKey(m_sGroup2, "replaygain"))->get());
+#ifdef FLXXX3
+    // FLXXX3: the deck value holds the AUTO GAIN target, 4 dB above ReplayGain 2.0
+    // (-14 instead of -18 LUFS, ReplayGainSettings::deckRatio; no peak, so no limit).
+    const double kDeckReplayGain = 1.2 * db2ratio(4.0);
+#else
+    const double kDeckReplayGain = 1.2;
+#endif
+    EXPECT_DOUBLE_EQ(kDeckReplayGain,
+            ControlObject::getControl(ConfigKey(m_sGroup1, "replaygain"))->get());
+    EXPECT_DOUBLE_EQ(kDeckReplayGain,
+            ControlObject::getControl(ConfigKey(m_sGroup2, "replaygain"))->get());
     EXPECT_DOUBLE_EQ(1.2, pTrack->getReplayGain().getRatio());
 }
 

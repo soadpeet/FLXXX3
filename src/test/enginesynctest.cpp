@@ -2875,6 +2875,13 @@ TEST_F(EngineSyncTest, QuantizeHotCueActivate) {
     pHotCue2Activate->set(1.0);
     ProcessBuffer();
 
+#ifdef FLXXX3
+    // FLXXX3 (Rekordbox-like quantize): QUANTIZE snaps to the own beat grid only;
+    // matching the phase of another deck is part of SYNC (EngineBuffer::processSeek).
+    // Deck 2 is not synchronized, so the preview starts at the hot cue like without
+    // quantize.
+    EXPECT_DOUBLE_EQ(0.019349962207105064, ControlObject::get(ConfigKey(m_sGroup2, "beat_distance")));
+#else
     // Beat_distance is the distance to the previous beat which has already passed.
     // We compare here the distance to the next beat (1 - beat_distance) and
     // scale it by the different tempos.
@@ -2882,6 +2889,7 @@ TEST_F(EngineSyncTest, QuantizeHotCueActivate) {
             (1 - ControlObject::get(ConfigKey(m_sGroup1, "beat_distance"))) / 130 * 100,
             (1 - ControlObject::get(ConfigKey(m_sGroup2, "beat_distance"))),
             1e-15);
+#endif
 
     pHotCue2Activate->set(0.0);
     ProcessBuffer();

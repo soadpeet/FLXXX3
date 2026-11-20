@@ -1,6 +1,23 @@
 #include "engine/controls/cuecontrol.h"
 #include "test/signalpathtest.h"
 
+namespace {
+
+// FLXXX3: without AUTO CUE a loaded track waits on the first beat of its beat grid
+// and the CUE point is set there (CueControl::trackLoaded); the CueRecall preference
+// of Mixxx is not used and a finished analysis does not move the track. The test
+// tracks have no grid or one that starts at 0, so they wait at the start.
+mixxx::audio::FramePos expectedLoadCue(mixxx::audio::FramePos mixxxPosition) {
+#ifdef FLXXX3
+    Q_UNUSED(mixxxPosition);
+    return mixxx::audio::kStartFramePos;
+#else
+    return mixxxPosition;
+#endif
+}
+
+} // namespace
+
 class CueControlTest : public BaseSignalPathTest {
   protected:
     void SetUp() override {
@@ -106,7 +123,7 @@ TEST_F(CueControlTest, LoadUnloadTrack) {
 
     loadTrack(pTrack);
 
-    EXPECT_FRAMEPOS_EQ_CONTROL(kCuePosition, m_pCuePoint);
+    EXPECT_FRAMEPOS_EQ_CONTROL(expectedLoadCue(kCuePosition), m_pCuePoint);
     EXPECT_FRAMEPOS_EQ_CONTROL(kIntroStartPosition, m_pIntroStartPosition);
     EXPECT_FRAMEPOS_EQ_CONTROL(kIntroEndPosition, m_pIntroEndPosition);
     EXPECT_FRAMEPOS_EQ_CONTROL(kOutroStartPosition, m_pOutroStartPosition);
@@ -148,7 +165,7 @@ TEST_F(CueControlTest, LoadTrackWithDetectedCues) {
 
     loadTrack(pTrack);
 
-    EXPECT_FRAMEPOS_EQ_CONTROL(kCuePosition, m_pCuePoint);
+    EXPECT_FRAMEPOS_EQ_CONTROL(expectedLoadCue(kCuePosition), m_pCuePoint);
     EXPECT_FRAMEPOS_EQ_CONTROL(kCuePosition, m_pIntroStartPosition);
     EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::kInvalidFramePos, m_pIntroEndPosition);
     EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::kInvalidFramePos, m_pOutroStartPosition);
@@ -201,11 +218,20 @@ TEST_F(CueControlTest, LoadAutodetectedCues_QuantizeEnabled) {
     const auto kIntroStartPosition = mixxx::audio::FramePos(2.1 * beatLengthFrames);
     const auto kQuantizedIntroStartPosition = mixxx::audio::FramePos(2.0 * beatLengthFrames);
     const auto kIntroEndPosition = mixxx::audio::FramePos(3.7 * beatLengthFrames);
+#ifdef FLXXX3
+    // FLXXX3: cues snap to the QUANTIZE BEAT VALUE grid (default 1/4 beat).
+    const auto kQuantizedIntroEndPosition = mixxx::audio::FramePos(3.75 * beatLengthFrames);
+#else
     const auto kQuantizedIntroEndPosition = mixxx::audio::FramePos(4.0 * beatLengthFrames);
+#endif
     const auto kOutroStartPosition = mixxx::audio::FramePos(11.1 * beatLengthFrames);
     const auto kQuantizedOutroStartPosition = mixxx::audio::FramePos(11.0 * beatLengthFrames);
     const auto kOutroEndPosition = mixxx::audio::FramePos(15.5 * beatLengthFrames);
+#ifdef FLXXX3
+    const auto kQuantizedOutroEndPosition = mixxx::audio::FramePos(15.5 * beatLengthFrames);
+#else
     const auto kQuantizedOutroEndPosition = mixxx::audio::FramePos(16.0 * beatLengthFrames);
+#endif
 
     pTrack->setMainCuePosition(mixxx::audio::FramePos(1.9 * beatLengthFrames));
 
@@ -223,7 +249,7 @@ TEST_F(CueControlTest, LoadAutodetectedCues_QuantizeEnabled) {
 
     loadTrack(pTrack);
 
-    EXPECT_FRAMEPOS_EQ_CONTROL(kQuantizedIntroStartPosition, m_pCuePoint);
+    EXPECT_FRAMEPOS_EQ_CONTROL(expectedLoadCue(kQuantizedIntroStartPosition), m_pCuePoint);
     EXPECT_FRAMEPOS_EQ_CONTROL(kQuantizedIntroStartPosition, m_pIntroStartPosition);
     EXPECT_FRAMEPOS_EQ_CONTROL(kQuantizedIntroEndPosition, m_pIntroEndPosition);
     EXPECT_FRAMEPOS_EQ_CONTROL(kQuantizedOutroStartPosition, m_pOutroStartPosition);
@@ -253,7 +279,7 @@ TEST_F(CueControlTest, LoadAutodetectedCues_QuantizeEnabledNoBeats) {
 
     loadTrack(pTrack);
 
-    EXPECT_FRAMEPOS_EQ_CONTROL(kCuePosition, m_pCuePoint);
+    EXPECT_FRAMEPOS_EQ_CONTROL(expectedLoadCue(kCuePosition), m_pCuePoint);
     EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::FramePos(250.0), m_pIntroStartPosition);
     EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::FramePos(400.0), m_pIntroEndPosition);
     EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::FramePos(550.0), m_pOutroStartPosition);
@@ -282,7 +308,7 @@ TEST_F(CueControlTest, LoadAutodetectedCues_QuantizeDisabled) {
 
     loadTrack(pTrack);
 
-    EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::FramePos(240.0), m_pCuePoint);
+    EXPECT_FRAMEPOS_EQ_CONTROL(expectedLoadCue(mixxx::audio::FramePos(240.0)), m_pCuePoint);
     EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::FramePos(210.0), m_pIntroStartPosition);
     EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::FramePos(330.0), m_pIntroEndPosition);
     EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::FramePos(770.0), m_pOutroStartPosition);
@@ -301,10 +327,14 @@ TEST_F(CueControlTest, SeekOnLoadDefault) {
     loadTrack(pTrack);
 
     EXPECT_FRAMEPOS_EQ_CONTROL(mixxx::audio::FramePos(250.0), m_pIntroStartPosition);
-    EXPECT_FRAMEPOS_EQ(mixxx::audio::FramePos(250.0), getCurrentFramePos());
+    EXPECT_FRAMEPOS_EQ(expectedLoadCue(mixxx::audio::FramePos(250.0)), getCurrentFramePos());
 }
 
 TEST_F(CueControlTest, SeekOnLoadMainCue) {
+#ifdef FLXXX3
+    GTEST_SKIP() << "FLXXX3 does not use the CueRecall preference: a loaded track waits "
+                    "on the first beat and does not follow a moved main cue";
+#endif
     config()->set(ConfigKey("[Controls]", "CueRecall"),
             ConfigValue(static_cast<int>(SeekOnLoadMode::MainCue)));
     TrackPointer pTrack = createTestTrack();
@@ -324,6 +354,10 @@ TEST_F(CueControlTest, SeekOnLoadMainCue) {
 }
 
 TEST_F(CueControlTest, DontSeekOnLoadMainCue) {
+#ifdef FLXXX3
+    GTEST_SKIP() << "FLXXX3 does not use the CueRecall preference: a loaded track waits "
+                    "on the first beat and does not follow a moved main cue";
+#endif
     config()->set(ConfigKey("[Controls]", "CueRecall"),
             ConfigValue(static_cast<int>(SeekOnLoadMode::MainCue)));
     TrackPointer pTrack = createTestTrack();
@@ -349,6 +383,10 @@ TEST_F(CueControlTest, DontSeekOnLoadMainCue) {
 }
 
 TEST_F(CueControlTest, SeekOnLoadDefault_CueInPreroll) {
+#ifdef FLXXX3
+    GTEST_SKIP() << "FLXXX3 does not use the CueRecall preference: a loaded track waits "
+                    "on the first beat and does not follow a moved main cue";
+#endif
     config()->set(ConfigKey("[Controls]", "CueRecall"),
             ConfigValue(static_cast<int>(SeekOnLoadMode::MainCue)));
     TrackPointer pTrack = createTestTrack();
@@ -369,6 +407,10 @@ TEST_F(CueControlTest, SeekOnLoadDefault_CueInPreroll) {
 }
 
 TEST_F(CueControlTest, FollowCueOnQuantize) {
+#ifdef FLXXX3
+    GTEST_SKIP() << "FLXXX3 does not use the CueRecall preference: a loaded track waits "
+                    "on the first beat and does not follow a moved main cue";
+#endif
     m_pQuantizeEnabled->set(0);
     config()->set(ConfigKey("[Controls]", "CueRecall"),
             ConfigValue(static_cast<int>(SeekOnLoadMode::MainCue)));
@@ -423,8 +465,8 @@ TEST_F(CueControlTest, SeekOnSetCueCDJ) {
 
     loadTrack(pTrack);
 
-    EXPECT_FRAMEPOS_EQ_CONTROL(cuePos, m_pCuePoint);
-    EXPECT_FRAMEPOS_EQ(cuePos, getCurrentFramePos());
+    EXPECT_FRAMEPOS_EQ_CONTROL(expectedLoadCue(cuePos), m_pCuePoint);
+    EXPECT_FRAMEPOS_EQ(expectedLoadCue(cuePos), getCurrentFramePos());
 
     // Change the playpos and move the cue point there.
     const auto newCuePos = mixxx::audio::FramePos(2.0 * beatLengthFrames);
@@ -453,8 +495,8 @@ TEST_F(CueControlTest, SeekOnSetCuePlay) {
 
     loadTrack(pTrack);
 
-    EXPECT_FRAMEPOS_EQ_CONTROL(cuePos, m_pCuePoint);
-    EXPECT_FRAMEPOS_EQ(cuePos, getCurrentFramePos());
+    EXPECT_FRAMEPOS_EQ_CONTROL(expectedLoadCue(cuePos), m_pCuePoint);
+    EXPECT_FRAMEPOS_EQ(expectedLoadCue(cuePos), getCurrentFramePos());
 
     // Change the playpos and do a cuePlay.
     const auto newCuePos = mixxx::audio::FramePos(2.0 * beatLengthFrames);
@@ -466,6 +508,43 @@ TEST_F(CueControlTest, SeekOnSetCuePlay) {
     EXPECT_FRAMEPOS_EQ_CONTROL(newCuePos, m_pCuePoint);
     EXPECT_FRAMEPOS_EQ(newCuePos, getCurrentFramePos());
 }
+
+#ifdef FLXXX3
+TEST_F(CueControlTest, Flxxx3LoadWaitsOnFirstBeat) {
+    // Without AUTO CUE the track waits on the first beat of its grid, and the CUE
+    // point moves there (a stored main cue is replaced).
+    TrackPointer pTrack = createTestTrack();
+    constexpr auto kFirstBeat = mixxx::audio::FramePos(1000.0);
+    pTrack->trySetBeats(mixxx::Beats::fromConstTempo(
+            pTrack->getSampleRate(), kFirstBeat, mixxx::Bpm(120)));
+    pTrack->setMainCuePosition(mixxx::audio::FramePos(5000.0));
+
+    loadTrack(pTrack);
+
+    EXPECT_FRAMEPOS_EQ_CONTROL(kFirstBeat, m_pCuePoint);
+    EXPECT_FRAMEPOS_EQ(kFirstBeat, getCurrentFramePos());
+}
+
+TEST_F(CueControlTest, Flxxx3AutoCueDoesNotWaitOnFirstBeat) {
+    // With AUTO CUE the track starts at the first sound (the sine of the test file
+    // starts at once, so at the start) instead of the first beat, and the stored
+    // CUE point is kept.
+    ControlProxy autoCue(m_sGroup1, "auto_cue");
+    autoCue.set(1.0);
+    m_pQuantizeEnabled->set(0); // otherwise the cue snaps to the 1/4 beat grid
+    TrackPointer pTrack = createTestTrack();
+    pTrack->trySetBeats(mixxx::Beats::fromConstTempo(
+            pTrack->getSampleRate(), mixxx::audio::FramePos(1000.0), mixxx::Bpm(120)));
+    constexpr auto kCuePosition = mixxx::audio::FramePos(5000.0);
+    pTrack->setMainCuePosition(kCuePosition);
+
+    loadTrack(pTrack);
+
+    EXPECT_FRAMEPOS_EQ_CONTROL(kCuePosition, m_pCuePoint);
+    EXPECT_FRAMEPOS_EQ(mixxx::audio::kStartFramePos, getCurrentFramePos());
+    autoCue.set(0.0);
+}
+#endif
 
 TEST_F(CueControlTest, IntroCue_SetStartEnd_ClearStartEnd) {
     TrackPointer pTrack = createAndLoadFakeTrack();
