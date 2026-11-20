@@ -45,7 +45,7 @@ Welche Dateien neu von FLXXX3 stammen und welche aus Mixxx: `docs/android-port/A
 
 ## Bibliotheken im Android-Build (Buildenv `mixxx-deps-2.7-arm64-android-1c20f84a`)
 
-Qt 6.10.3 (LGPL/GPL, dynamisch), FFmpeg (LGPL), libusb (LGPL), libdjinterop (LGPL-3.0), TagLib (LGPL), SoundTouch (LGPL), Rubber Band (GPL), libkeyfinder (GPL-3.0), FFTW3 (GPL), libmad (GPL), LAME (LGPL), Oboe (Apache-2.0), PortAudio (MIT-artig), Opus, FLAC, Vorbis, SQLite, Chromaprint (MIT-Kern), Protobuf u. a. Die vollständige Prüfung steht in `LICENSE_AUDIT.md`. **Offen:** `libfdk-aac.a` ist im Link enthalten (Lizenz gilt als GPL-unverträglich, `LICENSE_AUDIT.md` L1).
+Qt 6.10.3 (LGPL/GPL, dynamisch), FFmpeg (LGPL), libusb (LGPL), libdjinterop (LGPL-3.0), TagLib (LGPL), SoundTouch (LGPL), Rubber Band (GPL), libkeyfinder (GPL-3.0), FFTW3 (GPL), libmad (GPL), LAME (LGPL), Oboe (Apache-2.0), PortAudio (MIT-artig), Opus, FLAC, Vorbis, SQLite, Chromaprint (MIT-Kern), Protobuf u. a. Die vollständige Prüfung steht in `LICENSE_AUDIT.md`. libfdk-aac ist seit v0.1.3 nicht mehr enthalten: AAC dekodiert FFmpeg selbst (`LICENSE_AUDIT.md` L1).
 
 ## Marken
 

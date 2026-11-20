@@ -28,6 +28,12 @@ BUILD_DIR=~/mixxx-android/build-flxxx3-api29 OUT_APK=~/mixxx-android/flx-api29.a
 ```
 
 Zusätzliche Systempakete (Ubuntu 24.04): `libgl1-mesa-dev libdrm-dev libgbm-dev libsm-dev libudev-dev libxrandr-dev nasm python3-venv zip ninja-build libtool autopoint gperf texinfo`.
+`setup` legt die FLXXX3-Ports aus `overlay-ports/` über die von Mixxx (jeder ersetzt den gleichnamigen Port ganz):
+- `icu`: ohne Zeitzonen-, Währungs-, Sprachnamen- und ähnliche Daten (ICU-Daten 13 statt 33 MB).
+- `ffmpeg`: AAC (M4A) mit dem Decoder von FFmpeg selbst statt libfdk-aac, dessen Lizenz nicht GPL-verträglich ist; `setup` streicht `fdk-aac` auch aus `vcpkg.json`. Derselbe Port baut FFmpeg für Windows (`tools/windows/build_ffmpeg.bat`, `use_ffmpeg.sh`).
+
+Nach einem Wechsel der Abhängigkeiten im vorhandenen Build-Ordner die zwischengespeicherten Fundstellen löschen (mit dem uname-Shim im `PATH`): `cmake -U '*FdkAac*' -U '*fdk-aac*' -U 'FFmpeg_*' -U '*PC_FFmpeg*' ~/mixxx-android/build-flxxx3-api29`.
+
 Geprüft: alle 103 Bibliotheken der APK gegen die API-29-Systembibliotheken des NDK (keine fehlenden Funktionen); Test auf dem Tablet (Android 16) mit FLX4.
 
 ## Voraussetzungen (geprüft auf der Entwicklungsmaschine, 2026-11-11)

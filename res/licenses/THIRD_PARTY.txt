@@ -15,7 +15,7 @@ the source code of the libraries):
 
   Qt 6.10: LGPL-3.0 (used as shared libraries)
   ICU: Unicode License (ICU)
-  FFmpeg (libavcodec, libavformat, libavutil, libswresample): LGPL-2.1 or later
+  FFmpeg (libavcodec, libavformat, libavutil, libswresample; also decodes AAC): LGPL-2.1 or later
   TagLib: LGPL-2.1 / MPL-1.1
   SoundTouch: LGPL-2.1
   Rubber Band: GPL-2.0 or later
@@ -25,7 +25,6 @@ the source code of the libraries):
   libmad, libid3tag: GPL-2.0 or later
   mpg123: LGPL-2.1
   LAME (MP3 recording): LGPL-2.0
-  FDK AAC: Fraunhofer FDK AAC license
   Opus, opusfile: BSD-3-Clause
   Ogg, Vorbis, FLAC: BSD-3-Clause
   WavPack: BSD-3-Clause

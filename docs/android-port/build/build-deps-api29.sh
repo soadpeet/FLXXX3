@@ -45,8 +45,15 @@ setup() {
     # soundtouch 2.4.0 (codeberg, checked against git tag 2.4.0 on 2026-11-19):
     sed -i 's/8bd199c6363104ba6c9af1abbd3c4da3567ccda5fe3a68298917817fc9312ecb0914609afba1abd864307b0a596becf450bc7073eeec17b1de5a7c5086fbc45e/97e4afcce100f210d89c665dd83f4eaa7b0bec88ba35ba1cf29729e9260d143a5c0f89156646c4dddc83030c5f6b8493c6abc1a82bfba52ed6a87929c8e0fdea/' \
         "$VCPKG/ports/soundtouch/portfile.cmake"
-    # FLXXX3 overlay ports (here: ICU with less data, see overlay-ports/icu/portfile.cmake).
-    cp -r "$(dirname "$0")/overlay-ports/." "$VCPKG/overlay/ports/"
+    # FLXXX3 overlay ports, each replacing the port of the same name completely:
+    #   icu     less data (overlay-ports/icu/portfile.cmake)
+    #   ffmpeg  AAC with the decoder of FFmpeg instead of libfdk-aac (GPL-incompatible license)
+    for port in "$(dirname "$0")"/overlay-ports/*/; do
+        rm -rf "$VCPKG/overlay/ports/$(basename "$port")"
+        cp -r "$port" "$VCPKG/overlay/ports/"
+    done
+    # No libfdk-aac in the dependencies (Mixxx only uses it to record AAC, FLXXX3 records nothing).
+    sed -i '/^    "fdk-aac",$/d' "$VCPKG/vcpkg.json"
     if [ ! -x "$VCPKG/vcpkg" ]; then
         (cd "$VCPKG" && ./bootstrap-vcpkg.sh -disableMetrics)
     fi
