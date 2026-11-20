@@ -2986,7 +2986,6 @@ if(BUILD_TESTING)
     src/test/looping_control_test.cpp
     src/test/main.cpp
     src/test/mathutiltest.cpp
-    src/test/matrixapitest.cpp
     src/test/metadatatest.cpp
     #TODO: make this build again
     #src/test/metaknob_link_test.cpp
@@ -3008,7 +3007,6 @@ if(BUILD_TESTING)
     src/test/rgbcolor_test.cpp
     src/test/rotary_test.cpp
     src/test/samplebuffertest.cpp
-    src/test/savitzkygolaytest.cpp
     src/test/schemamanager_test.cpp
     src/test/searchqueryparsertest.cpp
     src/test/seratobeatgridtest.cpp
@@ -3047,6 +3045,14 @@ if(BUILD_TESTING)
       src/test/steminfotest.cpp
       src/test/stemcontrolobjecttest.cpp
     )
+  endif()
+  # The tests of the xwax filters (lib/xwax) only exist with vinyl control.
+  if(VINYLCONTROL)
+    list(APPEND src-mixxx-test src/test/matrixapitest.cpp src/test/savitzkygolaytest.cpp)
+  endif()
+  # FLXXX3: the Rekordbox import with the demo export in tests/flxxx3/data.
+  if(FLXXX3)
+    list(APPEND src-mixxx-test src/test/rekordboxfeature_test.cpp)
   endif()
   if(BUILD_BENCH)
     set(
@@ -3105,8 +3111,11 @@ if(BUILD_TESTING)
   set_target_properties(mixxx-test PROPERTIES AUTOMOC ON)
   target_link_libraries(
     mixxx-test
-    PRIVATE mixxx-lib mixxx-gitinfostore mixxx-xwax GTest::gtest GTest::gmock
+    PRIVATE mixxx-lib mixxx-gitinfostore GTest::gtest GTest::gmock
   )
+  if(VINYLCONTROL)
+    target_link_libraries(mixxx-test PRIVATE mixxx-xwax)
+  endif()
 
   if(BUILD_BENCH)
     add_compile_definitions(USE_BENCH)

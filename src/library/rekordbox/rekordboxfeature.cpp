@@ -1744,6 +1744,29 @@ void RekordboxPlaylistModel::initSortColumnMapping() {
     }
 }
 
+// Reads the analysis files of a track: anlzPath is its .DAT file, the .EXT (cues with
+// colors and comments) and .2EX (3-band waveform) files next to it are read when they exist.
+static void readAnalyzeFiles(const TrackPointer& track,
+        mixxx::audio::SampleRate sampleRate,
+        int timingOffset,
+        const QString& anlzPath) {
+    QString anlzPathExt = anlzPath.left(anlzPath.length() - 3) + "EXT";
+
+    RekordboxWaveformColumns threeBand;
+#ifdef FLXXX3
+    if (!t_summaryOnly && !(track->getWaveform() && track->getWaveformSummary())) {
+        threeBand = readThreeBandColumns(anlzPath.left(anlzPath.length() - 3) + "2EX");
+    }
+#endif
+    if (QFile(anlzPathExt).exists()) {
+        // Beatgrids appear to be only correct in legacy ANLZ file
+        readAnalyze(track, sampleRate, timingOffset, true, anlzPath);
+        readAnalyze(track, sampleRate, timingOffset, false, anlzPathExt, threeBand);
+    } else {
+        readAnalyze(track, sampleRate, timingOffset, false, anlzPath, threeBand);
+    }
+}
+
 // Reads the Rekordbox analysis files of a track (waveform, beat grid, cues) and
 // puts the data on the track object. The track object is the one that the
 // library hands out; location is its file.
@@ -1804,23 +1827,7 @@ static void applyRekordboxTrackData(const TrackPointer& track,
     }
 #endif
 
-    mixxx::audio::SampleRate sampleRate = track->getSampleRate();
-
-    QString anlzPathExt = anlzPath.left(anlzPath.length() - 3) + "EXT";
-
-    RekordboxWaveformColumns threeBand;
-#ifdef FLXXX3
-    if (!t_summaryOnly && !(track->getWaveform() && track->getWaveformSummary())) {
-        threeBand = readThreeBandColumns(anlzPath.left(anlzPath.length() - 3) + "2EX");
-    }
-#endif
-    if (QFile(anlzPathExt).exists()) {
-        // Beatgrids appear to be only correct in legacy ANLZ file
-        readAnalyze(track, sampleRate, timingOffset, true, anlzPath);
-        readAnalyze(track, sampleRate, timingOffset, false, anlzPathExt, threeBand);
-    } else {
-        readAnalyze(track, sampleRate, timingOffset, false, anlzPath, threeBand);
-    }
+    readAnalyzeFiles(track, track->getSampleRate(), timingOffset, anlzPath);
 
     // Assume that the key of the file the has been analyzed in Recordbox is correct
     // and prevent the AnalyzerKey from re-analyzing.
@@ -2722,3 +2729,34 @@ void RekordboxFeature::onTracksFound() {
     m_pRekordboxPlaylistModel->setPlaylist(devicePlaylist);
     emit showTrackModel(m_pRekordboxPlaylistModel);
 }
+
+#ifdef BUILD_TESTING
+// FLXXX3 (AI disclaimer: written by an AI agent, Claude): entry points for
+// src/test/rekordboxfeature_test.cpp into the functions of this file.
+namespace mixxx::rekordboxtest {
+
+QString findPdbPath(const QString& devicePath) {
+    return findRekordboxPdbPath(devicePath);
+}
+
+void createTables(QSqlDatabase& database) {
+    createLibraryTable(database, kRekordboxLibraryTable);
+    createPlaylistsTable(database, kRekordboxPlaylistsTable);
+    createPlaylistTracksTable(database, kRekordboxPlaylistTracksTable);
+}
+
+QString parseDevice(mixxx::DbConnectionPoolPtr dbConnectionPool,
+        const QString& device,
+        const QString& devicePath,
+        TreeItem* pDeviceItem) {
+    return parseDeviceDB(std::move(dbConnectionPool), device, devicePath, pDeviceItem);
+}
+
+void readAnalysis(const TrackPointer& track,
+        mixxx::audio::SampleRate sampleRate,
+        const QString& anlzPath) {
+    readAnalyzeFiles(track, sampleRate, 0, anlzPath);
+}
+
+} // namespace mixxx::rekordboxtest
+#endif

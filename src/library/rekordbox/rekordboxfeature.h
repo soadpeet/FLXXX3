@@ -147,3 +147,29 @@ class RekordboxFeature : public BaseExternalLibraryFeature {
     QStringList m_libraryFolders;
 #endif
 };
+
+#ifdef BUILD_TESTING
+// FLXXX3: entry points for the tests (src/test/rekordboxfeature_test.cpp).
+#include "audio/types.h"
+#include "track/track_decl.h"
+#include "util/db/dbconnectionpool.h"
+class QSqlDatabase;
+class TreeItem;
+namespace mixxx::rekordboxtest {
+// The export.pdb of a stick or folder (empty if there is none).
+QString findPdbPath(const QString& devicePath);
+// The temporary tables the import fills (rekordbox_library, _playlists, _playlist_tracks).
+void createTables(QSqlDatabase& database);
+// Reads the export.pdb of devicePath into the tables and the playlist tree below
+// pDeviceItem; returns devicePath, or an empty string if the database could not be opened.
+QString parseDevice(mixxx::DbConnectionPoolPtr dbConnectionPool,
+        const QString& device,
+        const QString& devicePath,
+        TreeItem* pDeviceItem);
+// Puts beat grid, cues and waveform from the analysis files (anlzPath: the .DAT file) on
+// the track, as on loading a track from a stick (without timing offset).
+void readAnalysis(const TrackPointer& track,
+        mixxx::audio::SampleRate sampleRate,
+        const QString& anlzPath);
+} // namespace mixxx::rekordboxtest
+#endif
