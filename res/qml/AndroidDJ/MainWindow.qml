@@ -30,8 +30,7 @@ Item {
     // Waveform zoom after the start (ADVANCED SETTINGS); changing it applies it at once.
     readonly property real zoomStartValue: AdvSettings.values.zoomStart
     onZoomStartValueChanged: {
-        pinchZoom1.value = zoomStartValue;
-        pinchZoom2.value = zoomStartValue;
+        [pinchZoom1, pinchZoom2, pinchZoom3, pinchZoom4].forEach(p => p.value = zoomStartValue);
     }
     // Time display of both decks: remaining (true) or elapsed (false).
     property bool showRemain: true
@@ -43,13 +42,29 @@ Item {
     property bool matchKeys: true
     Mixxx.ControlProxy { id: deckKey1; group: "[Channel1]"; key: "key" }
     Mixxx.ControlProxy { id: deckKey2; group: "[Channel2]"; key: "key" }
+    Mixxx.ControlProxy { id: deckKey3; group: "[Channel3]"; key: "key" }
+    Mixxx.ControlProxy { id: deckKey4; group: "[Channel4]"; key: "key" }
     // Current key of the master deck (with KEY SHIFT), Mixxx ChromaticKey 1..24; 0 = none.
     readonly property int matchKeyId: !matchKeys ? 0
-            : (masterDeck === 1 ? Math.round(deckKey1.value) : (masterDeck === 2 ? Math.round(deckKey2.value) : 0))
+            : (masterDeck >= 1 && masterDeck <= 4 ? Math.round([deckKey1, deckKey2, deckKey3, deckKey4][masterDeck - 1].value) : 0)
     // Screen layout (UTILITY): false = XDJ view (both waveforms stacked, a panel per
     // deck below), true = CDJ view (the screen is split in two halves, one per deck:
     // deck panel on top, the big waveform below, hotcues at the bottom).
     property bool cdjView: false
+    // DECKS (UTILITY): 2 or 4 decks. With 4 the XDJ view stacks four waveforms and shows the
+    // deck panels 2 x 2 (1 2 / 3 4); the CDJ view shows the decks in the four quarters.
+    property bool fourDecks: false
+    readonly property int deckCount: fourDecks ? 4 : 2
+    // The engine always has four decks (CoreServices): the switch only changes the screen.
+    onFourDecksChanged: {
+        saveSetting("fourDecks", fourDecks ? "1" : "0");
+        root.applyQuantizeBeat();
+        root.applyAutoCue();
+    }
+    // Column of a deck on the screen: 1 = left (decks 1, 3), 2 = right (decks 2, 4).
+    function deckSide(deck) {
+        return (deck - 1) % 2 + 1;
+    }
     // Beat match aid above the waveforms, CDJ view only (UTILITY): 0 = off, 1 = WAVEFORM of the
     // other deck, 2 = PHASE METER. The main waveform gets smaller by its height.
     property int beatMatchMode: 1
@@ -67,8 +82,10 @@ Item {
     property bool autoCue: false
     onAutoCueChanged: {
         saveSetting("autoCue", autoCue ? "1" : "0");
-        autoCue1.value = autoCue ? 1 : 0;
-        autoCue2.value = autoCue ? 1 : 0;
+        applyAutoCue();
+    }
+    function applyAutoCue() {
+        [autoCue1, autoCue2, autoCue3, autoCue4].forEach(p => p.value = root.autoCue ? 1 : 0);
     }
     // Settings that survive a restart (stored in the Mixxx config file).
     property bool settingsReady: false
@@ -84,9 +101,13 @@ Item {
         const steps = {"1/8": 8, "1/4": 4, "1/2": 2, "1": 1}[root.quantizeBeat] || 4;
         quantizeSteps1.value = steps;
         quantizeSteps2.value = steps;
+        quantizeSteps3.value = steps;
+        quantizeSteps4.value = steps;
     }
     Mixxx.ControlProxy { id: quantizeSteps1; group: "[Channel1]"; key: "quantize_subdivision" }
     Mixxx.ControlProxy { id: quantizeSteps2; group: "[Channel2]"; key: "quantize_subdivision" }
+    Mixxx.ControlProxy { id: quantizeSteps3; group: "[Channel3]"; key: "quantize_subdivision" }
+    Mixxx.ControlProxy { id: quantizeSteps4; group: "[Channel4]"; key: "quantize_subdivision" }
     onQuantizeBeatChanged: {
         saveSetting("quantizeBeat", quantizeBeat);
         applyQuantizeBeat();
@@ -120,13 +141,20 @@ Item {
     // master is made the leader of the engine while the other deck has SYNC on.
     function updateSyncLeader() {
         const master = root.masterDeck;
-        if (master !== 1 && master !== 2)
+        if (master < 1 || master > root.deckCount)
             return;
-        const masterLeader = master === 1 ? masterLeader1 : masterLeader2;
-        const otherLeader = master === 1 ? masterLeader2 : masterLeader1;
-        const otherSync = (master === 1 ? syncEnabled2 : syncEnabled1).value > 0;
-        if (otherLeader.value > 0)
-            otherLeader.value = 0;
+        const leaders = [masterLeader1, masterLeader2, masterLeader3, masterLeader4];
+        const syncs = [syncEnabled1, syncEnabled2, syncEnabled3, syncEnabled4];
+        let otherSync = false;
+        for (let d = 1; d <= root.deckCount; d++) {
+            if (d === master)
+                continue;
+            if (leaders[d - 1].value > 0)
+                leaders[d - 1].value = 0;
+            if (syncs[d - 1].value > 0)
+                otherSync = true;
+        }
+        const masterLeader = leaders[master - 1];
         if (otherSync && masterLeader.value <= 0)
             masterLeader.value = 1;
         else if (!otherSync && masterLeader.value > 0)
@@ -135,76 +163,62 @@ Item {
     onMasterDeckChanged: updateSyncLeader()
     Mixxx.ControlProxy { id: masterLeader1; group: "[Channel1]"; key: "sync_leader" }
     Mixxx.ControlProxy { id: masterLeader2; group: "[Channel2]"; key: "sync_leader" }
-    Mixxx.ControlProxy {
-        id: syncEnabled1
-
-        group: "[Channel1]"
-        key: "sync_enabled"
-
-        onValueChanged: root.updateSyncLeader()
-    }
-    Mixxx.ControlProxy {
-        id: syncEnabled2
-
-        group: "[Channel2]"
-        key: "sync_enabled"
-
-        onValueChanged: root.updateSyncLeader()
-    }
+    Mixxx.ControlProxy { id: masterLeader3; group: "[Channel3]"; key: "sync_leader" }
+    Mixxx.ControlProxy { id: masterLeader4; group: "[Channel4]"; key: "sync_leader" }
+    Mixxx.ControlProxy { id: syncEnabled1; group: "[Channel1]"; key: "sync_enabled"; onValueChanged: root.updateSyncLeader() }
+    Mixxx.ControlProxy { id: syncEnabled2; group: "[Channel2]"; key: "sync_enabled"; onValueChanged: root.updateSyncLeader() }
+    Mixxx.ControlProxy { id: syncEnabled3; group: "[Channel3]"; key: "sync_enabled"; onValueChanged: root.updateSyncLeader() }
+    Mixxx.ControlProxy { id: syncEnabled4; group: "[Channel4]"; key: "sync_enabled"; onValueChanged: root.updateSyncLeader() }
     function deckPlaying(deck) {
-        return (deck === 1 ? masterPlay1.value : masterPlay2.value) > 0;
+        return deck >= 1 && deck <= root.deckCount
+                && [masterPlay1, masterPlay2, masterPlay3, masterPlay4][deck - 1].value > 0;
+    }
+    // MASTER like on the Pioneer players: the first deck that gets a track is MASTER, loading
+    // further decks never moves it. It moves only when the MASTER deck is not playing: to a
+    // deck that starts, or, when the MASTER stops, to another deck that plays (the lowest
+    // number). An emptied MASTER deck hands over to a playing deck, else to a loaded one.
+    function deckLoaded(deck) {
+        return deck >= 1 && deck <= root.deckCount
+                && [masterLoaded1, masterLoaded2, masterLoaded3, masterLoaded4][deck - 1].value > 0;
+    }
+    function hasMaster() {
+        return root.deckLoaded(root.masterDeck);
+    }
+    function firstDeck(test, except) {
+        for (let d = 1; d <= root.deckCount; d++) {
+            if (d !== except && test(d))
+                return d;
+        }
+        return 0;
     }
     function masterPlayChanged(deck) {
-        const other = deck === 1 ? 2 : 1;
-        if (deckPlaying(deck)) {
-            if (!deckPlaying(other))
+        if (root.deckPlaying(deck)) {
+            if (!root.hasMaster() || (root.masterDeck !== deck && !root.deckPlaying(root.masterDeck)))
                 setMaster(deck);
-        } else if (deckPlaying(other)) {
-            setMaster(other);
+        } else if (root.masterDeck === deck) {
+            const playing = root.firstDeck(root.deckPlaying, deck);
+            if (playing > 0)
+                setMaster(playing);
         }
     }
     function masterTrackLoaded(deck) {
-        if (!deckPlaying(1) && !deckPlaying(2))
+        if (!root.hasMaster() || root.masterDeck === deck)
             setMaster(deck);
     }
-    Mixxx.ControlProxy {
-        id: masterPlay1
-
-        group: "[Channel1]"
-        key: "play"
-
-        onValueChanged: root.masterPlayChanged(1)
+    function masterTrackEjected(deck) {
+        if (root.masterDeck !== deck)
+            return;
+        const next = root.firstDeck(root.deckPlaying, deck) || root.firstDeck(root.deckLoaded, deck);
+        setMaster(next);
     }
-    Mixxx.ControlProxy {
-        id: masterPlay2
-
-        group: "[Channel2]"
-        key: "play"
-
-        onValueChanged: root.masterPlayChanged(2)
-    }
-    Mixxx.ControlProxy {
-        id: masterLoaded1
-
-        group: "[Channel1]"
-        key: "track_loaded"
-
-        onValueChanged: value => {
-            if (value > 0)
-                root.masterTrackLoaded(1);
-        }
-    }
-    Mixxx.ControlProxy {
-        id: masterLoaded2
-
-        group: "[Channel2]"
-        key: "track_loaded"
-
-        onValueChanged: value => {
-            if (value > 0)
-                root.masterTrackLoaded(2);
-        }
-    }
+    Mixxx.ControlProxy { id: masterPlay1; group: "[Channel1]"; key: "play"; onValueChanged: root.masterPlayChanged(1) }
+    Mixxx.ControlProxy { id: masterPlay2; group: "[Channel2]"; key: "play"; onValueChanged: root.masterPlayChanged(2) }
+    Mixxx.ControlProxy { id: masterPlay3; group: "[Channel3]"; key: "play"; onValueChanged: root.masterPlayChanged(3) }
+    Mixxx.ControlProxy { id: masterPlay4; group: "[Channel4]"; key: "play"; onValueChanged: root.masterPlayChanged(4) }
+    Mixxx.ControlProxy { id: masterLoaded1; group: "[Channel1]"; key: "track_loaded"; onValueChanged: value => value > 0 ? root.masterTrackLoaded(1) : root.masterTrackEjected(1) }
+    Mixxx.ControlProxy { id: masterLoaded2; group: "[Channel2]"; key: "track_loaded"; onValueChanged: value => value > 0 ? root.masterTrackLoaded(2) : root.masterTrackEjected(2) }
+    Mixxx.ControlProxy { id: masterLoaded3; group: "[Channel3]"; key: "track_loaded"; onValueChanged: value => value > 0 ? root.masterTrackLoaded(3) : root.masterTrackEjected(3) }
+    Mixxx.ControlProxy { id: masterLoaded4; group: "[Channel4]"; key: "track_loaded"; onValueChanged: value => value > 0 ? root.masterTrackLoaded(4) : root.masterTrackEjected(4) }
     // The output level that reaches the controller is fixed at 0 dB (master gain 1).
     Mixxx.ControlProxy { id: masterGainProxy; group: "[Master]"; key: "gain" }
     Mixxx.ControlProxy { id: eqModeProxy; group: "[AndroidDJ]"; key: "eq_mode" }
@@ -229,8 +243,7 @@ Item {
         // Waveform zoom: only when ADVANCED SETTINGS changed it from the factory value (otherwise the
         // zoom of the last session stays).
         if (AdvSettings.values.zoomStart !== AdvSettings.definition("zoomStart").def) {
-            pinchZoom1.value = AdvSettings.values.zoomStart;
-            pinchZoom2.value = AdvSettings.values.zoomStart;
+            [pinchZoom1, pinchZoom2, pinchZoom3, pinchZoom4].forEach(p => p.value = AdvSettings.values.zoomStart);
         }
         const savedBrightness = parseInt(Mixxx.Config.androidSetting("brightness", "1"));
         brightnessProxy.value = isNaN(savedBrightness) ? 1 : savedBrightness;
@@ -247,18 +260,20 @@ Item {
         root.keyCamelot = Mixxx.Config.androidSetting("keyCamelot", "1") === "1";
         root.matchKeys = Mixxx.Config.androidSetting("matchKeys", "1") === "1";
         root.cdjView = Mixxx.Config.androidSetting("cdjView", "0") === "1";
+        root.fourDecks = Mixxx.Config.androidSetting("fourDecks", "0") === "1";
         root.beatMatchMode = parseInt(Mixxx.Config.androidSetting("beatMatchModeV2", "1"));
         root.quantizeBeat = Mixxx.Config.androidSetting("quantizeBeat", "1");
         root.autoCue = Mixxx.Config.androidSetting("autoCue", "0") === "1";
         root.applyQuantizeBeat();
-        autoCue1.value = root.autoCue ? 1 : 0;
-        autoCue2.value = root.autoCue ? 1 : 0;
+        root.applyAutoCue();
         headSplitProxy.value = Mixxx.Config.androidSetting("headSplit", "0") === "1" ? 1 : 0;
         monoMixdownProxy.value = Mixxx.Config.androidSetting("monoMixdown", "0") === "1" ? 1 : 0;
         root.settingsReady = true;
     }
     Mixxx.ControlProxy { id: autoCue1; group: "[Channel1]"; key: "auto_cue" }
     Mixxx.ControlProxy { id: autoCue2; group: "[Channel2]"; key: "auto_cue" }
+    Mixxx.ControlProxy { id: autoCue3; group: "[Channel3]"; key: "auto_cue" }
+    Mixxx.ControlProxy { id: autoCue4; group: "[Channel4]"; key: "auto_cue" }
 
     // Activates a top-level entry of the library sidebar (0 = All..., 1 = Rekordbox).
     // The library activates row 1 (the sticks) itself when it is created.
@@ -393,7 +408,8 @@ Item {
     // side: 0 = the whole screen, 1 / 2 = only the half of deck 1 / 2 (CDJ view).
     function openBrowser(side) {
         root.closingAfterLoad = false;
-        root.browserSide = root.cdjView && side ? side : 0;
+        // A deck number (LOAD of deck 3 / 4) stands for its side.
+        root.browserSide = root.cdjView && side ? root.deckSide(side) : 0;
         root.utilityOpen = false;
         root.browserOpen = true;
         browserIdle.interval = Math.round(AdvSettings.values.menuIdleSec * 1000);
@@ -423,29 +439,65 @@ Item {
     // CDJ view (like the CDJ-3000 screen): per deck one tall panel with the title on top,
     // the big waveform below it, then time / tempo / BPM and the overview.
     // The parts of the panel keep the size they have in the XDJ view.
-    readonly property real cdjLayoutHeight: Math.round(height * 0.33)
-    readonly property real cdjPanelHeight: contentHeight - hotcueHeight - 4
+    // 4 decks in the CDJ view: a deck has a quarter of the screen, its parts get smaller.
+    readonly property real cdjScale: cdjView && fourDecks ? 0.55 : 1
+    readonly property real cdjLayoutHeight: Math.round(height * 0.33 * cdjScale)
+    readonly property real cdjPanelHeight: fourDecks
+            ? Math.floor((contentHeight - hotcueHeight - 4 - 2) / 2)
+            : contentHeight - hotcueHeight - 4
     // CDJ view: height of the block below the main waveform (TRACK, time, tempo, BPM, overview).
     // About 29 % of the width of a deck (the CDJ screen of the PDF is twice as wide as a deck here).
-    readonly property real cdjLowerHeight: Math.round(width / 2 * 0.29)
+    readonly property real cdjLowerHeight: Math.round(width / 2 * 0.29 * cdjScale)
     // The rest of the panel is the main waveform with the beat match row and the loop strip.
     readonly property real cdjGap: cdjPanelHeight - Math.round(3.2 * Math.max(8, cdjLayoutHeight / 14)) - cdjLowerHeight
     // Strip under the main waveform for the loop size (CDJ view).
     // Sizes after page 2 of the layout (relative to the deck width).
-    readonly property real cdjLoopStrip: Math.max(16, Math.round(width / 2 * 0.032))
+    readonly property real cdjLoopStrip: Math.max(fourDecks ? 12 : 16, Math.round(width / 2 * 0.032 * cdjScale))
     // Height of the title row of the panel (same formula as DeckPanel).
     // Plus a little space so that the DECK number in the left column stays visible
     // above the side buttons.
-    readonly property real cdjPad: 12
+    readonly property real cdjPad: cdjView && fourDecks ? 4 : 12
     readonly property real cdjTitleHeight: Math.round(3.2 * Math.max(8, cdjLayoutHeight / 14)) + cdjPad
     readonly property real hotcueHeight: cdjView
             ? Math.max(12, Math.round(contentHeight * 0.06))
             : Math.max(12, Math.round(height * 0.035))
     // Height of ONE waveform in the XDJ view; in the CDJ view half of the (side by side)
     // waveforms, so that the side buttons (two per edge) keep their size.
+    // XDJ view with 4 decks: the hotcues stand above each deck panel (60 % high) and the
+    // waveforms get less room, so that more of the deck panels is visible.
+    readonly property bool xdjFour: fourDecks && !cdjView
+    readonly property real xdjFourHotcueHeight: Math.max(8, Math.round(hotcueHeight * 0.6))
     readonly property real waveformHeight: cdjView
             ? Math.round((cdjGap - cdjPad) / 2)
-            : Math.round(height * 0.27)
+            : Math.round(height * (xdjFour ? 0.2 : 0.27))
+    // Where the main waveform of a deck lies in the waveform area (index 0..3). XDJ view: all
+    // waveforms stacked over the full width (2 or 4 rows). CDJ view: deck 1 / 3 left, 2 / 4
+    // right; with 4 decks decks 3 and 4 in the lower half (one deck panel further down).
+    readonly property real xdjSlotHeight: waveformHeight * 2 / deckCount
+    readonly property real cdjHalfWidth: Math.round(width / 2)
+    function waveX(i) {
+        return cdjView ? (i % 2) * (cdjHalfWidth + 1) : 0;
+    }
+    function waveY(i) {
+        if (!cdjView)
+            return i * xdjSlotHeight;
+        return fourDecks && i >= 2 ? cdjPanelHeight + 2 : 0;
+    }
+    function waveWidth() {
+        return cdjView ? cdjHalfWidth - 1 : width;
+    }
+    // CDJ view: the WAVEFORM / PHASE row of a deck follows the MASTER deck (another deck if it
+    // is the MASTER itself). With two decks: always the other deck.
+    function beatMatchOther(deck) {
+        if (deckCount === 2)
+            return 3 - deck;
+        if (masterDeck >= 1 && masterDeck <= 4 && masterDeck !== deck)
+            return masterDeck;
+        return deck % 2 === 1 ? deck + 1 : deck - 1;
+    }
+    function deckPanelAt(i) {
+        return [deckPanel1, deckPanel2, deckPanel3, deckPanel4][i];
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -456,6 +508,25 @@ Item {
         acceptedDevices: PointerDevice.TouchScreen
 
         onActiveChanged: root.keepBrowserOpen()
+    }
+    // BACK of the controller (DDJ-FLX10): closes the open menu, nothing else.
+    Mixxx.ControlProxy {
+        group: "[AndroidDJ]"
+        key: "back"
+
+        onValueChanged: value => {
+            if (value <= 0)
+                return;
+            if (root.advancedOpen) {
+                root.advancedOpen = false;
+            } else if (root.utilityOpen) {
+                root.utilityOpen = false;
+            } else if (root.browserOpen) {
+                browserIdle.stop();
+                root.closingAfterLoad = false;
+                root.browserOpen = false;
+            }
+        }
     }
     // The controller's BROWSE knob (rotate/press) and the LOAD buttons.
     Mixxx.ControlProxy {
@@ -542,21 +613,31 @@ Item {
         }
     }
     // LOAD of a deck: library open = it loads (the library closes soon after); library closed in
-    // the CDJ view = the library opens on the side of that deck only.
+    // the CDJ view = the library opens on the side of that deck only. The DDJ-FLX10 has no
+    // BROWSE knob in the middle but one per side: there LOAD also opens the whole library in
+    // the XDJ view.
+    readonly property bool loadOpensLibrary: Mixxx.DeviceStatus.controllerConnected &&
+        Mixxx.DeviceStatus.controllerName.indexOf("FLX10") >= 0
     // Time at which a load closed the library: a LOAD that arrives late (the load itself holds
     // the interface for a moment) must not open it again right away.
     property double closedByLoadAt: 0
     function loadPressed(deck) {
         if (!root.browserOpen && Date.now() - root.closedByLoadAt < 800)
             return;
+        // DDJ-FLX10: pressing a BROWSE knob is LOAD; on SOURCE it opens the chosen source.
+        if (root.loadOpensLibrary && root.browserOpen && root.browserMode === "SOURCE") {
+            browserIdle.stop();
+            sourceScreen.openSelected();
+            return;
+        }
         if (root.browserOpen) {
             root.closeBrowserSoon();
-        } else if (root.cdjView && root.needsSource("BROWSE")) {
+        } else if ((root.cdjView || root.loadOpensLibrary) && root.needsSource("BROWSE")) {
             root.browserMode = "SOURCE";
-            root.openBrowser(deck);
-        } else if (root.cdjView) {
+            root.openBrowser(root.cdjView ? deck : undefined);
+        } else if (root.cdjView || root.loadOpensLibrary) {
             root.browserMode = "BROWSE";
-            root.openBrowser(deck);
+            root.openBrowser(root.cdjView ? deck : undefined);
             const lib = browser.item ? browser.item.library : null;
             if (lib) {
                 lib.mode = "BROWSE";
@@ -575,6 +656,18 @@ Item {
         key: "LoadSelectedTrack"
 
         onValueChanged: if (value > 0) root.loadPressed(2)
+    }
+    Mixxx.ControlProxy {
+        group: "[Channel3]"
+        key: "LoadSelectedTrack"
+
+        onValueChanged: if (value > 0 && root.fourDecks) root.loadPressed(3)
+    }
+    Mixxx.ControlProxy {
+        group: "[Channel4]"
+        key: "LoadSelectedTrack"
+
+        onValueChanged: if (value > 0 && root.fourDecks) root.loadPressed(4)
     }
     // Any load from a list of the library (LOAD on the controller, LOAD TO DECK in the track
     // menu) closes the library a moment later. The lists report it themselves: the LOAD control
@@ -626,12 +719,22 @@ Item {
     // INFO of a track. A panel closes itself after a few seconds without touches.
     property string popup1: ""
     property string popup2: ""
+    property string popup3: ""
+    property string popup4: ""
     property int infoDeck: 0
+    function popupOf(deck) {
+        return [root.popup1, root.popup2, root.popup3, root.popup4][deck - 1] || "";
+    }
     function togglePopup(deck, kind) {
+        const next = root.popupOf(deck) === kind ? "" : kind;
         if (deck === 1)
-            root.popup1 = root.popup1 === kind ? "" : kind;
+            root.popup1 = next;
+        else if (deck === 2)
+            root.popup2 = next;
+        else if (deck === 3)
+            root.popup3 = next;
         else
-            root.popup2 = root.popup2 === kind ? "" : kind;
+            root.popup4 = next;
         popupTimer.restart();
     }
     function popupActivity(deck) {
@@ -644,6 +747,8 @@ Item {
         onTriggered: {
             root.popup1 = "";
             root.popup2 = "";
+            root.popup3 = "";
+            root.popup4 = "";
         }
     }
     // A deck whose waveform lies behind the library or a menu is not drawn at all: hidden
@@ -651,13 +756,15 @@ Item {
     function waveCovered(deckIndex) {
         if (root.utilityOpen || root.advancedOpen)
             return true;
-        return root.browserOpen && (root.browserSide === 0 || root.browserSide === deckIndex + 1);
+        return root.browserOpen && (root.browserSide === 0 || root.browserSide === root.deckSide(deckIndex + 1));
     }
     // Waveforms of both decks stacked on the left, FX panel on the right.
     Item {
         id: waveArea
 
-        height: root.waveformHeight * 2
+        // CDJ view with 4 decks: also over the lower deck panels (two fingers zoom there too).
+        height: root.cdjView && root.fourDecks ? root.cdjPanelHeight + 2 + root.waveformHeight * 2
+                                                : root.waveformHeight * 2
         // CDJ view: lies over the gap of the deck panels.
         z: root.cdjView ? 5 : 0
 
@@ -669,7 +776,7 @@ Item {
         }
 
         Repeater {
-            model: 2
+            model: root.deckCount
 
             Skin.WaveformDisplay {
                 required property int index
@@ -681,16 +788,16 @@ Item {
                 visible: !root.waveCovered(index)
                 group: "[Channel" + (index + 1) + "]"
                 // XDJ view: stacked, full width. CDJ view: side by side, full height.
-                height: (root.cdjView ? root.waveformHeight * 2 - root.cdjLoopStrip : root.waveformHeight) - root.beatMatchReserved
-                width: root.cdjView ? Math.round(parent.width / 2) - 1 : parent.width
-                x: root.cdjView ? index * (Math.round(parent.width / 2) + 1) : 0
-                y: (root.cdjView ? 0 : index * root.waveformHeight) + root.beatMatchReserved
+                height: (root.cdjView ? root.waveformHeight * 2 - root.cdjLoopStrip : root.xdjSlotHeight) - root.beatMatchReserved
+                width: root.waveWidth()
+                x: root.waveX(index)
+                y: root.waveY(index) + root.beatMatchReserved
             }
         }
         // Beat-matching aid: strokes at the beats of the other deck above each waveform.
         Repeater {
             // CDJ view only: no strip objects (and no control connections) in the XDJ view.
-            model: root.cdjView ? 2 : 0
+            model: root.cdjView ? root.deckCount : 0
 
             DJ.BeatMatchStrip {
                 required property int index
@@ -702,16 +809,16 @@ Item {
                 visible: !root.waveCovered(index) && (isMaster ? ownActive : otherActive)
                 height: root.beatMatchHeight
                 mode: root.beatMatchMode
-                otherGroup: "[Channel" + (2 - index) + "]"
-                width: root.cdjView ? Math.round(parent.width / 2) - 1 : parent.width
-                x: root.cdjView ? index * (Math.round(parent.width / 2) + 1) : 0
-                y: root.cdjView ? 0 : index * root.waveformHeight
+                otherGroup: "[Channel" + root.beatMatchOther(index + 1) + "]"
+                width: root.waveWidth()
+                x: root.waveX(index)
+                y: root.waveY(index)
             }
         }
         // CDJ view: the loop size chosen with BEAT LOOP at the bottom of each main waveform
         // (orange while a loop runs).
         Repeater {
-            model: root.cdjView ? 2 : 0
+            model: root.cdjView ? root.deckCount : 0
 
             Item {
                 id: loopLabel
@@ -720,9 +827,9 @@ Item {
 
                 height: loopLabelText.implicitHeight
                 visible: !root.waveCovered(index) && loopLabelLoaded.value > 0
-                width: Math.round(parent.width / 2) - 1
-                x: index * (Math.round(parent.width / 2) + 1)
-                y: parent.height - root.cdjLoopStrip + Math.round((root.cdjLoopStrip - height) / 2)
+                width: root.waveWidth()
+                x: root.waveX(index)
+                y: root.waveY(index) + root.waveformHeight * 2 - root.cdjLoopStrip + Math.round((root.cdjLoopStrip - height) / 2)
 
                 Mixxx.ControlProxy { id: loopLabelSize; group: "[Channel" + (loopLabel.index + 1) + "]"; key: "beatloop_size" }
                 Mixxx.ControlProxy { id: loopLabelEnabled; group: "[Channel" + (loopLabel.index + 1) + "]"; key: "loop_enabled" }
@@ -741,26 +848,28 @@ Item {
         // XDJ view: only KEY SHIFT (arrow below the deck number), over the left half of the
         // waveform of the deck.
         Repeater {
-            model: 2
+            model: root.deckCount
 
             DJ.DeckPopup {
                 required property int index
 
                 group: "[Channel" + (index + 1) + "]"
-                height: Math.round(root.waveformHeight * 0.5)
+                height: Math.round(Math.min(root.waveformHeight * 0.5, root.cdjView ? root.waveformHeight : root.xdjSlotHeight))
                 keyCamelot: root.keyCamelot
-                keyText: (index === 0 ? deckPanel1 : deckPanel2).track ? (index === 0 ? deckPanel1 : deckPanel2).track.keyText : ""
-                kind: (index === 0 ? root.popup1 : root.popup2) || "LOOP"
-                shiftedKey: (index === 0 ? deckPanel1 : deckPanel2).shiftedKey
+                // The panels are created after this popup: they may not exist yet at the start.
+                readonly property var panel: root.deckPanelAt(index)
+
+                keyText: panel && panel.track ? panel.track.keyText : ""
+                kind: root.popupOf(index + 1) || "LOOP"
+                shiftedKey: panel ? panel.shiftedKey : ((text, semitones) => text)
                 u: Math.round(root.cdjLayoutHeight / 14)
-                visible: (root.cdjView ? (index === 0 ? root.popup1 : root.popup2) !== ""
-                                       : (index === 0 ? root.popup1 : root.popup2) === "KEY")
+                visible: (root.cdjView ? root.popupOf(index + 1) !== "" : root.popupOf(index + 1) === "KEY")
                         && !root.waveCovered(index)
                 // The side buttons (FILTER / JOGWHEEL left, DELAY / BRIGHTNESS right) keep their room.
-                width: Math.round(parent.width / 2) - 1 - root.sideButtonWidth
-                x: root.cdjView ? index * (Math.round(parent.width / 2) + 1) + (index === 0 ? root.sideButtonWidth : 0)
+                width: root.cdjHalfWidth - 1 - root.sideButtonWidth
+                x: root.cdjView ? root.waveX(index) + (index === 0 ? root.sideButtonWidth : 0)
                                 : root.sideButtonWidth
-                y: root.cdjView ? 0 : index * root.waveformHeight
+                y: root.waveY(index)
                 z: 6
 
                 onActivity: root.popupActivity(index + 1)
@@ -783,20 +892,24 @@ Item {
                 if (!active)
                     return;
                 const p = centroid.position;
-                deck = root.cdjView ? (p.x < waveArea.width / 2 ? 0 : 1)
-                                    : (p.y < root.waveformHeight ? 0 : 1);
-                startZoom = (deck === 0 ? pinchZoom1 : pinchZoom2).value;
+                if (root.cdjView)
+                    deck = (p.x < waveArea.width / 2 ? 0 : 1) + (root.fourDecks && p.y >= root.cdjPanelHeight + 2 ? 2 : 0);
+                else
+                    deck = Math.max(0, Math.min(root.deckCount - 1, Math.floor(p.y / root.xdjSlotHeight)));
+                startZoom = [pinchZoom1, pinchZoom2, pinchZoom3, pinchZoom4][deck].value;
             }
             onActiveScaleChanged: {
                 if (!active)
                     return;
                 // Smaller zoom value = more detail (like the zoom buttons).
                 const zoom = Math.max(AdvSettings.values.zoomMin, Math.min(AdvSettings.values.zoomMax, startZoom / activeScale));
-                (deck === 0 ? pinchZoom1 : pinchZoom2).value = zoom;
+                [pinchZoom1, pinchZoom2, pinchZoom3, pinchZoom4][deck].value = zoom;
             }
         }
         Mixxx.ControlProxy { id: pinchZoom1; group: "[Channel1]"; key: "waveform_zoom" }
         Mixxx.ControlProxy { id: pinchZoom2; group: "[Channel2]"; key: "waveform_zoom" }
+        Mixxx.ControlProxy { id: pinchZoom3; group: "[Channel3]"; key: "waveform_zoom" }
+        Mixxx.ControlProxy { id: pinchZoom4; group: "[Channel4]"; key: "waveform_zoom" }
     }
     // Color FX: the name of the selected one stands vertically at the left edge
     // of the upper waveform; tapping it opens the list.
@@ -938,7 +1051,7 @@ Item {
 
         height: root.hotcueHeight
         spacing: 2
-        visible: !root.fxPresetMode
+        visible: !root.fxPresetMode && !root.xdjFour
 
         y: root.cdjView ? root.height - height : waveArea.y + waveArea.height + 2
 
@@ -948,7 +1061,7 @@ Item {
         }
 
         Repeater {
-            model: 2
+            model: root.deckCount
 
             Row {
                 id: deckHotcues
@@ -957,7 +1070,7 @@ Item {
 
                 height: parent.height
                 spacing: 2
-                width: (parent.width - 2) / 2
+                width: (parent.width - 2 * (root.deckCount - 1)) / root.deckCount
 
                 Repeater {
                     model: 8
@@ -974,18 +1087,27 @@ Item {
             }
         }
     }
-    Row {
+    Grid {
         id: deckRow
 
         // XDJ view: from below the hotcues to the bottom edge. CDJ view: tall panels from the
-        // top bar to the hotcues; the waveforms lie over their middle part.
-        height: root.cdjView ? root.cdjPanelHeight : root.height - (hotcueBand.y + hotcueBand.height + 2) - 2
-        spacing: 2
+        // top bar to the hotcues; the waveforms lie over their middle part. 4 decks: 2 x 2
+        // (1 2 / 3 4), each panel half as high.
+        readonly property real panelHeight: root.fourDecks ? (height - topPadding - rowSpacing) / 2 : height
+
+        columns: 2
+        height: root.cdjView ? (root.fourDecks ? root.cdjPanelHeight * 2 + 2 : root.cdjPanelHeight)
+                             : root.xdjFour ? root.height - (waveArea.y + waveArea.height + 2) - 2
+                                            : root.height - (hotcueBand.y + hotcueBand.height + 2) - 2
+        columnSpacing: 2
+        // XDJ view with 4 decks: room for the hotcue row above each panel.
+        rowSpacing: root.xdjFour ? 2 + root.xdjFourHotcueHeight + 2 : 2
+        topPadding: root.xdjFour ? root.xdjFourHotcueHeight + 2 : 0
 
         anchors {
             left: parent.left
             right: parent.right
-            top: root.cdjView ? topBar.bottom : hotcueBand.bottom
+            top: root.cdjView ? topBar.bottom : (root.xdjFour ? waveArea.bottom : hotcueBand.bottom)
             topMargin: 2
         }
 
@@ -998,7 +1120,7 @@ Item {
             deckNumber: 1
             openPopup: root.popup1
             group: "[Channel1]"
-            height: parent.height
+            height: deckRow.panelHeight
             layoutHeight: root.cdjView ? root.cdjLayoutHeight : height
             keyCamelot: root.keyCamelot
             isMaster: root.masterDeck === 1
@@ -1020,7 +1142,7 @@ Item {
             deckNumber: 2
             openPopup: root.popup2
             group: "[Channel2]"
-            height: parent.height
+            height: deckRow.panelHeight
             layoutHeight: root.cdjView ? root.cdjLayoutHeight : height
             isMaster: root.masterDeck === 2
             keyCamelot: root.keyCamelot
@@ -1033,6 +1155,81 @@ Item {
             onPopupRequested: kind => root.togglePopup(2, kind)
             onTimeModeToggled: root.showRemain = !root.showRemain
         }
+        DJ.DeckPanel {
+            id: deckPanel3
+
+            accent: "#3ccf6e"
+            cdjGap: root.cdjView ? root.cdjGap : 0
+            cdjLowerHeight: root.cdjLowerHeight
+            deckNumber: 3
+            openPopup: root.popup3
+            group: "[Channel3]"
+            height: deckRow.panelHeight
+            layoutHeight: root.cdjView ? root.cdjLayoutHeight : height
+            isMaster: root.masterDeck === 3
+            keyCamelot: root.keyCamelot
+            quantizeBeat: root.quantizeBeat
+            showRemain: root.showRemain
+            visible: root.fourDecks
+            width: (parent.width - 2) / 2
+
+            onInfoRequested: root.infoDeck = 3
+            onMasterRequested: root.setMaster(3)
+            onPopupRequested: kind => root.togglePopup(3, kind)
+            onTimeModeToggled: root.showRemain = !root.showRemain
+        }
+        DJ.DeckPanel {
+            id: deckPanel4
+
+            accent: "#e0506e"
+            cdjGap: root.cdjView ? root.cdjGap : 0
+            cdjLowerHeight: root.cdjLowerHeight
+            deckNumber: 4
+            openPopup: root.popup4
+            group: "[Channel4]"
+            height: deckRow.panelHeight
+            layoutHeight: root.cdjView ? root.cdjLayoutHeight : height
+            isMaster: root.masterDeck === 4
+            keyCamelot: root.keyCamelot
+            quantizeBeat: root.quantizeBeat
+            showRemain: root.showRemain
+            visible: root.fourDecks
+            width: (parent.width - 2) / 2
+
+            onInfoRequested: root.infoDeck = 4
+            onMasterRequested: root.setMaster(4)
+            onPopupRequested: kind => root.togglePopup(4, kind)
+            onTimeModeToggled: root.showRemain = !root.showRemain
+        }
+    }
+    // XDJ view with 4 decks: the hotcues A..H of each deck right above its panel.
+    Repeater {
+        model: root.xdjFour && !root.fxPresetMode ? 4 : 0
+
+        Row {
+            id: deckHotcueRow
+
+            required property int index
+
+            height: root.xdjFourHotcueHeight
+            spacing: 2
+            width: (deckRow.width - 2) / 2
+            x: deckRow.x + (index % 2) * (width + 2)
+            y: deckRow.y + Math.floor(index / 2) * (root.xdjFourHotcueHeight + 2 + deckRow.panelHeight + 2)
+
+            Repeater {
+                model: 8
+
+                DJ.HotcueCell {
+                    required property int index
+
+                    group: "[Channel" + (deckHotcueRow.index + 1) + "]"
+                    height: deckHotcueRow.height
+                    hotcueNumber: index + 1
+                    width: (deckHotcueRow.width - deckHotcueRow.spacing * 7) / 8
+                }
+            }
+        }
     }
     DJ.UtilityMenu {
         id: utilityMenu
@@ -1040,6 +1237,7 @@ Item {
         autoCue: root.autoCue
         beatMatchMode: root.beatMatchMode
         cdjView: root.cdjView
+        fourDecks: root.fourDecks
         keyCamelot: root.keyCamelot
         matchKeys: root.matchKeys
         quantizeBeat: root.quantizeBeat
@@ -1050,6 +1248,7 @@ Item {
 
         onAutoCueSelected: on => root.autoCue = on
         onCdjViewSelected: on => root.cdjView = on
+        onFourDecksSelected: on => root.fourDecks = on
         onBeatMatchModeSelected: mode => root.beatMatchMode = mode
         onKeyCamelotSelected: camelot => root.keyCamelot = camelot
         onMatchKeysSelected: on => root.matchKeys = on
@@ -1304,7 +1503,7 @@ Item {
     Popup {
         id: infoPopup
 
-        readonly property var panel: root.infoDeck === 1 ? deckPanel1 : deckPanel2
+        readonly property var panel: root.infoDeck >= 1 ? root.deckPanelAt(root.infoDeck - 1) : deckPanel1
         readonly property var info: panel && panel.track ? panel.track : null
 
         anchors.centerIn: parent

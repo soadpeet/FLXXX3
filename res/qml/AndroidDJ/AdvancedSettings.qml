@@ -355,7 +355,7 @@ Rectangle {
                 Text {
                     color: "#cfcfcf"
                     font.pixelSize: root.u * 1.0
-                    text: "Standalone DJ app for the Pioneer DJ DDJ-FLX4, based on Mixxx (mixxx.org)."
+                    text: "Standalone DJ app for the Pioneer DJ DDJ-FLX4 and DDJ-FLX10, based on Mixxx (mixxx.org)."
                     width: parent.width
                     wrapMode: Text.WordWrap
                 }

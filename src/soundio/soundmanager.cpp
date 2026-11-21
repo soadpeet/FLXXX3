@@ -93,7 +93,7 @@ SoundManager::SoundManager(
     }
 
 #ifdef FLXXX3
-    // Fixed routing for the DDJ-FLX4 at app start: Main on channels 1-2,
+    // Fixed routing for the controller (DDJ-FLX4, DDJ-FLX10) at app start: Main on channels 1-2,
     // Headphones on 3-4. Does nothing if the controller is not connected.
     m_config.applyPreferredRouting(this);
 #endif
@@ -555,7 +555,7 @@ void SoundManager::applyPreferredRoutingAgain() {
     queryDevices();
     SoundManagerConfig config = m_config;
     if (config.applyPreferredRouting(this)) {
-        qInfo() << "FLXXX3: sound goes to the DDJ-FLX4 now";
+        qInfo() << "FLXXX3: sound goes to the controller now";
         setConfig(config);
     } else {
         setupDevices();

@@ -12,8 +12,12 @@
 #include <QtDebug>
 #include <chrono>
 #include <cstddef>
+#include <cstring>
 
 #include "control/controlobject.h"
+#ifdef FLXXX3
+#include "controllers/supportedcontrollers.h"
+#endif
 #include "sounddevicenetwork.h"
 #include "soundio/sounddevice.h"
 #include "soundio/soundmanager.h"
@@ -368,8 +372,8 @@ SoundDeviceStatus SoundDevicePortAudio::open(bool isClkRefDevice, int syncBuffer
     }
 
 #ifdef __ANDROID__
-    // Own USB audio driver (libusb) for the DDJ-FLX4: the app is only used with
-    // the FLX4, so this is the normal way to play the sound.
+    // Own USB audio driver (libusb) for the DDJ-FLX4 and DDJ-FLX10: the app is only used with
+    // these controllers, so this is the normal way to play the sound.
     if (isClkRefDevice && m_deviceTypeId == paOboe && pOutputParams &&
             m_outputParams.channelCount == 4 && !pInputParams &&
             openAndroidUsb(static_cast<int>(framesPerBuffer))) {
@@ -458,7 +462,49 @@ bool SoundDevicePortAudio::isOpen() const {
 }
 
 #ifdef __ANDROID__
+namespace {
+int silenceCallback(const void*,
+        void* pOutput,
+        unsigned long frames,
+        const PaStreamCallbackTimeInfo*,
+        PaStreamCallbackFlags,
+        void* pChannels) {
+    std::memset(pOutput, 0, sizeof(float) * frames * *static_cast<int*>(pChannels));
+    return paContinue;
+}
+} // namespace
+
 bool SoundDevicePortAudio::openAndroidUsb(int framesPerBuffer) {
+#ifdef FLXXX3
+    // DDJ-FLX10 (USB Audio Class 2): Android's own driver plays silence for a
+    // moment, which sets the clock of the sound card; then the own driver takes over.
+    const flxxx3::SupportedController* pController =
+            flxxx3::findSupportedController(m_deviceId.name);
+    if (pController && pController->startClockViaSystem) {
+        int channels = m_outputParams.channelCount;
+        PaStreamParameters params = m_outputParams;
+        params.sampleFormat = paFloat32;
+        PaStream* pWarmUp = nullptr;
+        PaError err = Pa_OpenStream(&pWarmUp,
+                nullptr,
+                &params,
+                m_sampleRate.toDouble(),
+                framesPerBuffer,
+                paClipOff,
+                silenceCallback,
+                &channels);
+        if (err == paNoError) {
+            err = Pa_StartStream(pWarmUp);
+            if (err == paNoError) {
+                QThread::msleep(300);
+                Pa_StopStream(pWarmUp);
+            }
+            Pa_CloseStream(pWarmUp);
+        }
+        qInfo() << "FLXXX3: clock of" << pController->name << "started by the system:"
+                << Pa_GetErrorText(err);
+    }
+#endif
     m_callbackResult.store(paContinue, std::memory_order_release);
     m_clkRefTimer.start();
     const int sampleRate = static_cast<int>(m_sampleRate.value());

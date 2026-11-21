@@ -212,6 +212,30 @@ TEST_F(SearchQueryParserTest, TextFilterEquals) {
             qPrintable(pQuery->toSql()));
 }
 
+// FLXXX3: FOLDER view of BROWSE, the tracks directly in one folder.
+TEST_F(SearchQueryParserTest, InFolderFilter) {
+    m_parser.setSearchColumns({"artist", "album"});
+
+    // The SQL: '%' and '_' of the folder name are no wildcards, sub-folders are left out.
+    auto pQuery(m_parser.parseQuery("infolder:\"/stick/Music/House_100%\"", QString()));
+    EXPECT_STREQ(
+            qPrintable(QStringLiteral(
+                    "(location LIKE '/stick/Music/House\\_100\\%/%' ESCAPE '\\' "
+                    "AND location NOT LIKE '/stick/Music/House\\_100\\%/%/%' ESCAPE '\\')")),
+            qPrintable(pQuery->toSql()));
+
+    // Matching tracks (the folder taken from the track: on Windows the path gets a drive).
+    TrackPointer pInFolder(Track::newTemporary(QStringLiteral("/stick/Music/House_100%/a.mp3")));
+    const QString folder = pInFolder->getLocation().section(QLatin1Char('/'), 0, -2);
+    pQuery = m_parser.parseQuery("infolder:\"" + folder + "\"", QString());
+    TrackPointer pInSubFolder(Track::newTemporary(
+            QStringLiteral("/stick/Music/House_100%/2024/b.mp3")));
+    TrackPointer pElsewhere(Track::newTemporary(QStringLiteral("/stick/Music/c.mp3")));
+    EXPECT_TRUE(pQuery->match(pInFolder));
+    EXPECT_FALSE(pQuery->match(pInSubFolder));
+    EXPECT_FALSE(pQuery->match(pElsewhere));
+}
+
 TEST_F(SearchQueryParserTest, TextFilterEmpty) {
     m_parser.setSearchColumns({"artist", "album"});
     // An empty argument should pass everything.

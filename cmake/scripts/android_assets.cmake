@@ -28,11 +28,14 @@ file(COPY "${SRC}/skins/LateNight" DESTINATION "${DST}/skins")
 file(GLOB skinStyles "${SRC}/skins/*.qss")
 file(COPY ${skinStyles} DESTINATION "${DST}/skins")
 
-# Controllers: the DDJ-FLX4 and the shared script libraries.
+# Controllers: the supported ones (src/controllers/supportedcontrollers.h) and the
+# shared script libraries.
 file(MAKE_DIRECTORY "${DST}/controllers")
 foreach(name IN ITEMS
     Pioneer-DDJ-FLX4.midi.xml
     Pioneer-DDJ-FLX4-script.js
+    Pioneer-DDJ-FLX10.midi.xml
+    Pioneer-DDJ-FLX10-scripts.js
     common-controller-scripts.js
     lodash.mixxx.js
     midi-components-0.0.js)

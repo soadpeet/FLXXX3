@@ -27,6 +27,9 @@ Item {
         // AUTO GAIN: every track is measured once (loudness, EBU R128) and played at about the same
         // loudness. Switched in UTILITY (area "UTILITY" is not shown in ADVANCED SETTINGS).
         { key: "autoGain", area: "UTILITY", label: "AUTO GAIN (SAME LOUDNESS FOR EVERY TRACK)", kind: "choice", choices: [{ t: "ON", v: 1 }, { t: "OFF", v: 0 }], def: 1, mirror: "adv_auto_gain" },
+        // LIMITER: catches peaks above -0.3 dBFS on the master (two loud tracks, EQ boost)
+        // instead of letting them distort; below that it does nothing.
+        { key: "limiter", area: "AUDIO", label: "MASTER LIMITER (NO DISTORTION ON PEAKS)", kind: "choice", choices: [{ t: "ON", v: 1 }, { t: "OFF", v: 0 }], def: 1 },
         { key: "headroom", area: "AUDIO", label: "MASTER HEADROOM (LOWERS THE MASTER OUTPUT)", kind: "number", min: 0, max: 12, step: 0.5, fine: 0.1, decimals: 1, unit: "dB", def: 0 },
         // ---- START (values the app starts with) ----
         { key: "stickAuto", area: "START", label: "READ REKORDBOX STICKS", kind: "choice", choices: [{ t: "AUTOMATIC", v: 1 }, { t: "ON REQUEST", v: 0 }], def: 1, mirror: "adv_stick_auto" },
@@ -108,6 +111,7 @@ Item {
                 Mixxx.Config.setAndroidSetting(d.mirror, String(root.values[d.key]));
         });
         root.applyHeadroom();
+        root.applyLimiter();
         root.applyAutoGain();
     }
     // AUTO GAIN on or off for the decks (the analysis reads adv_auto_gain itself).
@@ -115,6 +119,11 @@ Item {
         if (root.values.autoGain === undefined)
             return;
         pReplayGainEnabled.value = root.values.autoGain ? 1 : 0;
+    }
+    function applyLimiter() {
+        if (root.values.limiter === undefined)
+            return;
+        pMasterLimiter.value = root.values.limiter ? 1 : 0;
     }
     // Master headroom: a fixed gain below 0 dB on the master output.
     function applyHeadroom() {
@@ -196,6 +205,12 @@ Item {
 
     data: [
         Mixxx.ControlProxy {
+            id: pMasterLimiter
+
+            group: "[Main]"
+            key: "limiter"
+        },
+        Mixxx.ControlProxy {
             id: pMasterGain
 
             group: "[Main]"
@@ -272,6 +287,7 @@ Item {
         });
         root.values = v;
         root.applyHeadroom();
+        root.applyLimiter();
         root.applyAutoGain();
         try {
             const list = JSON.parse(Mixxx.Config.androidSetting("adv_presets", "[]"));

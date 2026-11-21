@@ -1372,6 +1372,7 @@ add_library(
   src/engine/engineobject.cpp
   src/engine/enginepregain.cpp
   src/engine/enginesidechaincompressor.cpp
+  src/engine/enginelimiter.cpp
   src/engine/enginetalkoverducking.cpp
   src/engine/enginevumeter.cpp
   src/engine/engineworker.cpp
@@ -2968,6 +2969,7 @@ if(BUILD_TESTING)
     src/test/enginebufferscalelineartest.cpp
     src/test/enginebuffertest.cpp
     src/test/enginefilterbiquadtest.cpp
+    src/test/enginelimitertest.cpp
     src/test/enginemixertest.cpp
     src/test/enginemicrophonetest.cpp
     src/test/enginesynctest.cpp
@@ -3021,6 +3023,7 @@ if(BUILD_TESTING)
     src/test/soundproxy_test.cpp
     src/test/soundsourceproviderregistrytest.cpp
     src/test/sqliteliketest.cpp
+    src/test/supportedcontrollerstest.cpp
     src/test/synccontroltest.cpp
     src/test/synctrackmetadatatest.cpp
     src/test/tableview_test.cpp

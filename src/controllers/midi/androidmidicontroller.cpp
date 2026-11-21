@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include <android/log.h>
+#include <sys/system_properties.h>
 
 #include <QJniEnvironment>
 #include <QMutex>
@@ -50,7 +51,10 @@ AndroidMidiController::AndroidMidiController(
         const DeviceDescription& description, const QJniObject& helper)
         : MidiController(nameFor(description)),
           m_description(description),
-          m_helper(helper) {
+          m_helper(helper),
+          // Only the FLX4 has the crosstalk; on others (DDJ-FLX10) the same
+          // messages mean other controls.
+          m_flx4TrimFilter(getName().contains(QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive)) {
     setInputDevice(description.deviceOutputPorts > 0);
     setOutputDevice(description.deviceInputPorts > 0);
 }
@@ -68,6 +72,13 @@ int AndroidMidiController::open(const QString& resourcePath) {
     }
 
     m_parser.reset();
+    // Every incoming message to logcat (tag mixxx-midi-in), to find out what a
+    // controller sends: adb shell setprop debug.flxxx3.midilog 1, then start the app.
+    {
+        char value[PROP_VALUE_MAX] = {};
+        __system_property_get("debug.flxxx3.midilog", value);
+        m_logIncoming = value[0] == '1';
+    }
 
     qCInfo(m_logBase) << "AndroidMidiController: Opening" << getName() << "id"
                       << m_description.deviceId;
@@ -199,7 +210,15 @@ bool AndroidMidiController::poll() {
                 buffer,
                 numBytes,
                 [this, timestamp](uint8_t status, uint8_t data1, uint8_t data2) {
-                    {
+                    if (m_logIncoming) {
+                        __android_log_print(ANDROID_LOG_INFO,
+                                "mixxx-midi-in",
+                                "%02X %02X %02X",
+                                status,
+                                data1,
+                                data2);
+                    }
+                    if (m_flx4TrimFilter) {
                         // The DDJ-FLX4 sends bogus trim values (CC 04/24 of the same deck)
                         // while the Color FX knob of that deck is in one of its end zones
                         // (crosstalk in the device); mapped to the gain they mute the

@@ -15,7 +15,7 @@ import java.util.HashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-// Opens the audio device of the DDJ-FLX4 for the native USB audio driver
+// Opens the audio device of the controller (DDJ-FLX4, DDJ-FLX10) for the native USB audio driver
 // (libusb): asks for the USB permission if necessary and returns the file
 // descriptor of the opened device. The connection stays open until close().
 public class UsbAudioHelper {
@@ -25,20 +25,29 @@ public class UsbAudioHelper {
     private static volatile boolean sGranted;
     private static CountDownLatch sLatch;
 
-    public static synchronized int openDevice(Context context, String nameContains) {
+    // names: the product names it looks for, separated by "|" (the first one found is opened).
+    public static synchronized int openDevice(Context context, String names) {
         close();
         UsbManager manager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         HashMap<String, UsbDevice> devices = manager.getDeviceList();
         UsbDevice found = null;
         for (UsbDevice device : devices.values()) {
             String product = device.getProductName();
-            if (product != null && product.contains(nameContains)) {
-                found = device;
+            if (product == null) {
+                continue;
+            }
+            for (String name : names.split("\\|")) {
+                if (!name.isEmpty() && product.contains(name)) {
+                    found = device;
+                    break;
+                }
+            }
+            if (found != null) {
                 break;
             }
         }
         if (found == null) {
-            Log.w(TAG, "device not found: " + nameContains);
+            Log.w(TAG, "device not found: " + names);
             return -1;
         }
         if (!manager.hasPermission(found)) {

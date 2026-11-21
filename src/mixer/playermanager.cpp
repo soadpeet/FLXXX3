@@ -184,6 +184,13 @@ PlayerManager::PlayerManager(UserSettingsPointer pConfig,
             false,
             false,
             1.0));
+    // BACK of a controller (DDJ-FLX10): 1 while pressed; the screen closes its open menu.
+    m_jogControls.push_back(std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("back")),
+            false,
+            false,
+            false,
+            0.0));
     // EQ mode of the mixer: 0 = ISO (default), 1 = EQ (see Bessel8LVMixEQEffect).
     m_pEqMode = std::make_unique<ControlObject>(
             ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("eq_mode")),

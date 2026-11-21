@@ -11,6 +11,9 @@
 #include "controllers/controllermappinginfoenumerator.h"
 #include "controllers/defs_controllers.h"
 #include "controllers/legacycontrollermappingfilehandler.h"
+#ifdef FLXXX3
+#include "controllers/supportedcontrollers.h"
+#endif
 #include "platform/platformservices.h"
 #include "moc_controllermanager.cpp"
 #include "preferences/usersettings.h"
@@ -227,12 +230,12 @@ void ControllerManager::slotInitialize() {
 }
 
 #ifdef __ANDROID_MIDI__
-// The FLX4 was plugged in after the app started: Android does not list its audio side then,
-// the sound would stay on the tablet speaker. The app starts again once (the sound goes to the
-// FLX4 from the start then). Not twice within a few minutes, so that it can never loop.
+// The controller (DDJ-FLX4, DDJ-FLX10) was plugged in after the app started: Android does not
+// list its audio side then, the sound would stay on the tablet speaker. The app starts again
+// once (the sound goes to the controller from the start then). Not twice within a few minutes, so that it can never loop.
 void ControllerManager::androidRestartForLateController() {
     if (AndroidUsbAudio::isActive()) {
-        return; // the sound is on the FLX4 already
+        return; // the sound is on the controller already
     }
     bool anyOpen = false;
     for (Controller* pController : std::as_const(m_controllers)) {
@@ -251,7 +254,7 @@ void ControllerManager::androidRestartForLateController() {
     }
     m_pConfig->setValue(lastKey, QString::number(now));
     m_pConfig->save();
-    qInfo() << "Android: the DDJ-FLX4 came after the start, starting the app again";
+    qInfo() << "Android: the controller came after the start, starting the app again";
     QJniObject::callStaticMethod<void>("de/biggo/flxxx3/MainActivity", "restartApp", "()V");
 }
 
@@ -273,7 +276,9 @@ void ControllerManager::androidHotplugCheck() {
     if (!pEnumerator) {
         return;
     }
-    const bool present = pEnumerator->deviceListing().contains(QStringLiteral("DDJ-FLX4"));
+    const flxxx3::SupportedController* pPresent =
+            flxxx3::findSupportedController(pEnumerator->deviceListing());
+    const bool present = pPresent != nullptr;
     bool anyOpen = false;
     for (Controller* pController : std::as_const(m_controllers)) {
         if (pController->isOpen()) {
@@ -281,11 +286,11 @@ void ControllerManager::androidHotplugCheck() {
         }
     }
     if (present && !anyOpen) {
-        qInfo() << "Android: the DDJ-FLX4 is there, setting it up";
+        qInfo() << "Android: the" << pPresent->name << "is there, setting it up";
         slotSetUpDevices();
         androidRestartForLateController();
     } else if (!present && anyOpen) {
-        qInfo() << "Android: the DDJ-FLX4 was unplugged, closing it";
+        qInfo() << "Android: the controller was unplugged, closing it";
         for (Controller* pController : std::as_const(m_controllers)) {
             if (pController->isOpen()) {
                 pController->close();
@@ -303,9 +308,8 @@ void ControllerManager::desktopHotplugCheck() {
     }
     bool supported = false;
     const QStringList inputs = mixxx::platform::midiInputNames(&supported);
-    const bool present = std::any_of(inputs.cbegin(), inputs.cend(), [](const QString& name) {
-        return name.contains(QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive);
-    });
+    const flxxx3::SupportedController* pPresent = flxxx3::findSupportedController(inputs);
+    const bool present = pPresent != nullptr;
     bool anyOpen = false;
     for (Controller* pController : std::as_const(m_controllers)) {
         if (pController->isOpen() &&
@@ -332,9 +336,9 @@ void ControllerManager::desktopHotplugCheck() {
         }
     }
     if (present) {
-        qInfo() << "FLXXX3: the DDJ-FLX4 is there, setting it up";
+        qInfo() << "FLXXX3: the" << pPresent->name << "is there, setting it up";
     } else {
-        qInfo() << "FLXXX3: the DDJ-FLX4 was unplugged";
+        qInfo() << "FLXXX3: the controller was unplugged";
     }
     // Lists the devices again (the old pointers are gone) and opens the configured ones.
     slotSetUpDevices();
@@ -451,12 +455,13 @@ void ControllerManager::slotSetUpDevices() {
         QString deviceName = sanitizeDeviceName(name);
 
 #ifdef FLXXX3
-        // FLXXX3 has no controller preferences page: set up the DDJ-FLX4
-        // automatically the first time it shows up. Explicit user settings are
-        // never overwritten.
-        // Only the MIDI port: the FLX4 also has a HID port ("DDJ-FLX4 <serial>"),
-        // which the MIDI mapping does not fit.
-        if (name.contains(QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive) &&
+        // FLXXX3 has no controller preferences page: set up a supported controller
+        // (src/controllers/supportedcontrollers.h) automatically the first time it
+        // shows up. Explicit user settings are never overwritten.
+        // Only the MIDI port: the controllers also have a HID port ("DDJ-FLX4
+        // <serial>"), which the MIDI mapping does not fit.
+        const flxxx3::SupportedController* pSupported = flxxx3::findSupportedController(name);
+        if (pSupported &&
                 pController->getDataRepresentationProtocol() ==
                         DataRepresentationProtocol::MIDI) {
             const ConfigKey enabledKey(QStringLiteral("[Controller]"), deviceName);
@@ -465,9 +470,10 @@ void ControllerManager::slotSetUpDevices() {
             }
             const ConfigKey mappingKey(kSettingsGroup, deviceName);
             if (m_pConfig->getValueString(mappingKey).isEmpty()) {
-                m_pConfig->set(mappingKey, ConfigValue(QStringLiteral("Pioneer-DDJ-FLX4.midi.xml")));
+                m_pConfig->set(mappingKey,
+                        ConfigValue(QString::fromLatin1(pSupported->mappingFile)));
             }
-        } else if (name.contains(QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive)) {
+        } else if (pSupported) {
             // Earlier versions also gave the HID port the MIDI mapping: undo that.
             const ConfigKey mappingKey(kSettingsGroup, deviceName);
             if (m_pConfig->getValueString(mappingKey).endsWith(MIDI_MAPPING_EXTENSION)) {

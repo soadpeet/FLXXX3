@@ -568,6 +568,15 @@ void CoreServices::initialize() {
 #endif
 
     m_pPlayerManager->addConfiguredDecks();
+#ifdef FLXXX3
+    // Always four decks in the engine: UTILITY > DECKS 2 / 4 only switches the screen, and
+    // the controls of decks 3 and 4 exist for the screen and the mappings (DDJ-FLX10)
+    // from the start (a control that is missing when the screen or a mapping starts
+    // stays dead until the next start). Idle decks cost almost nothing.
+    while (m_pPlayerManager->numberOfDecks() < 4) {
+        m_pPlayerManager->addDeck();
+    }
+#endif
 
 #ifndef FLXXX3
     for (int i = 0; i < kSamplerCount; ++i) {
@@ -731,7 +740,7 @@ void CoreServices::initialize() {
     qDebug() << "Creating ControllerManager";
     m_pControllerManager = std::make_shared<ControllerManager>(pConfig);
 #ifdef FLXXX3
-    // Desktop: the FLX4 plugged in after the start gets the sound as well (main thread).
+    // Desktop: the controller plugged in after the start gets the sound as well (main thread).
     connect(m_pControllerManager.get(),
             &ControllerManager::preferredControllerConnected,
             m_pSoundManager.get(),

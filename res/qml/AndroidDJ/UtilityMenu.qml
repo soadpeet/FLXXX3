@@ -19,6 +19,8 @@ Rectangle {
     property bool matchKeys: true
     property bool autoCue: false
     property bool cdjView: false
+    // DECKS: 2 or 4 decks on the screen and in the mixer.
+    property bool fourDecks: false
     property int beatMatchMode: 1
     property string quantizeBeat: "1"
 
@@ -36,6 +38,7 @@ Rectangle {
     signal matchKeysSelected(bool on)
     signal autoCueSelected(bool on)
     signal cdjViewSelected(bool on)
+    signal fourDecksSelected(bool on)
     signal beatMatchModeSelected(int mode)
     signal quantizeBeatSelected(string beat)
 
@@ -274,6 +277,20 @@ Rectangle {
                 width: root.u * 17
 
                 onActivated: index => root.cdjViewSelected(index === 1)
+            }
+        }
+        Column {
+            spacing: 3
+
+            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "DECKS" }
+            DJ.Segmented {
+                fontSize: root.u * 0.95
+                height: root.u * 2.5
+                currentIndex: root.fourDecks ? 1 : 0
+                labels: ["2", "4"]
+                width: root.u * 12
+
+                onActivated: index => root.fourDecksSelected(index === 1)
             }
         }
         Column {

@@ -65,6 +65,10 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
           m_pEngineSync(std::make_unique<EngineSync>(pConfig)),
           m_pMainGain(std::make_unique<ControlAudioTaperPot>(
                   ConfigKey(group, "gain"), -14, 14, 0.5)),
+          m_pMainLimiterEnabled(std::make_unique<ControlPushButton>(
+                  ConfigKey(group, QStringLiteral("limiter")), true, 1.0)),
+          m_pMainLimiterReduction(std::make_unique<ControlObject>(
+                  ConfigKey(group, QStringLiteral("limiter_reduction_db")))),
           m_pBoothGain(std::make_unique<ControlAudioTaperPot>(
                   ConfigKey(group, "booth_gain"), -14, 14, 0.5)),
           m_pHeadGain(std::make_unique<ControlAudioTaperPot>(
@@ -190,6 +194,8 @@ EngineMixer::EngineMixer(UserSettingsPointer pConfig,
     m_pHeadMix->set(-1.);
 
     m_pHeadSplitEnabled->setButtonMode(mixxx::control::ButtonMode::Toggle);
+    m_pMainLimiterEnabled->setButtonMode(mixxx::control::ButtonMode::Toggle);
+    m_pMainLimiterReduction->setReadOnly();
     m_pHeadSplitEnabled->set(0.0);
 
     // zero out otherwise uninitialized buffers
@@ -357,6 +363,20 @@ void EngineMixer::processChannels(std::size_t bufferSize) {
             [bufferSize](const auto& pChannelInfo) {
                 pChannelInfo->m_pChannel->postProcess(bufferSize);
             });
+}
+
+void EngineMixer::applyMainLimiter(std::size_t bufferSize) {
+#ifdef FLXXX3
+    if (m_pMainLimiterEnabled->toBool()) {
+        m_mainLimiter.process(m_main.data(), bufferSize, m_sampleRate.toDouble());
+        m_pMainLimiterReduction->forceSet(m_mainLimiter.lastReductionDb());
+    } else if (m_pMainLimiterReduction->get() != 0.0) {
+        m_mainLimiter.reset();
+        m_pMainLimiterReduction->forceSet(0.0);
+    }
+#else
+    Q_UNUSED(bufferSize);
+#endif
 }
 
 void EngineMixer::process(const std::size_t bufferSize) {
@@ -593,6 +613,7 @@ void EngineMixer::process(const std::size_t bufferSize) {
             CSAMPLE_GAIN mainGain = static_cast<CSAMPLE_GAIN>(m_pMainGain->get());
             SampleUtil::applyRampingGain(m_main.data(), m_mainGainOld, mainGain, bufferSize);
             m_mainGainOld = mainGain;
+            applyMainLimiter(bufferSize);
 
             // Record/broadcast signal is the same as the main output
             if (sidechainMixRequired()) {
@@ -643,6 +664,7 @@ void EngineMixer::process(const std::size_t bufferSize) {
                     mainGain,
                     bufferSize);
             m_mainGainOld = mainGain;
+            applyMainLimiter(bufferSize);
 
             // Record/broadcast signal is the same as the main output
             if (sidechainMixRequired()) {
@@ -691,6 +713,7 @@ void EngineMixer::process(const std::size_t bufferSize) {
                     mainGain,
                     bufferSize);
             m_mainGainOld = mainGain;
+            applyMainLimiter(bufferSize);
             if (sidechainMixRequired()) {
                 m_sidechainMix.copy(m_main, bufferSize);
 

@@ -33,7 +33,7 @@ QString Controller::lastOpenedControllerName() {
 }
 
 void Controller::setOpen(bool open) {
-    // Only MIDI controllers count for the status: the DDJ-FLX4 also has a HID port (its name
+    // Only MIDI controllers count for the status: the DDJ-FLX4 and DDJ-FLX10 also have a HID port (its name
     // carries the serial number), which must not replace the name of the controller.
     if (open != m_bIsOpen &&
             getDataRepresentationProtocol() == DataRepresentationProtocol::MIDI) {

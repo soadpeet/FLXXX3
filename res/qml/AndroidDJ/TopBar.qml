@@ -115,7 +115,7 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             fontSize: root.height * 0.36
             text: Mixxx.DeviceStatus.controllerConnected && Mixxx.DeviceStatus.controllerName
-                  ? Mixxx.DeviceStatus.controllerName : "DDJ-FLX4"
+                  ? Mixxx.DeviceStatus.controllerName : "CONTROLLER"
         }
         // USB1 / USB2: grey = no stick, blue = plugged in, red = being accessed
         // (do not remove); the chip blinks while it is accessed.

@@ -97,6 +97,7 @@ SearchQueryParser::SearchQueryParser(TrackCollection* pTrackCollection, QStringL
                      << "du" << "duration"
                      << "ad" << "added"
                      << "dateadded"
+                     << "infolder"
                      << "datetime_added"
                      << "date_added";
 
@@ -150,6 +151,8 @@ SearchQueryParser::SearchQueryParser(TrackCollection* pTrackCollection, QStringL
     m_fieldToSqlColumns["ad"] << "datetime_added";
     m_fieldToSqlColumns["added"] << "datetime_added";
     m_fieldToSqlColumns["dateadded"] << "datetime_added";
+    // FLXXX3: tracks directly in a folder (FolderFilterNode).
+    m_fieldToSqlColumns["infolder"] << "infolder";
     m_fieldToSqlColumns["datetime_added"] << "datetime_added";
     m_fieldToSqlColumns["id"] << "id";
 
@@ -292,6 +295,9 @@ void SearchQueryParser::parseTokens(QStringList tokens,
                 } else if (field == "year") {
                     pNode = std::make_unique<YearFilterNode>(
                             m_fieldToSqlColumns[field], argument);
+                } else if (field == "infolder") {
+                    pNode = std::make_unique<FolderFilterNode>(
+                            m_pTrackCollection->database(), argument);
                 } else if (field == "datetime_added") {
                     pNode = std::make_unique<DateAddedFilterNode>(argument);
                 } else if (field == "bpm") {

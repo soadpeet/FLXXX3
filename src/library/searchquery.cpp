@@ -232,6 +232,35 @@ QString TextFilterNode::toSql() const {
     return concatSqlClauses(searchClauses, "OR");
 }
 
+FolderFilterNode::FolderFilterNode(const QSqlDatabase& database, const QString& folder)
+        : m_database(database),
+          m_folder(folder) {
+    while (m_folder.size() > 1 && m_folder.endsWith(QLatin1Char('/'))) {
+        m_folder.chop(1);
+    }
+}
+
+bool FolderFilterNode::match(const TrackPointer& pTrack) const {
+    // Qt form with "/" (getTrackValueForColumn gives "\\" on Windows).
+    const QString location = pTrack->getLocation();
+    const int slash = location.lastIndexOf(QLatin1Char('/'));
+    return slash > 0 && location.left(slash).compare(m_folder, Qt::CaseInsensitive) == 0;
+}
+
+QString FolderFilterNode::toSql() const {
+    // LIKE with '\' as escape character, so that '%' and '_' in folder names are no
+    // wildcards: below the folder, but not below one of its sub-folders.
+    QString prefix = m_folder + QLatin1Char('/');
+    prefix.replace(QLatin1Char('\\'), QStringLiteral("\\\\"));
+    prefix.replace(QLatin1Char('%'), QStringLiteral("\\%"));
+    prefix.replace(QLatin1Char('_'), QStringLiteral("\\_"));
+    FieldEscaper escaper(m_database);
+    return QStringLiteral("(location LIKE %1 ESCAPE '\\' AND location NOT LIKE %2 ESCAPE '\\')")
+            .arg(escaper.escapeString(prefix + kSqlLikeMatchAll),
+                    escaper.escapeString(prefix + kSqlLikeMatchAll + QLatin1Char('/') +
+                            kSqlLikeMatchAll));
+}
+
 bool NullOrEmptyTextFilterNode::match(const TrackPointer& pTrack) const {
     if (!m_sqlColumns.isEmpty()) {
         // only use the major column

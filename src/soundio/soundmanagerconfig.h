@@ -112,10 +112,11 @@ class SoundManagerConfig {
     bool hasExternalRecordBroadcast();
     void loadDefaults(SoundManager* soundManager, unsigned int flags);
 #ifdef FLXXX3
-    /// Routes Main to channels 1-2 and Headphones to channels 3-4 of a DDJ-FLX4
+    /// Routes Main to channels 1-2 and Headphones to channels 3-4 of a supported
+    /// controller (controllers/supportedcontrollers.h: DDJ-FLX4, DDJ-FLX10)
     /// if one is connected with at least 4 output channels. Returns false and
     /// leaves the configuration untouched if no such device is present.
-    /// On Windows it also picks the sound API: ASIO if the FLX4 has an ASIO
+    /// On Windows it also picks the sound API: ASIO if the controller has an ASIO
     /// driver, otherwise WASAPI.
     bool applyPreferredRouting(SoundManager* soundManager);
 #endif

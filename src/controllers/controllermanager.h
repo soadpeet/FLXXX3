@@ -55,7 +55,7 @@ class ControllerManager : public QObject {
     void requestInitialize();
     void mappingApplied(bool applied);
 #ifdef FLXXX3
-    /// The DDJ-FLX4 was plugged in after the start and is set up now (desktop): the sound
+    /// The controller (DDJ-FLX4, DDJ-FLX10) was plugged in after the start and is set up now (desktop): the sound
     /// should go to it (SoundManager::applyPreferredRoutingAgain()).
     void preferredControllerConnected();
 #endif
@@ -82,7 +82,7 @@ class ControllerManager : public QObject {
     void androidRestartForLateController();
 #endif
 #if defined(FLXXX3) && defined(__PORTMIDI__)
-    /// FLXXX3 on the desktop: notices the DDJ-FLX4 being plugged in or unplugged.
+    /// FLXXX3 on the desktop: notices the controller being plugged in or unplugged.
     void desktopHotplugCheck();
 #endif
 

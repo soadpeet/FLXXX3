@@ -87,4 +87,8 @@ class AndroidMidiController : public MidiController {
     AMidiOutputPort* m_pReadPort = nullptr;  // device -> Mixxx
     AMidiInputPort* m_pWritePort = nullptr;  // Mixxx -> device
     AndroidMidiParser m_parser;
+    // Drops the bogus trim values of the DDJ-FLX4 (see the input loop).
+    const bool m_flx4TrimFilter;
+    // Logs every incoming message (system property debug.flxxx3.midilog = 1).
+    bool m_logIncoming = false;
 };

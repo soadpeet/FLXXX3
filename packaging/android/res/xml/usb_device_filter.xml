@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- AI disclaimer: written autonomously by an AI agent (Claude). -->
-<!-- AlphaTheta (Pioneer DJ) DDJ-FLX4: the app is started / gets the USB permission when it is plugged in. -->
+<!-- AlphaTheta (Pioneer DJ) DDJ-FLX4 and DDJ-FLX10: the app is started / gets the USB permission
+     when one is plugged in (ids as in src/controllers/supportedcontrollers.h). -->
 <resources>
     <usb-device vendor-id="11123" product-id="69" />
+    <usb-device vendor-id="11123" product-id="65" />
 </resources>

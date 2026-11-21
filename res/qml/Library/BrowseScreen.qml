@@ -9,7 +9,7 @@ import "../Theme"
 //
 // Library screens of the touch UI (modelled on the XDJ-RX3). The mode comes from
 // the top bar button (library.mode):
-//   BROWSE    categories (TRACK, ARTIST, ALBUM, GENRE, KEY, BPM, STARS, HISTORY),
+//   BROWSE    categories (TRACK, ARTIST, ALBUM, GENRE, KEY, BPM, STARS, FOLDER, HISTORY),
 //             values of a category, tracks, SORT, alphabet jump, INFO
 //   PLAYLIST  the playlists of the source (tree) and MY LISTS, tracks on the right
 //   SEARCH    touch keyboard, NARROW DOWN, results
@@ -33,7 +33,7 @@ Rectangle {
     property string drillValue: ""
     property var values: []
     property bool infoOpen: false
-    readonly property var categories: ["TRACK", "ARTIST", "ALBUM", "GENRE", "KEY", "BPM", "STARS", "HISTORY"]
+    readonly property var categories: ["TRACK", "ARTIST", "ALBUM", "GENRE", "KEY", "BPM", "STARS", "FOLDER", "HISTORY"]
     // field of the track model that the values of a category are read from
     readonly property var categoryDistinct: ({ ARTIST: "artist", ALBUM: "album", GENRE: "genre", KEY: "key", BPM: "bpm", STARS: "rating" })
     // search field to filter the tracks of a value
@@ -41,6 +41,74 @@ Rectangle {
     readonly property bool historyView: root.mode === "BROWSE" && root.category === "HISTORY"
     readonly property bool browseTracks: root.mode === "BROWSE" && !root.historyView &&
             (root.category === "TRACK" || root.drillValue !== "")
+    // ---- FOLDER (the folders of the source, like the FOLDER view of the players) ----
+    // Folders that hold tracks, with the number of tracks directly in them ({value, count}).
+    property var folderDirs: []
+    // Top folder: the deepest folder that holds all tracks of the source.
+    property string folderRoot: ""
+    property string folderPath: ""
+    function folderName(path) {
+        const p = String(path);
+        return p.substring(p.lastIndexOf("/") + 1);
+    }
+    function folderParent(path) {
+        const p = String(path);
+        const slash = p.lastIndexOf("/");
+        return slash > 0 ? p.substring(0, slash) : p;
+    }
+    // Shows a folder: its sub-folders, then (if it has tracks of its own as well) an entry for
+    // them. A folder without sub-folders shows its tracks at once.
+    function openFolder(path) {
+        root.folderPath = path;
+        root.drillValue = "";
+        root.baseSearch = "";
+        const children = {};
+        let own = 0;
+        const prefix = path + "/";
+        root.folderDirs.forEach(d => {
+            const dir = String(d.value);
+            if (dir === path) {
+                own += d.count;
+            } else if (dir.startsWith(prefix)) {
+                const rest = dir.substring(prefix.length);
+                const child = prefix + rest.split("/")[0];
+                children[child] = (children[child] || 0) + d.count;
+            }
+        });
+        const names = Object.keys(children);
+        if (names.length === 0) {
+            root.showFolderTracks(path);
+            return;
+        }
+        names.sort((a, b) => root.folderName(a).localeCompare(root.folderName(b), undefined, { numeric: true, sensitivity: "base" }));
+        const list = names.map(n => ({ value: n, count: children[n], tracksHere: false }));
+        if (own > 0)
+            list.push({ value: path, count: own, tracksHere: true });
+        root.values = list;
+        if (root.tracklist)
+            root.runSearch("");
+    }
+    function showFolderTracks(path) {
+        root.folderPath = path;
+        root.drillValue = path;
+        root.baseSearch = "infolder:\"" + String(path).replace(/"/g, "") + "\"";
+        if (root.tracklist)
+            root.runSearch(root.buildSearch());
+    }
+    function folderHasChildren(path) {
+        const prefix = path + "/";
+        return root.folderDirs.some(d => String(d.value).startsWith(prefix));
+    }
+    function folderEntryText(entry) {
+        return entry.tracksHere ? "\u266A  TRACKS IN THIS FOLDER" : root.folderName(entry.value);
+    }
+    // Path below the top folder, for the header.
+    function folderTrail() {
+        let rel = root.folderPath.startsWith(root.folderRoot) ? root.folderPath.substring(root.folderRoot.length) : root.folderPath;
+        const parts = rel.split("/").filter(p => p !== "");
+        return [root.folderName(root.folderRoot) || "/"].concat(parts).join("  \u203A  ");
+    }
+
     property int trackCount: 0
     function updateCount() {
         root.trackCount = root.tracklist ? root.tracklist.rowCount() : 0;
@@ -259,6 +327,23 @@ Rectangle {
         root.category = name;
         root.drillValue = "";
         root.baseSearch = "";
+        if (name === "FOLDER") {
+            root.values = [];
+            if (!root.tracklist)
+                return;
+            root.runSearch("");
+            root.folderDirs = root.tracklist.distinctField("folder");
+            // Top folder: the common start of all folders.
+            let top = root.folderDirs.length > 0 ? String(root.folderDirs[0].value) : "";
+            root.folderDirs.forEach(d => {
+                const dir = String(d.value);
+                while (top !== "" && dir !== top && !dir.startsWith(top + "/"))
+                    top = top.lastIndexOf("/") > 0 ? top.substring(0, top.lastIndexOf("/")) : "";
+            });
+            root.folderRoot = top;
+            root.openFolder(top);
+            return;
+        }
         if (root.tracklist) {
             root.runSearch(name === "TRACK" ? root.buildSearch() : "");
             if (root.categoryDistinct[name] !== undefined) {
@@ -314,7 +399,8 @@ Rectangle {
             return;
         }
         for (let i = 0; i < root.values.length; ++i) {
-            const first = String(root.values[i].value).trim().toUpperCase().charAt(0);
+            const shown = root.category === "FOLDER" ? root.folderName(root.values[i].value) : root.values[i].value;
+            const first = String(shown).trim().toUpperCase().charAt(0);
             const hit = letter === "#" ? (first >= "0" && first <= "9") : first === letter;
             if (hit) {
                 valueList.positionViewAtIndex(i, ListView.Beginning);
@@ -416,6 +502,16 @@ Rectangle {
 
     // ---------------- BACK ----------------
     function back() {
+        if (root.mode === "BROWSE" && root.category === "FOLDER") {
+            // One folder up; from the tracks of a folder with sub-folders back to that folder.
+            if (root.drillValue !== "" && root.folderHasChildren(root.folderPath))
+                root.openFolder(root.folderPath);
+            else if (root.folderPath !== root.folderRoot && root.folderPath !== "")
+                root.openFolder(root.folderParent(root.folderPath));
+            else
+                root.selectCategory("TRACK");
+            return;
+        }
         if (root.mode === "BROWSE") {
             if (root.drillValue !== "") {
                 root.drillValue = "";
@@ -524,6 +620,8 @@ Rectangle {
             elide: Text.ElideRight
             font.pixelSize: Math.round(16 * root.s)
             text: {
+                if (root.mode === "BROWSE" && root.category === "FOLDER")
+                    return "›  FOLDER  ›  " + root.folderTrail();
                 if (root.mode === "BROWSE")
                     return "›  " + root.category + (root.drillValue !== "" ? "  ›  " + root.valueText(root.drillValue) : "");
                 if (root.mode === "PLAYLIST") {
@@ -698,7 +796,7 @@ Rectangle {
         readonly property real rowHeight: Math.min(Math.round(64 * root.s), (height - 2 * (root.categories.length - 1)) / root.categories.length)
 
         // Symbols of the categories (the width is just enough for the symbol and a short name).
-        readonly property var symbols: ({ TRACK: "\u266A", ARTIST: "", ALBUM: "\u25C9", GENRE: "\u266C", KEY: "\u266F", BPM: "\u2669", STARS: "\u2605", HISTORY: "" })
+        readonly property var symbols: ({ TRACK: "\u266A", ARTIST: "", ALBUM: "\u25C9", GENRE: "\u266C", KEY: "\u266F", BPM: "\u2669", STARS: "\u2605", FOLDER: "", HISTORY: "" })
 
         spacing: 2
         visible: root.mode === "BROWSE"
@@ -737,8 +835,28 @@ Rectangle {
                         topMargin: Math.round(categoryColumn.rowHeight * 0.12)
                     }
                     height: size
-                    visible: parent.modelData === "ARTIST" || parent.modelData === "HISTORY"
+                    visible: parent.modelData === "ARTIST" || parent.modelData === "HISTORY" || parent.modelData === "FOLDER"
                     width: size
+
+                    // FOLDER: a folder with a tab.
+                    Rectangle {
+                        color: drawnIcon.iconColor
+                        height: drawnIcon.size * 0.2
+                        radius: height * 0.3
+                        visible: drawnIcon.parent.modelData === "FOLDER"
+                        width: drawnIcon.size * 0.42
+                        x: drawnIcon.size * 0.04
+                        y: drawnIcon.size * 0.12
+                    }
+                    Rectangle {
+                        color: drawnIcon.iconColor
+                        height: drawnIcon.size * 0.66
+                        radius: drawnIcon.size * 0.08
+                        visible: drawnIcon.parent.modelData === "FOLDER"
+                        width: drawnIcon.size * 0.96
+                        x: drawnIcon.size * 0.02
+                        y: drawnIcon.size * 0.26
+                    }
 
                     Rectangle {
                         color: drawnIcon.iconColor
@@ -855,7 +973,7 @@ Rectangle {
                 color: "#ffffff"
                 elide: Text.ElideRight
                 font.pixelSize: Math.round(20 * root.s)
-                text: root.valueText(parent.modelData.value)
+                text: root.category === "FOLDER" ? root.folderEntryText(parent.modelData) : root.valueText(parent.modelData.value)
             }
             Text {
                 id: countText
@@ -870,7 +988,14 @@ Rectangle {
                 text: parent.modelData.count
             }
             TapHandler {
-                onTapped: root.drill(parent.modelData.value)
+                onTapped: {
+                    if (root.category !== "FOLDER")
+                        root.drill(parent.modelData.value);
+                    else if (parent.modelData.tracksHere)
+                        root.showFolderTracks(parent.modelData.value);
+                    else
+                        root.openFolder(parent.modelData.value);
+                }
             }
         }
     }

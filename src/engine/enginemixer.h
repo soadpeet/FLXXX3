@@ -12,6 +12,7 @@
 #include "control/controlpushbutton.h"
 #include "engine/channelhandle.h"
 #include "engine/channels/enginechannel.h"
+#include "engine/enginelimiter.h"
 #include "engine/effects/groupfeaturestate.h"
 #include "engine/engineobject.h"
 #include "preferences/usersettings.h"
@@ -263,6 +264,8 @@ class EngineMixer : public QObject, public AudioSource {
 
     ChannelHandleFactoryPointer m_pChannelHandleFactory;
     void applyMainEffects(std::size_t bufferSize);
+    // FLXXX3: limiter after the main gain, before the outputs and the recording.
+    void applyMainLimiter(std::size_t bufferSize);
     void processHeadphones(
             const CSAMPLE_GAIN mainMixGainInHeadphones,
             std::size_t bufferSize);
@@ -300,6 +303,10 @@ class EngineMixer : public QObject, public AudioSource {
     QVarLengthArray<std::unique_ptr<ChannelInfo>, kPreallocatedChannels> m_channels;
 
     std::unique_ptr<ControlObject> m_pMainGain;
+    // FLXXX3: [Main],limiter (on by default) and the gain reduction in dB (read only).
+    std::unique_ptr<ControlPushButton> m_pMainLimiterEnabled;
+    std::unique_ptr<ControlObject> m_pMainLimiterReduction;
+    EngineLimiter m_mainLimiter;
     std::unique_ptr<ControlObject> m_pBoothGain;
     std::unique_ptr<ControlObject> m_pHeadGain;
     std::unique_ptr<ControlObject> m_pSampleRate;

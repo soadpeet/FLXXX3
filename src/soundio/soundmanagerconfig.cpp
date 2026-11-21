@@ -7,6 +7,9 @@
 #include <algorithm>
 
 #include "audio/types.h"
+#ifdef FLXXX3
+#include "controllers/supportedcontrollers.h"
+#endif
 #include "soundio/sounddevice.h"
 #include "soundio/soundmanager.h"
 #include "soundio/soundmanagerutil.h"
@@ -655,13 +658,19 @@ void SoundManagerConfig::loadDefaults(SoundManager* soundManager, unsigned int f
 
 #ifdef FLXXX3
 namespace {
-bool isFlx4WithFourOutputs(const SoundDevicePointer& pDevice) {
+// A supported controller (DDJ-FLX4, DDJ-FLX10) with Main and Headphones outputs.
+const flxxx3::SupportedController* supportedWithFourOutputs(const SoundDevicePointer& pDevice) {
     // Device names on Android are "<product name>: <type>", see
     // PortAudioEnumerator::initialize(). On Windows they are like
     // "Line (2- DDJ-FLX4)" (WASAPI) or "ASIO DDJ-FLX4" (ASIO driver of the maker).
-    return pDevice->getDeviceId().name.contains(
-                   QStringLiteral("DDJ-FLX4"), Qt::CaseInsensitive) &&
-            pDevice->getNumOutputChannels() >= 4;
+    if (pDevice->getNumOutputChannels() < 4) {
+        return nullptr;
+    }
+    return flxxx3::findSupportedController(pDevice->getDeviceId().name);
+}
+
+bool isSupportedWithFourOutputs(const SoundDevicePointer& pDevice) {
+    return supportedWithFourOutputs(pDevice) != nullptr;
 }
 } // namespace
 
@@ -677,7 +686,7 @@ bool SoundManagerConfig::applyPreferredRouting(SoundManager* soundManager) {
             continue;
         }
         const QList<SoundDevicePointer> devices = soundManager->getDeviceList(api, true, false);
-        if (std::any_of(devices.cbegin(), devices.cend(), isFlx4WithFourOutputs)) {
+        if (std::any_of(devices.cbegin(), devices.cend(), isSupportedWithFourOutputs)) {
             m_api = api;
             break;
         }
@@ -692,7 +701,8 @@ bool SoundManagerConfig::applyPreferredRouting(SoundManager* soundManager) {
     const QList<SoundDevicePointer> outputDevices =
             soundManager->getDeviceList(m_api, true, false);
     for (const auto& pDevice : outputDevices) {
-        if (!isFlx4WithFourOutputs(pDevice)) {
+        const flxxx3::SupportedController* pController = supportedWithFourOutputs(pDevice);
+        if (!pController) {
             continue;
         }
         const SoundDeviceId deviceId = pDevice->getDeviceId();
@@ -700,6 +710,9 @@ bool SoundManagerConfig::applyPreferredRouting(SoundManager* soundManager) {
         addOutput(deviceId,
                 AudioOutput(AudioPathType::Main, 0, mixxx::audio::ChannelCount::stereo(), 0));
 #ifdef __ANDROID__
+        // The own USB audio driver runs the sound card at its one sample rate
+        // (DDJ-FLX4 48 kHz, DDJ-FLX10 44.1 kHz).
+        m_sampleRate = mixxx::audio::SampleRate(pController->sampleRate);
         const bool stereoOnly = soundManager->androidStereoOnly();
 #else
         const bool stereoOnly = false;

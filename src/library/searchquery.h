@@ -276,6 +276,20 @@ class SqlNode : public QueryNode {
     QString m_sql;
 };
 
+// FLXXX3: the tracks that lie directly in one folder (not in its sub-folders),
+// for the FOLDER view of BROWSE. Search syntax: infolder:"<folder path>".
+class FolderFilterNode : public QueryNode {
+  public:
+    FolderFilterNode(const QSqlDatabase& database, const QString& folder);
+
+    bool match(const TrackPointer& pTrack) const override;
+    QString toSql() const override;
+
+  private:
+    QSqlDatabase m_database;
+    QString m_folder; // without a "/" at the end
+};
+
 class YearFilterNode : public NumericFilterNode {
   public:
     YearFilterNode(const QStringList& sqlColumns, const QString& argument);

@@ -310,6 +310,17 @@ void allshader::WaveformRenderMark::updateRangeNode(GeometryNode* pNode,
         const float posy3 = posy1 + static_cast<float>(rect.height()) - qh;
         const float posy4 = posy1 + static_cast<float>(rect.height());
 
+#ifdef FLXXX3
+        // A narrow bar (saved loop, see update()): one solid colour, no gradient.
+        if (rect.height() <= 16.0) {
+            vertexUpdater.addRectangleVGradient(
+                    {posx1, posy1}, {posx2, posy4}, {r, g, b, a}, {r, g, b, a});
+            // The second rectangle of the box stays empty (same vertex count).
+            vertexUpdater.addRectangleVGradient(
+                    {posx1, posy4}, {posx1, posy4}, {r, g, b, 0.f}, {r, g, b, 0.f});
+            continue;
+        }
+#endif
         vertexUpdater.addRectangleVGradient(
                 {posx1, posy1}, {posx2, posy2}, {r, g, b, a}, {r, g, b, 0.f});
         vertexUpdater.addRectangleVGradient(
@@ -460,11 +471,21 @@ void allshader::WaveformRenderMark::update() {
                     }
 
                     QColor color = pMark->fillColor();
+#ifdef FLXXX3
+                    // A saved loop (hot loop, memory loop) is only a narrow bar at the top
+                    // edge, like on the Pioneer players: filled over the whole height it looked
+                    // like a running loop. The running loop is the orange range
+                    // (WaveformRendererMarkRange).
+                    color.setAlphaF(0.9f);
+                    const float rangeBreadth = std::max(3.f, std::round(markBreadth * 0.05f));
+#else
                     color.setAlphaF(0.4f);
+                    const float rangeBreadth = markBreadth;
+#endif
                     updateRangeNode(pRangeChild,
                             QRectF(QPointF(roundToPixel(currentMarkPos), 0.f),
                                     QPointF(roundToPixel(currentMarkEndPos),
-                                            roundToPixel(markBreadth))),
+                                            roundToPixel(rangeBreadth))),
                             numBoxes,
                             boxBreadth,
                             roundToPixel(yOffset),

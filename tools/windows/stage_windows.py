@@ -55,6 +55,7 @@ QML_SKIP = re.compile(
 RES_SKIP_TOP = {"translations", "osx", "linux", "Mixxx-Keyboard-Shortcuts.pdf", "skins",
                 "controllers", "mixxx.qrc"}
 CONTROLLER_FILES = ["Pioneer-DDJ-FLX4.midi.xml", "Pioneer-DDJ-FLX4-script.js",
+                    "Pioneer-DDJ-FLX10.midi.xml", "Pioneer-DDJ-FLX10-scripts.js",
                     "common-controller-scripts.js", "lodash.mixxx.js", "midi-components-0.0.js"]
 
 

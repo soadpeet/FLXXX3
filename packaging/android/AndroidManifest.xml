@@ -38,7 +38,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- DDJ-FLX4 plugged in: the permission for the USB audio driver can be kept ("always"). -->
+            <!-- DDJ-FLX4 / DDJ-FLX10 plugged in: the permission for the USB audio driver can be kept ("always"). -->
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
