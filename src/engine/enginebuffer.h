@@ -149,6 +149,10 @@ class EngineBuffer : public EngineObject {
 
     // The process methods all run in the audio callback.
     void process(CSAMPLE* pOut, const std::size_t bufferSize) override;
+    /// Sets the tempo / keylock scalers to the engine's sample rate. Their first setup
+    /// allocates (RubberBand: about 30 ms on a tablet); the engine calls this for decks
+    /// without a track, so it does not happen when the first track starts.
+    void prepareSignal();
     void processSlip(std::size_t bufferSize);
     void postProcessLocalBpm();
     void postProcess(const std::size_t bufferSize);

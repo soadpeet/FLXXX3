@@ -1238,6 +1238,19 @@ void EngineBuffer::processTrackLocked(
     hintReader(rate);
 }
 
+void EngineBuffer::prepareSignal() {
+    m_sampleRate = mixxx::audio::SampleRate::fromDouble(m_pSampleRate->get());
+
+    // If the sample rate has changed, force Rubberband to reset so that
+    // it doesn't reallocate when the user engages keylock during playback.
+    // We do this even if rubberband is not active.
+    m_pScaleLinear->setSignal(m_sampleRate, m_channelCount);
+    m_pScaleST->setSignal(m_sampleRate, m_channelCount);
+#ifdef __RUBBERBAND__
+    m_pScaleRB->setSignal(m_sampleRate, m_channelCount);
+#endif
+}
+
 void EngineBuffer::process(CSAMPLE* pOutput, const std::size_t bufferSize) {
     // Bail if we receive a buffer size with incomplete sample frames. Assert in debug builds.
     VERIFY_OR_DEBUG_ASSERT((bufferSize % m_channelCount) == 0) {
@@ -1254,16 +1267,7 @@ void EngineBuffer::process(CSAMPLE* pOutput, const std::size_t bufferSize) {
     // - Set last sample value (m_fLastSampleValue) so that rampOut works? Other
     //   miscellaneous upkeep issues.
 
-    m_sampleRate = mixxx::audio::SampleRate::fromDouble(m_pSampleRate->get());
-
-    // If the sample rate has changed, force Rubberband to reset so that
-    // it doesn't reallocate when the user engages keylock during playback.
-    // We do this even if rubberband is not active.
-    m_pScaleLinear->setSignal(m_sampleRate, m_channelCount);
-    m_pScaleST->setSignal(m_sampleRate, m_channelCount);
-#ifdef __RUBBERBAND__
-    m_pScaleRB->setSignal(m_sampleRate, m_channelCount);
-#endif
+    prepareSignal();
 
     if (isTrackLoaded() && m_pause.tryLock()) {
         processTrackLocked(pOutput, bufferSize, m_sampleRate);

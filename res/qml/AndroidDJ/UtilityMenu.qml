@@ -236,61 +236,70 @@ Rectangle {
                 onActivated: index => Mixxx.Config.waveformEndOfTrackWarningTime = values[index]
             }
         }
-        Column {
-            spacing: 3
+        DJ.SectionTitle { u: root.u; text: "DISPLAY"; width: parent.width }
+        Row {
+            spacing: root.u * 1.2
 
-            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "KEY DISPLAY" }
-            DJ.Segmented {
-                fontSize: root.u * 0.95
-                height: root.u * 2.5
-                currentIndex: root.keyCamelot ? 1 : 0
-                labels: ["CLASSIC", "CAMELOT"]
-                width: root.u * 17
+            Column {
+                spacing: 3
 
-                onActivated: index => root.keyCamelotSelected(index === 1)
+                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "KEY DISPLAY" }
+                DJ.Segmented {
+                    fontSize: root.u * 0.95
+                    height: root.u * 2.5
+                    currentIndex: root.keyCamelot ? 1 : 0
+                    labels: ["CLASSIC", "CAMELOT"]
+                    width: root.u * 17
+
+                    onActivated: index => root.keyCamelotSelected(index === 1)
+                }
+            }
+            Column {
+                spacing: 3
+
+                // Keys in the track lists that fit the key of the master deck are green.
+                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "MATCHING KEYS" }
+                DJ.Segmented {
+                    fontSize: root.u * 0.95
+                    height: root.u * 2.5
+                    currentIndex: root.matchKeys ? 1 : 0
+                    labels: ["OFF", "ON"]
+                    width: root.u * 12
+
+                    onActivated: index => root.matchKeysSelected(index === 1)
+                }
             }
         }
-        Column {
-            spacing: 3
+        Row {
+            spacing: root.u * 1.2
 
-            // Keys in the track lists that fit the key of the master deck are green.
-            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "MATCHING KEYS" }
-            DJ.Segmented {
-                fontSize: root.u * 0.95
-                height: root.u * 2.5
-                currentIndex: root.matchKeys ? 1 : 0
-                labels: ["OFF", "ON"]
-                width: root.u * 12
+            Column {
+                spacing: 3
 
-                onActivated: index => root.matchKeysSelected(index === 1)
+                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "SCREEN LAYOUT" }
+                DJ.Segmented {
+                    fontSize: root.u * 0.95
+                    height: root.u * 2.5
+                    currentIndex: root.cdjView ? 1 : 0
+                    labels: ["XDJ", "CDJ"]
+                    width: root.u * 17
+
+                    onActivated: index => root.cdjViewSelected(index === 1)
+                }
             }
-        }
-        Column {
-            spacing: 3
+            Column {
+                spacing: 3
 
-            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "SCREEN LAYOUT" }
-            DJ.Segmented {
-                fontSize: root.u * 0.95
-                height: root.u * 2.5
-                currentIndex: root.cdjView ? 1 : 0
-                labels: ["XDJ", "CDJ"]
-                width: root.u * 17
+                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "DECKS" }
+                DJ.Segmented {
+                    fontSize: root.u * 0.95
+                    height: root.u * 2.5
+                    currentIndex: root.fourDecks ? 1 : 0
+                    labels: ["2", "4"]
+                    width: root.u * 12
 
-                onActivated: index => root.cdjViewSelected(index === 1)
-            }
-        }
-        Column {
-            spacing: 3
-
-            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "DECKS" }
-            DJ.Segmented {
-                fontSize: root.u * 0.95
-                height: root.u * 2.5
-                currentIndex: root.fourDecks ? 1 : 0
-                labels: ["2", "4"]
-                width: root.u * 12
-
-                onActivated: index => root.fourDecksSelected(index === 1)
+                    onActivated: index => root.fourDecksSelected(index === 1)
+                }
             }
         }
         Column {

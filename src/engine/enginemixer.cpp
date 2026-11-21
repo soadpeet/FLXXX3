@@ -265,6 +265,12 @@ void EngineMixer::processChannels(std::size_t bufferSize) {
 
         EngineChannel::ActiveState activeState = pChannel->updateActiveState();
         if (activeState == EngineChannel::ActiveState::Inactive) {
+            // FLXXX3: a deck without a track is not processed; without this its scalers
+            // were set up (about 30 ms) in the callback in which its first track started:
+            // the decks that played stuttered. Cheap when nothing changed.
+            if (EngineBuffer* pBuffer = pChannel->getEngineBuffer()) {
+                pBuffer->prepareSignal();
+            }
             continue;
         }
 

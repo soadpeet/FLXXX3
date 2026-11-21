@@ -223,6 +223,10 @@ PioneerDDJFLX10.init = function(id) {
     PioneerDDJFLX10.masterCueOn = false;
     midi.sendShortMsg(0x96, 0x63, 0x00);
     PioneerDDJFLX10.applyHeadMix();
+    // FLXXX3: ask the controller for the positions of all faders and knobs, so a channel
+    // fader that is down at start is down in the app too.
+    PioneerDDJFLX10.queryPositions();
+    engine.beginTimer(500, PioneerDDJFLX10.queryPositions, true);
     console.log("Pioneer DDJ-FLX10 PROD - Initialisation");
     var initTimeMode = engine.getValue("[Controls]", "ShowDurationRemaining") !== 0 ? 0x7F : 0x00;
     // Plage de pitch par défaut (±16%)
@@ -242,6 +246,7 @@ PioneerDDJFLX10.init = function(id) {
         midi.sendShortMsg(0x90 + (i - 1), 0x41, 0x00);   // tempo reset off
         // Connect VU meters
         engine.makeConnection(grp, "vu_meter", PioneerDDJFLX10["LedVuMeterCH" + i]);
+        engine.makeConnection(grp, "volume", PioneerDDJFLX10["LedVuMeterCH" + i]);
         // Force off au démarrage pour éviter LEDs fantômes
         midi.sendShortMsg(0xB0 + (i - 1), 0x02, 0x00);
         // Jog display: enable visibility, set time mode, then connect data callbacks
@@ -460,14 +465,41 @@ PioneerDDJFLX10.wheelTurn = function(channel, control, value, status, group) {
 };
 
 // VU-meters (LEDs faders)
+// FLXXX3: the channel level LEDs show the level after the channel fader (cut = off), in dB.
+// vu_meter of Mixxx is measured before the fader, log10(32.767 * mean level + 1), and is at
+// its maximum from a mean level of 0.27 (-11 dB) on, so quiet passages lit hardly any LED.
+// Here: -36 dB .. -12 dB over all LEDs (loud passages reach the top), top LED also when the
+// deck clips.
+PioneerDDJFLX10._vuSent = {};
 PioneerDDJFLX10._sendVu = function(status, ctrl, value) {
     var v = Math.floor(Math.max(0, Math.min(1, value)) * 127);
+    if (PioneerDDJFLX10._vuSent[status] === v) {
+        return;
+    }
+    PioneerDDJFLX10._vuSent[status] = v;
     midi.sendShortMsg(status, ctrl, v);
 };
-PioneerDDJFLX10.LedVuMeterCH1 = function (value) { PioneerDDJFLX10._sendVu(0xB0, 0x02, value); };
-PioneerDDJFLX10.LedVuMeterCH2 = function (value) { PioneerDDJFLX10._sendVu(0xB1, 0x02, value); };
-PioneerDDJFLX10.LedVuMeterCH3 = function (value) { PioneerDDJFLX10._sendVu(0xB2, 0x02, value); };
-PioneerDDJFLX10.LedVuMeterCH4 = function (value) { PioneerDDJFLX10._sendVu(0xB3, 0x02, value); };
+PioneerDDJFLX10.vuLevel = function(deck) {
+    var group = "[Channel" + deck + "]";
+    var vu = Math.min(1, engine.getValue(group, "vu_meter"));
+    var gain = engine.getValue(group, "volume");
+    var mean = (Math.pow(10, vu) - 1) / 32.767 * gain;
+    if (!(mean > 0)) {
+        return 0;
+    }
+    if (engine.getValue(group, "peak_indicator") > 0 && gain >= 0.9) {
+        return 1;
+    }
+    var db = 20 * Math.log(mean) / Math.LN10;
+    return Math.max(0, Math.min(127, (db + 36) * 127 / 24)) / 127;
+};
+PioneerDDJFLX10.updateVu = function(deck) {
+    PioneerDDJFLX10._sendVu(0xB0 + deck - 1, 0x02, PioneerDDJFLX10.vuLevel(deck));
+};
+PioneerDDJFLX10.LedVuMeterCH1 = function() { PioneerDDJFLX10.updateVu(1); };
+PioneerDDJFLX10.LedVuMeterCH2 = function() { PioneerDDJFLX10.updateVu(2); };
+PioneerDDJFLX10.LedVuMeterCH3 = function() { PioneerDDJFLX10.updateVu(3); };
+PioneerDDJFLX10.LedVuMeterCH4 = function() { PioneerDDJFLX10.updateVu(4); };
 
 PioneerDDJFLX10.wheelTouch = function(channel, control, value, status, group) {
     var deckNumber = PioneerDDJFLX10._getDeckFromGroup(group);
@@ -539,7 +571,15 @@ PioneerDDJFLX10.waveformZoom = function(channel, control, value, _status, _group
 // All data is sent to MIDI channel 16 (0xBF for CC, 0x9F for Note On).
 // Protocol sourced from Loui1979 / community reverse-engineering of the FLX10.
 
+// FLXXX3: only values that changed are sent. playposition calls jogMarker on every
+// engine cycle; sending each time flooded the MIDI port, so the level LEDs came late
+// and jumpy.
+PioneerDDJFLX10._jogSent = {};
 PioneerDDJFLX10._jogSend14 = function(msbCC, lsbCC, value14) {
+    if (PioneerDDJFLX10._jogSent[msbCC] === value14) {
+        return;
+    }
+    PioneerDDJFLX10._jogSent[msbCC] = value14;
     midi.sendShortMsg(JOG_DISPLAY_CC, msbCC, (value14 >> 7) & 0x7F);
     midi.sendShortMsg(JOG_DISPLAY_CC, lsbCC, value14 & 0x7F);
 };
@@ -691,6 +731,14 @@ PioneerDDJFLX10.masterCue = function(channel, control, value, status) {
     PioneerDDJFLX10.masterCueOn = !PioneerDDJFLX10.masterCueOn;
     midi.sendShortMsg(0x96, 0x63, PioneerDDJFLX10.masterCueOn ? 0x7F : 0x00);
     PioneerDDJFLX10.applyHeadMix();
+};
+
+// Pioneer request "report all positions" (DDJ-FLX4: model 04 05, DDJ-FLX10: 04 01, see the
+// SysEx of github.com/Veezuhz/Mixxx_FLX10_Controller_Mapping), plus the status dump request
+// of Serato controllers.
+PioneerDDJFLX10.queryPositions = function() {
+    midi.sendSysexMsg([0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x01, 0x00, 0x03, 0x01, 0xF7], 12);
+    midi.sendSysexMsg([0xF0, 0x00, 0x20, 0x7F, 0x03, 0x01, 0xF7], 7);
 };
 
 // Shift buttons management
@@ -858,9 +906,25 @@ PioneerDDJFLX10._hueDist = function(a, b){
 // in this palette). Used for white / near-white / grayscale cues.
 PioneerDDJFLX10._HOTCUE_WHITE_VALUE = 127;
 
+// FLXXX3: the hot cue colors of the app are the 16 of rekordbox. The pad value is a
+// continuous hue wheel (1 = blue, 3 = light blue, ~9 = turquoise, 21 = green, 29 = yellow,
+// 37 = orange, 42 = red, 45 = pink, 61 = purple); the values for blue, light blue and red
+// were read off the pads on 2026-11-21, the others follow the hue test above.
+// Other colors take the nearest of the 16.
+PioneerDDJFLX10._REKORDBOX_HOTCUE_COLORS = [
+  0xDE44CF, 0xB432FF, 0xAA72FF, 0x6473FF, 0x305AFF, 0x50B4FF, 0x00E0FF, 0x1FA392,
+  0x10B176, 0x28E214, 0xA5E116, 0xB4BE04, 0xC3AF04, 0xE0641B, 0xE62828, 0xFF127B
+];
+PioneerDDJFLX10._REKORDBOX_PAD_VALUES = [
+  55,       60,       61,       1,        1,        3,        9,        15,
+  18,       21,       26,       28,       30,       37,       42,       47
+];
+PioneerDDJFLX10._padValueOfRekordboxColor = function(index){
+  return PioneerDDJFLX10._REKORDBOX_PAD_VALUES[index];
+};
+
 // Map a Mixxx hot-cue color (integer 0xRRGGBB from hotcue_X_color) to a pad
-// palette value. Low-saturation colors (white/gray) → the white value;
-// otherwise pick the palette entry with the nearest hue.
+// palette value. Low-saturation colors (white/gray) → the white value.
 PioneerDDJFLX10._hotcueColorToPad = function(rgb){
   if (!(rgb > 0)) { return PioneerDDJFLX10._HOTCUE_WHITE_VALUE; }
   var r = (rgb >> 16) & 0xFF, g = (rgb >> 8) & 0xFF, b = rgb & 0xFF;
@@ -869,22 +933,33 @@ PioneerDDJFLX10._hotcueColorToPad = function(rgb){
   // saturation — treat as white instead of computing a misleading hue.
   var sat = (max === 0) ? 0 : (max - min) / max;
   if (sat < 0.18) { return PioneerDDJFLX10._HOTCUE_WHITE_VALUE; }
-  var hue = PioneerDDJFLX10._rgbToHue(r, g, b);
-  if (hue < 0) { return PioneerDDJFLX10._HOTCUE_WHITE_VALUE; }
-  var best = PioneerDDJFLX10._HOTCUE_PALETTE[0], bestD = 999;
-  for (var i = 0; i < PioneerDDJFLX10._HOTCUE_PALETTE.length; i++) {
-    var dist = PioneerDDJFLX10._hueDist(hue, PioneerDDJFLX10._HOTCUE_PALETTE[i].h);
-    if (dist < bestD) { bestD = dist; best = PioneerDDJFLX10._HOTCUE_PALETTE[i]; }
+  var colors = PioneerDDJFLX10._REKORDBOX_HOTCUE_COLORS;
+  var best = 0, bestD = Infinity;
+  for (var i = 0; i < colors.length; i++) {
+    var dr = r - ((colors[i] >> 16) & 0xFF);
+    var dg = g - ((colors[i] >> 8) & 0xFF);
+    var db = b - (colors[i] & 0xFF);
+    var dist = dr * dr + dg * dg + db * db;
+    if (dist < bestD) { bestD = dist; best = i; }
   }
-  return best.v;
+  return PioneerDDJFLX10._padValueOfRekordboxColor(best);
+};
+
+PioneerDDJFLX10._hotcueLoopActive = function(deck, pad){
+  var g = "[Channel" + deck + "]";
+  return engine.getValue(g, "loop_enabled") > 0 &&
+      Math.abs(engine.getValue(g, "loop_start_position") -
+               engine.getValue(g, "hotcue_" + pad + "_position")) < 2;
 };
 
 PioneerDDJFLX10._renderHotcue = function(deck, pad){
   var s = PioneerDDJFLX10._hotcue[deck][pad];
   var val;
   if (!s.on)        { val = 0x00; }                                  // empty → off
-  else if (s.loop)  { val = PioneerDDJFLX10._hotcuePhase ? s.color : 0x00; }  // loop → blink
-  else              { val = s.color; }                               // cue → solid
+  // FLXXX3: a saved loop is lit like a cue and only blinks while it is the active loop.
+  else if (s.loop && PioneerDDJFLX10._hotcueLoopActive(deck, pad)) {
+    val = PioneerDDJFLX10._hotcuePhase ? s.color : 0x00;
+  } else            { val = s.color; }                               // cue / loop → solid
   midi.sendShortMsg(PioneerDDJFLX10._HOTCUE_STATUS[deck], pad - 1, val);
 };
 

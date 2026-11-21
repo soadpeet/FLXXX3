@@ -133,6 +133,62 @@ TestCase {
         flx10.shutdown();
     }
 
+    // The jog displays and level LEDs only get values that changed: playposition arrives on
+    // every engine cycle and flooded the MIDI port.
+    function test_unchangedDisplayValuesAreNotSent() {
+        const before = midi.sent.length;
+        engine.set("[Channel1]", "volume", 1);
+        engine.set("[Channel1]", "vu_meter", 0.6);
+        for (let n = 0; n < 50; n++) {
+            flx10.jogMarker(0.5, "[Channel1]", "playposition");
+            flx10.LedVuMeterCH1(0.6);
+        }
+        compare(midi.sent.length - before, 3);   // marker MSB + LSB, one level
+        engine.set("[Channel1]", "vu_meter", 0.9);
+        flx10.LedVuMeterCH1(0.9);
+        compare(midi.sent.length - before, 4);
+    }
+
+    // Level LEDs: after the channel fader (cut = off), quiet passages still light LEDs,
+    // loud passages reach the top.
+    function test_levelLedsFollowFaderAndDb() {
+        engine.set("[Channel1]", "volume", 1);
+        engine.set("[Channel1]", "vu_meter", 0.3);              // quiet passage, about -30 dB
+        verify(flx10.vuLevel(1) > 0.15 && flx10.vuLevel(1) < 0.4, flx10.vuLevel(1));
+        engine.set("[Channel1]", "vu_meter", 0.95);             // loud: at the top
+        verify(flx10.vuLevel(1) > 0.9, flx10.vuLevel(1));
+        engine.set("[Channel1]", "peak_indicator", 1);
+        compare(flx10.vuLevel(1), 1);
+        engine.set("[Channel1]", "peak_indicator", 0);
+        engine.set("[Channel1]", "volume", 0);                  // fader cut
+        compare(flx10.vuLevel(1), 0);
+        engine.set("[Channel1]", "volume", 0.1);                // -20 dB
+        verify(flx10.vuLevel(1) < 0.3, flx10.vuLevel(1));
+    }
+
+    // Hot cue pads: the rekordbox colors of the app go to the pad values read off the pads.
+    function test_hotcueColorsToPadValues() {
+        compare(flx10._hotcueColorToPad(0x305AFF), 1);    // blue
+        compare(flx10._hotcueColorToPad(0x50B4FF), 3);    // light blue
+        compare(flx10._hotcueColorToPad(0xE62828), 42);   // red
+        compare(flx10._hotcueColorToPad(0xE0641B), 37);   // orange
+        compare(flx10._hotcueColorToPad(0xFF0000), 42);   // other red: nearest
+        compare(flx10._hotcueColorToPad(0xFFFFFF), 127);  // white
+    }
+
+    // A saved loop pad is lit solid; it blinks only while that loop plays.
+    function test_savedLoopBlinksOnlyWhenActive() {
+        const g = "[Channel1]";
+        engine.set(g, "hotcue_2_position", 1000);
+        engine.set(g, "loop_start_position", 1000);
+        engine.set(g, "loop_enabled", 0);
+        verify(!flx10._hotcueLoopActive(1, 2));
+        engine.set(g, "loop_enabled", 1);
+        verify(flx10._hotcueLoopActive(1, 2));
+        engine.set(g, "loop_start_position", 5000);
+        verify(!flx10._hotcueLoopActive(1, 2));
+    }
+
     // EQ and TRIM are absolute knobs: "selectknob" (relative) made them jump to the maximum.
     // Only the BROWSE knobs are relative.
     function test_onlyBrowseKnobIsRelative() {

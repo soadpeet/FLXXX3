@@ -483,6 +483,14 @@ Item {
             return i * xdjSlotHeight;
         return fourDecks && i >= 2 ? cdjPanelHeight + 2 : 0;
     }
+    // CDJ view with 4 decks: one side button next to each deck (FILTER deck 1, Beat FX deck 2,
+    // JOGWHEEL deck 3, BRIGHTNESS deck 4), as high as that deck's waveform. Otherwise two
+    // buttons per edge on the upper waveforms.
+    readonly property bool sideButtonPerDeck: cdjView && fourDecks
+    readonly property real sideButtonHeight: sideButtonPerDeck ? waveformHeight * 2 : waveformHeight
+    function hasLeftButton(i) {
+        return i === 0 || (sideButtonPerDeck && i === 2);
+    }
     function waveWidth() {
         return cdjView ? cdjHalfWidth - 1 : width;
     }
@@ -540,14 +548,19 @@ Item {
             if (root.browserOpen) {
                 root.keepBrowserOpen();
             } else if (value !== 0) {
-                // CDJ view, SHIFT of a deck held: only the waveform of that deck zooms.
+                // All shown decks zoom (four decks: all four, whichever knob turns). CDJ view,
+                // SHIFT of a deck held: only the decks on that side (left 1 / 3, right 2 / 4).
                 const only = root.cdjView ? shiftDeck.value : 0;
                 const zoomIn = value > 0;
                 if (only !== 2) {
                     (zoomIn ? zoomIn1 : zoomOut1).trigger();
+                    if (root.fourDecks)
+                        (zoomIn ? zoomIn3 : zoomOut3).trigger();
                 }
                 if (only !== 1) {
                     (zoomIn ? zoomIn2 : zoomOut2).trigger();
+                    if (root.fourDecks)
+                        (zoomIn ? zoomIn4 : zoomOut4).trigger();
                 }
             }
         }
@@ -558,6 +571,10 @@ Item {
     Mixxx.ControlProxy { id: zoomOut1; group: "[Channel1]"; key: "waveform_zoom_up" }
     Mixxx.ControlProxy { id: zoomIn2; group: "[Channel2]"; key: "waveform_zoom_down" }
     Mixxx.ControlProxy { id: zoomOut2; group: "[Channel2]"; key: "waveform_zoom_up" }
+    Mixxx.ControlProxy { id: zoomIn3; group: "[Channel3]"; key: "waveform_zoom_down" }
+    Mixxx.ControlProxy { id: zoomOut3; group: "[Channel3]"; key: "waveform_zoom_up" }
+    Mixxx.ControlProxy { id: zoomIn4; group: "[Channel4]"; key: "waveform_zoom_down" }
+    Mixxx.ControlProxy { id: zoomOut4; group: "[Channel4]"; key: "waveform_zoom_up" }
     Mixxx.ControlProxy {
         group: "[Library]"
         key: "MoveFocusForward"
@@ -804,7 +821,7 @@ Item {
 
                 group: "[Channel" + (index + 1) + "]"
                 isMaster: root.masterDeck === index + 1
-                leftInset: index === 0 ? root.sideButtonWidth : 0
+                leftInset: root.hasLeftButton(index) ? root.sideButtonWidth : 0
                 tagFont: Math.max(9, Math.round(root.width / 2 * 0.016))
                 visible: !root.waveCovered(index) && (isMaster ? ownActive : otherActive)
                 height: root.beatMatchHeight
@@ -867,7 +884,7 @@ Item {
                         && !root.waveCovered(index)
                 // The side buttons (FILTER / JOGWHEEL left, DELAY / BRIGHTNESS right) keep their room.
                 width: root.cdjHalfWidth - 1 - root.sideButtonWidth
-                x: root.cdjView ? root.waveX(index) + (index === 0 ? root.sideButtonWidth : 0)
+                x: root.cdjView ? root.waveX(index) + (root.hasLeftButton(index) ? root.sideButtonWidth : 0)
                                 : root.sideButtonWidth
                 y: root.waveY(index)
                 z: 6
@@ -914,7 +931,7 @@ Item {
     // Color FX: the name of the selected one stands vertically at the left edge
     // of the upper waveform; tapping it opens the list.
     DJ.ColorFxButton {
-        height: root.waveformHeight
+        height: root.sideButtonHeight
         width: Math.max(28, Math.round(root.width * 0.034))
         z: 20
 
@@ -929,7 +946,7 @@ Item {
         border.color: jogwheelMenu.opened ? "#ff6a3d" : (jogTap.pressed ? "#1f8fe0" : "#4a4a4a")
         border.width: jogwheelMenu.opened ? 2 : 1
         color: jogwheelMenu.opened ? "#3a2016" : (jogTap.pressed ? "#3a3a3a" : "#202020")
-        height: root.waveformHeight
+        height: root.sideButtonHeight
         // solid: the waveform behind must not shine through
         enabled: !root.advancedOpen && !root.utilityOpen
         opacity: 1.0
@@ -939,7 +956,7 @@ Item {
         anchors {
             left: parent.left
             top: waveArea.top
-            topMargin: root.waveformHeight
+            topMargin: root.sideButtonPerDeck ? root.waveY(2) : root.waveformHeight
         }
 
         Text {
@@ -968,7 +985,7 @@ Item {
         height: root.waveformHeight
         width: Math.round(Math.min(root.width * 0.46, 540))
         x: Math.max(28, Math.round(root.width * 0.034))
-        y: waveArea.y + root.waveformHeight
+        y: waveArea.y + (root.sideButtonPerDeck ? root.waveY(2) : root.waveformHeight)
     }
     // BRIGHTNESS: below the Beat FX button, on the lower waveform (right edge).
     Rectangle {
@@ -976,7 +993,7 @@ Item {
         border.color: brightnessMenu.opened ? "#ff6a3d" : (brightnessTap.pressed ? "#1f8fe0" : "#4a4a4a")
         border.width: brightnessMenu.opened ? 2 : 1
         color: brightnessMenu.opened ? "#3a2016" : (brightnessTap.pressed ? "#3a3a3a" : "#202020")
-        height: root.waveformHeight
+        height: root.sideButtonHeight
         // solid: the waveform behind must not shine through
         enabled: !root.advancedOpen && !root.utilityOpen
         opacity: 1.0
@@ -986,7 +1003,7 @@ Item {
         anchors {
             right: parent.right
             top: waveArea.top
-            topMargin: root.waveformHeight
+            topMargin: root.sideButtonPerDeck ? root.waveY(3) : root.waveformHeight
         }
 
         Text {
@@ -1014,7 +1031,7 @@ Item {
         height: root.waveformHeight
         width: Math.round(Math.min(root.width * 0.36, 420))
         x: root.width - width - Math.max(28, Math.round(root.width * 0.034))
-        y: waveArea.y + root.waveformHeight
+        y: waveArea.y + (root.sideButtonPerDeck ? root.waveY(3) : root.waveformHeight)
     }
     DJ.FxPresetBand {
         height: root.hotcueHeight
@@ -1031,7 +1048,7 @@ Item {
     // Beat FX: the name of the selected one stands vertically at the right edge
     // of the upper waveform; the window with the settings lies over the button.
     DJ.BeatFxButton {
-        height: root.waveformHeight
+        height: root.sideButtonHeight
         panelHeight: root.waveformHeight * 2
         panelWidth: Math.round(root.width * 0.2)
         presetMode: root.fxPresetMode
