@@ -952,11 +952,12 @@
             </control>
             <control>
                 <group>[Master]</group>
-                <key>headMix</key>
+                <key>PioneerDDJFLX10.headphonesMixing</key>
+                <description>HEADPHONES MIXING (FLXXX3: with MASTER CUE)</description>
                 <status>0xB6</status>
                 <midino>0x0C</midino>
                 <options>
-                    <fourteen-bit-msb/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
@@ -2312,11 +2313,12 @@
             </control>
             <control>
                 <group>[Master]</group>
-                <key>headMix</key>
+                <key>PioneerDDJFLX10.headphonesMixing</key>
+                <description>HEADPHONES MIXING (FLXXX3: with MASTER CUE)</description>
                 <status>0xB6</status>
                 <midino>0x2C</midino>
                 <options>
-                    <fourteen-bit-lsb/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
@@ -3801,6 +3803,17 @@
                 <description>Key Sync toggle CH4</description>
                 <status>0x93</status>
                 <midino>0x65</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <!-- FLXXX3: MASTER CUE puts the master into the headphones (like rekordbox). -->
+            <control>
+                <group>[Master]</group>
+                <key>PioneerDDJFLX10.masterCue</key>
+                <description>MASTER CUE (FLXXX3)</description>
+                <status>0x96</status>
+                <midino>0x63</midino>
                 <options>
                     <script-binding/>
                 </options>

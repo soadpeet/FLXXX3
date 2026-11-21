@@ -220,6 +220,9 @@ PioneerDDJFLX10._refreshOutputLeds = function() {
 // Initialization
 PioneerDDJFLX10.init = function(id) {
     PioneerDDJFLX10.numDecks = engine.getValue("[App]", "num_decks") >= 4 ? 4 : 2;
+    PioneerDDJFLX10.masterCueOn = false;
+    midi.sendShortMsg(0x96, 0x63, 0x00);
+    PioneerDDJFLX10.applyHeadMix();
     console.log("Pioneer DDJ-FLX10 PROD - Initialisation");
     var initTimeMode = engine.getValue("[Controls]", "ShowDurationRemaining") !== 0 ? 0x7F : 0x00;
     // Plage de pitch par défaut (±16%)
@@ -662,6 +665,33 @@ PioneerDDJFLX10.memCueDelete = function(channel, control, value, status, group) 
     if (bestCue > 0) engine.setValue(group, "hotcue_" + bestCue + "_clear", 1);
 };
 // ─────────────────────────────────────────────────────────────────────────────
+
+// FLXXX3: headphones like rekordbox. MASTER CUE off: only the channels with CUE are in the
+// headphones (headMix -1). MASTER CUE on: the HEADPHONES MIXING knob mixes CUE and master.
+// The knob sends 14 bits (MSB 0x0C, LSB 0x2C); the script keeps its position.
+PioneerDDJFLX10.masterCueOn = false;
+PioneerDDJFLX10._mixingMsb = 0x40;
+PioneerDDJFLX10._mixingLsb = 0;
+PioneerDDJFLX10.applyHeadMix = function() {
+    var knob = ((PioneerDDJFLX10._mixingMsb << 7) | PioneerDDJFLX10._mixingLsb) / 16383;
+    engine.setValue("[Master]", "headMix", PioneerDDJFLX10.masterCueOn ? knob * 2 - 1 : -1);
+};
+PioneerDDJFLX10.headphonesMixing = function(channel, control, value) {
+    if (control === 0x0C) {
+        PioneerDDJFLX10._mixingMsb = value;
+    } else {
+        PioneerDDJFLX10._mixingLsb = value;
+    }
+    PioneerDDJFLX10.applyHeadMix();
+};
+PioneerDDJFLX10.masterCue = function(channel, control, value, status) {
+    if (value === 0) {
+        return;
+    }
+    PioneerDDJFLX10.masterCueOn = !PioneerDDJFLX10.masterCueOn;
+    midi.sendShortMsg(0x96, 0x63, PioneerDDJFLX10.masterCueOn ? 0x7F : 0x00);
+    PioneerDDJFLX10.applyHeadMix();
+};
 
 // Shift buttons management
 // FLXXX3: which SHIFT is held (deck 1: status 0x90, deck 2: 0x91), also for the app

@@ -5,6 +5,7 @@
 
 #include "audio/types.h"
 #include "control/controlobject.h"
+#include "control/controlpushbutton.h"
 #include "effects/effectsmanager.h"
 #include "engine/channels/enginedeck.h"
 #include "engine/enginemixer.h"
@@ -185,12 +186,9 @@ PlayerManager::PlayerManager(UserSettingsPointer pConfig,
             false,
             1.0));
     // BACK of a controller (DDJ-FLX10): 1 while pressed; the screen closes its open menu.
-    m_jogControls.push_back(std::make_unique<ControlObject>(
-            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("back")),
-            false,
-            false,
-            false,
-            0.0));
+    // A push button: a plain ControlObject cannot be set from MIDI.
+    m_jogControls.push_back(std::make_unique<ControlPushButton>(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("back"))));
     // EQ mode of the mixer: 0 = ISO (default), 1 = EQ (see Bessel8LVMixEQEffect).
     m_pEqMode = std::make_unique<ControlObject>(
             ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("eq_mode")),

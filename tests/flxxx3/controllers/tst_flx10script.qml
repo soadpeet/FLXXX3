@@ -112,6 +112,27 @@ TestCase {
         compare(engine.getValue(g, "enabled"), 0);
     }
 
+    // Headphones like rekordbox: MASTER CUE off = only the cued channels, whatever the
+    // MIXING knob says; MASTER CUE on = the knob mixes CUE and master.
+    function test_masterCueGatesMasterInHeadphones() {
+        flx10.init();
+        flx10.headphonesMixing(6, 0x0C, 0x7F, 0xB6, "[Master]");   // knob fully to MASTER
+        flx10.headphonesMixing(6, 0x2C, 0x7F, 0xB6, "[Master]");
+        compare(engine.getValue("[Master]", "headMix"), -1);
+        flx10.masterCue(6, 0x63, 0x7F, 0x96, "[Master]");          // MASTER CUE on
+        compare(engine.getValue("[Master]", "headMix"), 1);
+        flx10.headphonesMixing(6, 0x0C, 0x40, 0xB6, "[Master]");   // knob to the middle
+        flx10.headphonesMixing(6, 0x2C, 0x00, 0xB6, "[Master]");
+        verify(Math.abs(engine.getValue("[Master]", "headMix")) < 0.01);
+        flx10.masterCue(6, 0x63, 0x00, 0x96, "[Master]");          // release: no change
+        verify(Math.abs(engine.getValue("[Master]", "headMix")) < 0.01);
+        flx10.masterCue(6, 0x63, 0x7F, 0x96, "[Master]");          // MASTER CUE off
+        compare(engine.getValue("[Master]", "headMix"), -1);
+        verify(midi.sent.some(function(m) { return m[0] === 0x96 && m[1] === 0x63 && m[2] === 0x7F; }),
+            "MASTER CUE light");
+        flx10.shutdown();
+    }
+
     // EQ and TRIM are absolute knobs: "selectknob" (relative) made them jump to the maximum.
     // Only the BROWSE knobs are relative.
     function test_onlyBrowseKnobIsRelative() {
