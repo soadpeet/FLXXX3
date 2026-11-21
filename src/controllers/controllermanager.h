@@ -98,6 +98,9 @@ class ControllerManager : public QObject {
     // 2 = deck 2). The mapping sets it, the main window reads it (SHIFT + BROWSE knob zooms
     // the waveform of that deck only).
     std::unique_ptr<ControlObject> m_pAndroidShiftDeck;
+    std::unique_ptr<ControlObject> m_pHidScreens;
+    std::unique_ptr<ControlObject> m_pDeckLeft;
+    std::unique_ptr<ControlObject> m_pDeckRight;
 #endif
     void updateControllerList();
     void startPolling();

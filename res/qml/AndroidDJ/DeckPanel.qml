@@ -20,6 +20,8 @@ Rectangle {
     property bool keyCamelot: true
     // MASTER (tempo reference): decided by MainWindow, shown in orange.
     property bool isMaster: false
+    // 4 decks: the deck that a side of the controller controls now (framed in its colour).
+    property bool controllerActive: false
     signal masterRequested()
     // Quantize beat value from the UTILITY menu (display; "1/8" .. "1").
     property string quantizeBeat: "1"
@@ -225,7 +227,8 @@ Rectangle {
         id: deckColumn
 
         // Only a little lighter while the deck plays (and while the DECK field is held).
-        color: deckHold.pressed ? "#505050" : (playControl.value > 0 ? "#383838" : (root.cdj ? "#000000" : "#181818"))
+        color: deckHold.pressed ? "#505050" : (root.controllerActive ? root.accent
+                : (playControl.value > 0 ? "#383838" : (root.cdj ? "#000000" : "#181818")))
         width: Math.round(root.unit * 3.2)
 
         // Hold the DECK field briefly: starts or stops the loaded track (like PLAY).
@@ -250,7 +253,7 @@ Rectangle {
         Text {
             id: deckLabel
 
-            color: playControl.value > 0 ? "#b8b8b8" : "#8a8a8a"
+            color: root.controllerActive ? "#000000" : (playControl.value > 0 ? "#b8b8b8" : "#8a8a8a")
             font.pixelSize: Math.round(root.unit * 0.8)
             text: "DECK"
 
@@ -267,7 +270,7 @@ Rectangle {
                 horizontalCenter: parent.horizontalCenter
                 top: deckLabel.bottom
             }
-            color: "#ffffff"
+            color: root.controllerActive ? "#000000" : "#ffffff"
             font.bold: true
             font.pixelSize: Math.round(root.unit * 2.4)
             text: root.deckNumber
@@ -1048,4 +1051,13 @@ Rectangle {
         }
     }
 
+    // Frame of the deck a side of the controller controls now (4 decks).
+    Rectangle {
+        anchors.fill: parent
+        border.color: root.accent
+        border.width: 3
+        color: "transparent"
+        visible: root.controllerActive
+        z: 100
+    }
 }

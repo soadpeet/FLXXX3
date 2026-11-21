@@ -103,25 +103,28 @@
 
 // ─── TUNABLE PARAMETERS ──────────────────────────────────────────────────────
 // Jog scratch sensitivity: how many encoder intervals equal one vinyl revolution.
-// Higher = slower / less sensitive. Lower = faster / more sensitive.
-// Typical range: 512 (very fast) → 4096 (very slow). Default: 2048.
-var SCRATCH_INTERVALS_PER_REV = 1500;
+// FLXXX3: the DDJ-FLX10 sends about 12900 intervals per turn of the platter. 1500 moved
+// the track 8.6 times as far as a record, 12900 (1:1) was too little: one turn of the
+// platter is now about 2.6 turns of a record (4.6 s of audio).
+var SCRATCH_INTERVALS_PER_REV = 5000;
+
+// Smoothing of the scratch filter of Mixxx (lower = smoother, a little more lag).
+// FLXXX3: 1/16 instead of 1/8: on Android the many fine jog steps of the DDJ-FLX10 come in
+// bursts, with 1/8 turning felt rough.
+var JOG_ALPHA = 1.0 / 16;
 
 // Jog pitch-bend divisor: how much a jog nudge shifts playback rate.
 // Higher = smaller nudge. Lower = larger nudge.
-var JOG_BEND_DIVISOR = 16;
+var JOG_BEND_DIVISOR = 20;
 
 // Loop adjust step: samples moved per jog unit when in loop in/out adjust mode.
 // At 44.1 kHz, 100 samples ≈ 2.3 ms per minimum jog tick.
 var LOOP_ADJUST_STEP = 100;
-// Needle-seek step: samples the playhead moves per jog unit on the pressed jog
-// (CC 0x1F) when no loop-adjust mode is active. Tune for seek feel.
-// 106 engine samples/unit ≈ true 1:1 with a 33⅓ RPM record (1500 jog units =
-// 1 revolution = 1.8 s of audio, matching the scratch-mode vinyl calibration).
-var SEEK_STEP = 106;
-// Fast needle-seek step when SHIFT is held with the pressed jog
-// (shift + press + turn = CC 0x1F while shiftActive). Tune for fast-seek feel.
-var FAST_SEEK_STEP = 4000;
+// FLXXX3: scrolling with the jog, as a factor on its intervals (smooth like normal
+// turning, through the scratch of Mixxx). SHIFT + jog (CC 0x1F rim, 0x26 touched):
+// four times slower. A SEARCH key held + jog (CC 0x29): about 7 times faster.
+var SLOW_SCROLL_FACTOR = 0.25;
+var FAST_SCROLL_FACTOR = 7;
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Global variables
@@ -220,6 +223,7 @@ PioneerDDJFLX10._refreshOutputLeds = function() {
 // Initialization
 PioneerDDJFLX10.init = function(id) {
     PioneerDDJFLX10.numDecks = engine.getValue("[App]", "num_decks") >= 4 ? 4 : 2;
+    PioneerDDJFLX10.HID_SCREENS = engine.getValue("[AndroidDJ]", "hid_screens") === 1;
     PioneerDDJFLX10.masterCueOn = false;
     midi.sendShortMsg(0x96, 0x63, 0x00);
     PioneerDDJFLX10.applyHeadMix();
@@ -249,6 +253,11 @@ PioneerDDJFLX10.init = function(id) {
         engine.makeConnection(grp, "volume", PioneerDDJFLX10["LedVuMeterCH" + i]);
         // Force off au démarrage pour éviter LEDs fantômes
         midi.sendShortMsg(0xB0 + (i - 1), 0x02, 0x00);
+        // FLXXX3: with the jog screens driven over HID (PioneerDDJFLX10.screen) the MIDI
+        // jog display fields stay off: the firmware mixes both.
+        if (PioneerDDJFLX10.HID_SCREENS) {
+            continue;
+        }
         // Jog display: enable visibility, set time mode, then connect data callbacks
         midi.sendShortMsg(JOG_DISPLAY_NOTE, 0x5C + i, 0x00);
         midi.sendShortMsg(JOG_DISPLAY_NOTE, _JOG_TIME_MODE[i - 1], initTimeMode);
@@ -268,6 +277,9 @@ PioneerDDJFLX10.init = function(id) {
     // Using a timer rather than a playposition callback because Mixxx throttles
     // high-frequency CO callbacks on some builds and the timer is unconditional.
     engine.beginTimer(250, function() {
+        if (PioneerDDJFLX10.HID_SCREENS) {
+            return;
+        }
         var showRemaining = engine.getValue("[Controls]", "ShowDurationRemaining") !== 0;
         for (var d = 1; d <= PioneerDDJFLX10.numDecks; d++) {
             var duration = PioneerDDJFLX10._trackDuration[d];
@@ -392,8 +404,8 @@ PioneerDDJFLX10._nudgeLoop = function(group, deck, newValue) {
     }
 };
 
-// Pressed jog (CC 0x1F) — "press and seek". In loop-adjust mode it nudges the
-// selected in/out boundary; otherwise it needle-seeks the playhead.
+// SHIFT + jog (CC 0x1F). In loop-adjust mode it nudges the selected in/out
+// boundary; otherwise it scrolls slowly through the track.
 PioneerDDJFLX10.wheelSeek = function(channel, control, value, status, group) {
     var newValue = value - 64;
     var deck = PioneerDDJFLX10._getDeckFromGroup(group);
@@ -401,14 +413,37 @@ PioneerDDJFLX10.wheelSeek = function(channel, control, value, status, group) {
         PioneerDDJFLX10._nudgeLoop(group, deck, newValue);
         return;
     }
-    // SHIFT held = fast seek (shift + press + turn); otherwise normal seek.
-    var step = PioneerDDJFLX10.shiftActive ? FAST_SEEK_STEP : SEEK_STEP;
-    var total = engine.getValue(group, "track_samples");
-    if (total > 0) {
-        var pos = engine.getValue(group, "playposition") * total + newValue * step;
-        engine.setValue(group, "playposition",
-            Math.max(0, Math.min(total, pos)) / total);
+    // FLXXX3: the controller sends CC 0x1F / 0x26 for SHIFT + jog: slow scrolling.
+    PioneerDDJFLX10._jogMove(deck, group, newValue * SLOW_SCROLL_FACTOR);
+};
+
+// FLXXX3: moves the track like turning the jog, by `ticks` intervals: touched platter =
+// scratch (smooth, 1:1 to the platter setting), otherwise the jog of Mixxx (bend while
+// playing, search while stopped).
+PioneerDDJFLX10._jogMove = function(deck, group, ticks) {
+    if (engine.isScratching(deck)) {
+        engine.scratchTick(deck, ticks);
+    } else {
+        engine.setValue(group, "jog", ticks / JOG_BEND_DIVISOR);
     }
+};
+
+// FLXXX3: SEARCH keys (0x70 back, 0x71 forward). Held alone they search like before
+// (Mixxx back / fwd); turning the jog while one is held (CC 0x29) scrolls fast instead.
+PioneerDDJFLX10._searchHeld = {1: null, 2: null, 3: null, 4: null};
+PioneerDDJFLX10.searchButton = function(channel, control, value, status, group) {
+    var deck = PioneerDDJFLX10._getDeckFromGroup(group);
+    var key = control === 0x70 ? "back" : "fwd";
+    PioneerDDJFLX10._searchHeld[deck] = value > 0 ? key : null;
+    engine.setValue(group, key, value > 0 ? 1 : 0);
+};
+PioneerDDJFLX10.wheelFastSeek = function(channel, control, value, status, group) {
+    var deck = PioneerDDJFLX10._getDeckFromGroup(group);
+    var held = PioneerDDJFLX10._searchHeld[deck];
+    if (held) {
+        engine.setValue(group, held, 0);   // the jog takes over from the key
+    }
+    PioneerDDJFLX10._jogMove(deck, group, (value - 64) * FAST_SCROLL_FACTOR);
 };
 
 // ─── KEY SYNC button (note 0x65) — tap-to-toggle ─────────────────────────────
@@ -457,10 +492,8 @@ PioneerDDJFLX10.wheelTurn = function(channel, control, value, status, group) {
     // instead of scratching/seeking.
     if (PioneerDDJFLX10._loopAdjustMode[deckNumber]) {
         PioneerDDJFLX10._nudgeLoop(group, deckNumber, newValue);
-    } else if (engine.isScratching(deckNumber)) {
-        engine.scratchTick(deckNumber, newValue);
     } else {
-        engine.setValue(group, 'jog', PioneerDDJFLX10.sensitivityMinimizer(newValue, JOG_BEND_DIVISOR));
+        PioneerDDJFLX10._jogMove(deckNumber, group, newValue);
     }
 };
 
@@ -508,7 +541,7 @@ PioneerDDJFLX10.wheelTouch = function(channel, control, value, status, group) {
         return;
     }
     if (value === 0x7F) {
-        engine.scratchEnable(deckNumber, SCRATCH_INTERVALS_PER_REV, 33+1/3, 1.0/8, (1.0/8)/32);
+        engine.scratchEnable(deckNumber, SCRATCH_INTERVALS_PER_REV, 33+1/3, JOG_ALPHA, JOG_ALPHA / 32);
     } else {
         engine.scratchDisable(deckNumber, false);
     }
@@ -736,6 +769,343 @@ PioneerDDJFLX10.masterCue = function(channel, control, value, status) {
 // Pioneer request "report all positions" (DDJ-FLX4: model 04 05, DDJ-FLX10: 04 01, see the
 // SysEx of github.com/Veezuhz/Mixxx_FLX10_Controller_Mapping), plus the status dump request
 // of Serato controllers.
+// ─── FLXXX3: jog screens over HID ────────────────────────────────────────────
+// The jog screens of the DDJ-FLX10 take 128 byte HID reports on interface 5 (the
+// app's USB audio driver sends them: a SysEx F0 7D 46 48 <report> F7 does not go to
+// the MIDI port). They show the deck's time, BPM, tempo and key once the firmware got
+// the SysEx of Serato (session start, "enter HID", deck init, keepalive every 340 ms).
+// Protocol after the reverse engineering of Victor Pineda (Veezuhz), notes in
+// github.com/Veezuhz/Mixxx_FLX10_Controller_Mapping (README-SCREEN.md, screen.js
+// byte map of the xx 27 report); this code is written for FLXXX3.
+// Not yet: the waveform on the screens (needs the track's waveform data, native).
+PioneerDDJFLX10.HID_SCREENS = true;
+PioneerDDJFLX10.screen = {
+    STATE_MS: 20,
+    DECK_BYTE: [0x10, 0x20, 0x30, 0x40],
+    // byte 31: which deck the report is for
+    DECK_STATE: [0x02, 0x01, 0x04, 0x03],
+    // byte 29: key, by the "key" control of Mixxx (1..12 major C..B, 13..24 minor C..B);
+    // 0x80 = no key
+    KEY_BYTE: [0x80,
+        0x81, 0x83, 0x85, 0x87, 0x89, 0x8b, 0x8d, 0x8f, 0x91, 0x93, 0x95, 0x97,
+        0x88, 0x8a, 0x8c, 0x8e, 0x90, 0x92, 0x94, 0x96, 0x98, 0x82, 0x84, 0x86],
+    SESSION_START: [0xF0, 0x00, 0x20, 0x7F, 0x01, 0x02, 0x01, 0x01, 0x22, 0x0F, 0x0C, 0x06,
+        0x08, 0x04, 0x0A, 0x02, 0x02, 0x05, 0x00, 0x00, 0x0E, 0x0A, 0x0E, 0x03, 0x04, 0xF7],
+    KEEPALIVE: [0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x01, 0x00, 0x50, 0x31, 0xF7],
+    GLOBAL_B: [0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x01, 0x00, 0x0b, 0x31, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0xF7],
+    GLOBAL_C: [0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x01, 0x00, 0x0c, 0x00, 0x00, 0x02,
+        0x0e, 0x0e, 0x05, 0x00, 0x01, 0xF7],
+    timers: [],
+    sent: {},
+    // Smoothed time of each deck: the position control comes in steps, the screen
+    // must not see the time go back (it redraws then).
+    anchorMs: {},
+    anchorAt: {},
+    lastPos: {},
+};
+
+PioneerDDJFLX10.screen.sendReport = function(report) {
+    midi.sendSysexMsg([0xF0, 0x7D, 0x46, 0x48].concat(report, [0xF7]), report.length + 5);
+};
+
+PioneerDDJFLX10.screen.deckInit = function(deck) {
+    return [0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x01, 0x00, 0x10 + deck, 0x00, 0x00,
+        0x02, 0x0e, 0x0e, 0x05, 0xF7];
+};
+
+// Elapsed time of the deck in ms of real time (tempo applied), smoothed.
+PioneerDDJFLX10.screen.elapsedMs = function(deck, group, duration, rate) {
+    var pos = Math.max(0, Math.min(1, engine.getValue(group, "playposition")));
+    var exact = duration * pos / rate * 1000;
+    var now = Date.now();
+    var playing = engine.getValue(group, "play") > 0;
+    if (!playing || this.anchorAt[deck] === undefined) {
+        this.anchorMs[deck] = exact;
+        this.anchorAt[deck] = now;
+        this.lastPos[deck] = pos;
+        return exact;
+    }
+    var guess = this.anchorMs[deck] + (now - this.anchorAt[deck]);
+    if (pos !== this.lastPos[deck]) {
+        this.lastPos[deck] = pos;
+        // A jump (cue, loop, seek) or the engine ahead of the guess: take it over.
+        if (Math.abs(exact - guess) > 500 || exact > guess) {
+            this.anchorMs[deck] = exact;
+            this.anchorAt[deck] = now;
+            return exact;
+        }
+    } else if (guess - exact > 300) {
+        // Position stands still while playing (held jog): stop counting.
+        this.anchorMs[deck] = exact;
+        this.anchorAt[deck] = now;
+        return exact;
+    }
+    return guess;
+};
+
+// The xx 27 report of a deck with a track.
+PioneerDDJFLX10.screen.stateReport = function(deck) {
+    var group = "[Channel" + deck + "]";
+    var duration = engine.getValue(group, "duration");
+    var rate = engine.getValue(group, "rate_ratio");
+    if (!(rate > 0)) {
+        rate = 1;
+    }
+    var p = [];
+    for (var i = 0; i < 128; i++) {
+        p[i] = 0;
+    }
+    p[0] = this.DECK_BYTE[deck - 1];
+    p[1] = 0x27;
+    p[2] = 0xb4;
+    p[3] = 0x88;
+    p[4] = 0x01;
+    // elapsed: minutes, seconds, milliseconds (LE, at most 999)
+    var ms = Math.floor(this.elapsedMs(deck, group, duration, rate));
+    var sec = Math.floor(ms / 1000);
+    var sub = Math.min(999, ms - sec * 1000);
+    p[5] = Math.floor(sec / 60) & 0xFF;
+    p[6] = sec % 60;
+    p[7] = sub & 0xFF;
+    p[8] = (sub >> 8) & 0x03;
+    // length in real time: minutes, seconds, milliseconds (100 ms steps, LE)
+    var lengthMs = Math.floor(duration / rate * 1000);
+    var lengthSub = Math.floor((lengthMs % 1000) / 100) * 100;
+    p[9] = Math.floor(lengthMs / 60000) & 0xFF;
+    p[10] = Math.floor(lengthMs / 1000) % 60;
+    p[11] = lengthSub & 0xFF;
+    p[12] = (lengthSub >> 8) & 0xFF;
+    var bpm = engine.getValue(group, "bpm");
+    if (bpm > 0) {
+        p[13] = Math.floor(bpm) & 0xFF;
+        p[14] = (Math.round((bpm - Math.floor(bpm)) * 16) & 0x0F) << 4;
+    }
+    // tempo in 1/100 %, LE16 two's complement
+    var tempo = Math.round((rate - 1) * 10000);
+    if (tempo < 0) {
+        tempo += 0x10000;
+    }
+    p[15] = 0x01;
+    p[16] = tempo & 0xFF;
+    p[17] = (tempo >> 8) & 0xFF;
+    p[19] = 0x07;
+    p[20] = 0x0e;
+    // position counters of the firmware (1024 steps a second)
+    var ticks = sec * 1024 + Math.floor(sub * 1024 / 1000);
+    p[21] = (ticks * 2) & 0xFF;
+    p[22] = deck <= 2 ? Math.floor(ticks / 123.2) % 15 : 0;
+    p[25] = 0x80;
+    var key = engine.getValue(group, "key") | 0;
+    p[29] = this.KEY_BYTE[key >= 1 && key <= 24 ? key : 0];
+    p[30] = 0x0d;
+    p[31] = this.DECK_STATE[deck - 1];
+    p[32] = 0xad;
+    p[33] = 0x05;
+    return p;
+};
+
+// The xx 27 report of an empty deck (as Serato sends it; captured for decks 1 and 2).
+PioneerDDJFLX10.screen.IDLE_B16_B17 = {1: [0x38, 0x00], 2: [0x70, 0xff]};
+PioneerDDJFLX10.screen.idleReport = function(deck) {
+    var p = [];
+    for (var i = 0; i < 128; i++) {
+        p[i] = 0;
+    }
+    p[0] = this.DECK_BYTE[deck - 1];
+    p[1] = 0x27;
+    p[2] = 0xb4;
+    p[3] = 0x88;
+    p[4] = 0x01;
+    p[16] = this.IDLE_B16_B17[deck][0];
+    p[17] = this.IDLE_B16_B17[deck][1];
+    p[20] = 0x0e;
+    p[25] = 0x80;
+    p[29] = 0x80;
+    p[30] = 0x0d;
+    p[31] = this.DECK_STATE[deck - 1];
+    p[32] = 0xff;
+    p[33] = 0xff;
+    p[34] = 0xff;
+    return p;
+};
+
+// Reports of a new track (as Serato sends them): xx 30 with the length, xx 39 (the cue
+// list frame, captured bytes with the text "HOT CUE"), xx 35 with the number of waveform
+// entries (150 a second), xx 2f (beat grid, empty). Then the app uploads the waveform
+// (xx 36, native: F0 7D 46 57 <deck> F7).
+PioneerDDJFLX10.screen.XX39 = [
+    "10390100030000484f54204355450000000000000000000000000000000000000000000000003f00000000" +
+    "0000000000000000000000000000000000000000000000000000023f000000000000000000000000000000" +
+    "000000000000000000000000000000023f00000000000000000000000000000000000000000000000000",
+    "1039020003000000000000023f000000000000000000000000000000000000000000000000000000000000" +
+    "023f000000000000000000000000000000000000000000000000000000000000023f000000000000000000" +
+    "000000000000000000000000000000000000000000023f00000000000000000000000000000000000000",
+    "1039030003000000000000000000000000023f000000000000000000000000000000000000000000000000" +
+    "00000000000002000000000000000000000000000000000000000000000000000000000000000000000000" +
+    "000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+];
+PioneerDDJFLX10.screen.zeros = function() {
+    var p = [];
+    for (var i = 0; i < 128; i++) {
+        p[i] = 0;
+    }
+    return p;
+};
+PioneerDDJFLX10.screen.trackLoaded = function(deck) {
+    var self = PioneerDDJFLX10.screen;
+    var db = self.DECK_BYTE[deck - 1];
+    var duration = engine.getValue("[Channel" + deck + "]", "duration");
+    var p = self.zeros();
+    p[0] = db;
+    p[1] = 0x30;
+    p[2] = 0x01;
+    p[4] = 0x01;
+    var ms = Math.round(duration * 1000);
+    p[6] = Math.floor(ms / 60000) & 0xFF;
+    p[7] = Math.floor(ms / 1000) % 60;
+    p[8] = (ms % 1000) & 0xFF;
+    p[9] = ((ms % 1000) >> 8) & 0xFF;
+    self.sendReport(p);
+    for (var s = 0; s < self.XX39.length; s++) {
+        var hex = self.XX39[s];
+        var q = self.zeros();
+        for (var i = 0; i < 128 && i * 2 + 1 < hex.length; i++) {
+            q[i] = parseInt(hex.substr(i * 2, 2), 16);
+        }
+        q[0] = db;
+        self.sendReport(q);
+    }
+    var entries = Math.round(duration * 150);
+    for (var n = 0; n < 3; n++) {
+        var r = self.zeros();
+        r[0] = db;
+        r[1] = 0x35;
+        r[2] = entries & 0xFF;
+        r[3] = (entries >> 8) & 0xFF;
+        self.sendReport(r);
+    }
+    var grid = self.zeros();
+    grid[0] = db;
+    grid[1] = 0x2f;
+    grid[2] = 0x01;
+    grid[4] = 0x01;
+    self.sendReport(grid);
+    self.playheadSent[deck] = -1;
+    midi.sendSysexMsg([0xF0, 0x7D, 0x46, 0x57, deck, 0xF7], 6);
+};
+PioneerDDJFLX10.screen.loadedDuration = {};
+PioneerDDJFLX10.screen.playheadSent = {};
+
+// Every second: the waveform again (the app uploads it once the track is analysed).
+// 8 times a second: the playhead (xx 36 at the current entry, sent by the app).
+PioneerDDJFLX10.screen.waveTick = function() {
+    for (var deck = 1; deck <= 4; deck++) {
+        if (engine.getValue("[Channel" + deck + "]", "duration") > 0) {
+            midi.sendSysexMsg([0xF0, 0x7D, 0x46, 0x57, deck, 0xF7], 6);
+        }
+    }
+};
+PioneerDDJFLX10.screen.playheadTick = function() {
+    var self = PioneerDDJFLX10.screen;
+    for (var deck = 1; deck <= 4; deck++) {
+        var group = "[Channel" + deck + "]";
+        var duration = engine.getValue(group, "duration");
+        if (!(duration > 0)) {
+            continue;
+        }
+        var entry = Math.floor(engine.getValue(group, "playposition") * duration * 150);
+        entry = Math.max(0, entry);
+        if (entry === self.playheadSent[deck]) {
+            continue;
+        }
+        self.playheadSent[deck] = entry;
+        midi.sendSysexMsg([0xF0, 0x7D, 0x46, 0x50, deck,
+            entry & 0x7F, (entry >> 7) & 0x7F, (entry >> 14) & 0x7F, (entry >> 21) & 0x7F,
+            0xF7], 10);
+    }
+};
+
+PioneerDDJFLX10.screen.tick = function() {
+    var self = PioneerDDJFLX10.screen;
+    for (var deck = 1; deck <= 4; deck++) {
+        var report;
+        var duration = engine.getValue("[Channel" + deck + "]", "duration");
+        if (duration > 0 && duration !== self.loadedDuration[deck]) {
+            self.loadedDuration[deck] = duration;
+            self.trackLoaded(deck);
+        } else if (!(duration > 0)) {
+            self.loadedDuration[deck] = 0;
+        }
+        if (duration > 0) {
+            report = self.stateReport(deck);
+        } else if (self.IDLE_B16_B17[deck]) {
+            report = self.idleReport(deck);
+        } else {
+            continue;
+        }
+        var key = report.join(",");
+        if (self.sent[deck] === key) {
+            continue;
+        }
+        self.sent[deck] = key;
+        self.sendReport(report);
+    }
+};
+
+PioneerDDJFLX10.screen.handshake = function() {
+    var self = PioneerDDJFLX10.screen;
+    midi.sendSysexMsg(self.SESSION_START, self.SESSION_START.length);
+    PioneerDDJFLX10.queryPositions();   // = "enter HID" of Serato
+    for (var deck = 1; deck <= 4; deck++) {
+        var init = self.deckInit(deck);
+        midi.sendSysexMsg(init, init.length);
+    }
+    midi.sendSysexMsg(self.GLOBAL_B, self.GLOBAL_B.length);
+    midi.sendSysexMsg(self.GLOBAL_C, self.GLOBAL_C.length);
+    self.sent = {};   // all reports again
+    self.loadedDuration = {};   // and the track reports
+};
+
+PioneerDDJFLX10.screen.start = function() {
+    // Only where the app can send the reports (Android); elsewhere the MIDI jog display.
+    if (engine.getValue("[AndroidDJ]", "hid_screens") !== 1) {
+        PioneerDDJFLX10.HID_SCREENS = false;
+    }
+    if (!PioneerDDJFLX10.HID_SCREENS) {
+        return;
+    }
+    var self = PioneerDDJFLX10.screen;
+    // Right after the start the MIDI output may not be open yet: again a bit later.
+    self.handshake();
+    engine.beginTimer(600, self.handshake, true);
+    engine.beginTimer(1500, self.handshake, true);
+    self.timers.push(engine.beginTimer(340, function() {
+        midi.sendSysexMsg(self.KEEPALIVE, self.KEEPALIVE.length);
+    }));
+    self.timers.push(engine.beginTimer(self.STATE_MS, self.tick));
+    self.timers.push(engine.beginTimer(1000, self.waveTick));
+    self.timers.push(engine.beginTimer(125, self.playheadTick));
+};
+
+PioneerDDJFLX10.screen.stop = function() {
+    var self = PioneerDDJFLX10.screen;
+    for (var i = 0; i < self.timers.length; i++) {
+        engine.stopTimer(self.timers[i]);
+    }
+    self.timers = [];
+};
+
+// FLXXX3: DECK 1/3 (left) and 2/4 (right): which deck each side controls, for the screen
+// ([AndroidDJ] deck_left / deck_right).
+PioneerDDJFLX10.deckSelect = function(channel, control, value, status) {
+    if (value === 0) {
+        return;
+    }
+    var deck = (status & 0x0F) + 1;
+    engine.setValue("[AndroidDJ]", deck % 2 === 1 ? "deck_left" : "deck_right", deck);
+};
+
 PioneerDDJFLX10.queryPositions = function() {
     midi.sendSysexMsg([0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x01, 0x00, 0x03, 0x01, 0xF7], 12);
     midi.sendSysexMsg([0xF0, 0x00, 0x20, 0x7F, 0x03, 0x01, 0xF7], 7);

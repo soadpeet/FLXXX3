@@ -189,6 +189,102 @@ TestCase {
         verify(!flx10._hotcueLoopActive(1, 2));
     }
 
+    // Jog scrolling: SHIFT + jog slower, a SEARCH key held + jog faster, both smooth like
+    // turning the jog (scratch while touched); the jog takes over from the key's search.
+    function test_jogScrollSpeeds() {
+        const g = "[Channel1]";
+        const ticks = [];
+        const scratchTick = engine.scratchTick;
+        const isScratching = engine.isScratching;
+        engine.isScratching = function() { return true; };
+        engine.scratchTick = function(deck, value) { ticks.push(value); };
+        flx10.wheelTurn(0, 0x22, 64 + 8, 0xB0, g);               // touched jog
+        flx10.wheelSeek(0, 0x26, 64 + 8, 0xB0, g);               // SHIFT + touched jog
+        flx10.searchButton(0, 0x71, 0x7F, 0x90, g);
+        compare(engine.getValue(g, "fwd"), 1);
+        flx10.wheelFastSeek(0, 0x29, 64 + 8, 0xB0, g);           // SEARCH key + jog
+        compare(engine.getValue(g, "fwd"), 0);
+        flx10.searchButton(0, 0x71, 0x00, 0x90, g);
+        engine.scratchTick = scratchTick;
+        engine.isScratching = isScratching;
+        compare(ticks.length, 3);
+        verify(ticks[1] < ticks[0] && ticks[2] > ticks[0], ticks);
+    }
+
+    // Jog screens over HID (Android): handshake SysEx, then xx 27 reports wrapped in
+    // F0 7D 46 48 .. F7 for the decks with a track: elapsed time, length, BPM, key.
+    function test_hidJogScreens() {
+        engine.set("[AndroidDJ]", "hid_screens", 1);
+        const g = "[Channel1]";
+        engine.set(g, "duration", 200);
+        engine.set(g, "playposition", 0.5);   // 100 s = 1:40.000
+        engine.set(g, "rate_ratio", 1);
+        engine.set(g, "bpm", 128.5);
+        engine.set(g, "key", 22);             // A minor = 8A
+        flx10.init();
+        verify(midi.sysex.some(function(m) { return m[2] === 0x20 && m[3] === 0x7F; }),
+            "session start");
+        midi.sysex = [];
+        engine.runTimers();
+        const all = midi.sysex.filter(function(m) {
+            return m[1] === 0x7D && m[2] === 0x46 && m[3] === 0x48;
+        });
+        // track load of deck 1: xx 30 (length), 3 x xx 39, 3 x xx 35 (entries), xx 2f
+        const types = all.map(function(m) { return m[5]; });
+        compare(types.filter(function(x) { return x === 0x30; }).length, 1);
+        compare(types.filter(function(x) { return x === 0x39; }).length, 3);
+        compare(types.filter(function(x) { return x === 0x35; }).length, 3);
+        const xx35 = all.filter(function(m) { return m[5] === 0x35; })[0].slice(4);
+        compare(xx35[2] | (xx35[3] << 8), 30000);   // 200 s x 150
+        verify(midi.sysex.some(function(m) { return m[3] === 0x57 && m[4] === 1; }),
+            "waveform upload asked");
+        verify(midi.sysex.some(function(m) { return m[3] === 0x50 && m[4] === 1; }),
+            "playhead");
+        const reports = all.filter(function(m) { return m[5] === 0x27; });
+        compare(reports.length, 2);           // deck 1 with its track, deck 2 empty
+        const r = reports[0].slice(4, reports[0].length - 1);
+        const idle = reports[1].slice(4, reports[1].length - 1);
+        compare(idle[0], 0x20);
+        compare(idle[29], 0x80);              // no key: empty
+        compare(r.length, 128);
+        compare(r[0], 0x10);
+        compare(r[1], 0x27);
+        compare(r[5], 1);                     // 1 min
+        compare(r[6], 40);                    // 40 s
+        compare(r[9], 3);                     // length 3:20
+        compare(r[10], 20);
+        compare(r[13], 128);
+        compare(r[14], 0x80);                 // .5 BPM
+        compare(r[29], 0x82);                 // 8A
+        // nothing changed: no state report again (only the waveform request each second)
+        midi.sysex = [];
+        engine.runTimers();
+        verify(!midi.sysex.some(function(m) { return m[1] === 0x7D && m[3] === 0x48; }));
+        flx10.shutdown();
+    }
+
+    // Without HID (Windows): no screen reports, the MIDI jog display as before.
+    function test_noHidScreensWithoutAndroid() {
+        engine.set("[Channel1]", "duration", 200);
+        flx10.init();
+        engine.runTimers();
+        verify(!midi.sysex.some(function(m) { return m[1] === 0x7D; }));
+        flx10.shutdown();
+    }
+
+    // DECK 1/3 and 2/4: note 0x3C on the new deck's channel tells the screen which deck
+    // each side controls; the "off" of the old deck changes nothing.
+    function test_deckSelect() {
+        flx10.deckSelect(0, 0x3C, 0x00, 0x90, "[Channel1]");
+        flx10.deckSelect(2, 0x3C, 0x7F, 0x92, "[Channel3]");
+        compare(engine.getValue("[AndroidDJ]", "deck_left"), 3);
+        flx10.deckSelect(3, 0x3C, 0x7F, 0x93, "[Channel4]");
+        compare(engine.getValue("[AndroidDJ]", "deck_right"), 4);
+        flx10.deckSelect(1, 0x3C, 0x7F, 0x91, "[Channel2]");
+        compare(engine.getValue("[AndroidDJ]", "deck_right"), 2);
+        compare(engine.getValue("[AndroidDJ]", "deck_left"), 3);
+    }
+
     // EQ and TRIM are absolute knobs: "selectknob" (relative) made them jump to the maximum.
     // Only the BROWSE knobs are relative.
     function test_onlyBrowseKnobIsRelative() {

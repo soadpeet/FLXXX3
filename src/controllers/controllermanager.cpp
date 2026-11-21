@@ -1,5 +1,9 @@
 #include "controllers/controllermanager.h"
 
+#ifdef FLXXX3
+#include "controllers/midi/flx10jogscreen.h"
+#endif
+
 #include <QMutexLocker>
 #include <algorithm>
 #include <QSet>
@@ -49,7 +53,9 @@
 // http://developer.qt.nokia.com/wiki/Threads_Events_QObjects
 
 // Poll every 1ms (where possible) for good controller response
-#ifdef __LINUX__
+// FLXXX3: not on Android: with 5 ms the jog ticks came in uneven batches against the
+// engine's 5.8 ms buffers and scratching felt jerky (DDJ-FLX10: ~2000 messages per turn).
+#if defined(__LINUX__) && !defined(__ANDROID__)
 // Many Linux distros ship with the system tick set to 250Hz so 1ms timer
 // reportedly causes CPU hosage. See https://github.com/mixxxdj/mixxx/issues/6383
 // rryan 6/2012
@@ -122,6 +128,18 @@ ControllerManager::ControllerManager(UserSettingsPointer pConfig)
     m_pAndroidShiftDeck = std::make_unique<ControlObject>(
             ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("shift_deck")));
     m_pAndroidShiftDeck->set(0);
+    // 1 where the jog screens of a controller can be driven over HID by the mapping
+    // (see flx10jogscreen.h).
+    // Which deck each side of a 4 deck controller controls (DDJ-FLX10: DECK 1/3, 2/4).
+    m_pDeckLeft = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("deck_left")));
+    m_pDeckLeft->set(1);
+    m_pDeckRight = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("deck_right")));
+    m_pDeckRight->set(2);
+    m_pHidScreens = std::make_unique<ControlObject>(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("hid_screens")));
+    m_pHidScreens->set(flxxx3::jogscreen::kAvailable ? 1 : 0);
 #endif
 
     // Create controller mapping paths in the user's home directory.

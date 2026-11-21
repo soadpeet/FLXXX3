@@ -40,12 +40,20 @@ class AndroidUsbAudio {
         return m_latencyMs;
     }
 
+    /// DDJ-FLX10: sends one report to the HID interface of the jog screens (the
+    /// mapping script builds them). Any thread; false when no such device is open.
+    static bool sendScreenReport(const unsigned char* pData, int length);
+
     // libusb callbacks (events thread)
     void transferDone(libusb_transfer* pTransfer);
     void inputTransferDone(libusb_transfer* pTransfer);
+    void hidTransferDone(libusb_transfer* pTransfer);
 
   private:
     static inline std::atomic<int> s_activeCount{0};
+    // The open driver whose device has a jog screen interface (guarded by s_screenMutex).
+    static inline std::mutex s_screenMutex;
+    static inline AndroidUsbAudio* s_pScreenDriver = nullptr;
 
     struct Slot {
         libusb_transfer* pTransfer = nullptr;
@@ -59,6 +67,7 @@ class AndroidUsbAudio {
     void fill(Slot& slot);
     // Starts the device's input stream (implicit feedback), see connectUsb().
     bool startInput();
+    bool sendHid(const unsigned char* pData, int length);
     void renderLoop();
     void eventLoop();
     void superviseLoop();
@@ -98,6 +107,19 @@ class AndroidUsbAudio {
     // Frame counts of input packets not yet used for output (events thread only).
     std::deque<int> m_inputFrames;
     std::atomic<bool> m_connected{false};
+
+    // HID interface of the jog screens (DDJ-FLX10): interrupt OUT for the reports,
+    // interrupt IN read and thrown away (the device's acknowledgements).
+    int m_hidInterface = -1;
+    int m_hidOutEndpoint = 0;
+    int m_hidOutMaxPacket = 0;
+    int m_hidInEndpoint = 0;
+    int m_hidInMaxPacket = 0;
+    bool m_hidClaimed = false;
+    bool m_hidFailed = false;
+    std::vector<Slot> m_hidInSlots;
+    // Transfers of the HID interface in flight (out and in).
+    std::atomic<int> m_hidPending{0};
     std::thread m_superThread;
 
     // Rate accumulator (frames per packet: 48 at 48 kHz and 1000 packets a second,

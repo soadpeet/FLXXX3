@@ -1,5 +1,9 @@
 #include "controllers/midi/portmidicontroller.h"
 
+#ifdef FLXXX3
+#include "controllers/midi/flx10jogscreen.h"
+#endif
+
 #include "controllers/midi/midiutils.h"
 #include "moc_portmidicontroller.cpp"
 
@@ -231,6 +235,14 @@ bool PortMidiController::sendBytes(const QByteArray& data) {
         qCDebug(m_logOutput) << "SysEx message does not end with 0xF7 -- ignoring.";
         return false;
     }
+
+#ifdef FLXXX3
+    // F0 7D 46 ... F7 is not for the MIDI port: reports and waveform of the DDJ-FLX10
+    // jog screens (see flx10jogscreen.h).
+    if (flxxx3::jogscreen::handleRequest(data)) {
+        return true;
+    }
+#endif
 
     if (m_pOutputDevice.isNull() || !m_pOutputDevice->isOpen()) {
         return false;

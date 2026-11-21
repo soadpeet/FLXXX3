@@ -2123,8 +2123,8 @@
             </control>
             <control>
                 <group>[Channel1]</group>
-                <key>PioneerDDJFLX10.beatgridAdjust</key>
-                <description>Beatgrid adjust CH1 (Shift+Jog)</description>
+                <key>PioneerDDJFLX10.wheelSeek</key>
+                <description>SHIFT + touched jog: slow scroll (FLXXX3) CH1 (Shift+Jog)</description>
                 <status>0xB0</status>
                 <midino>0x26</midino>
                 <options>
@@ -2133,8 +2133,8 @@
             </control>
             <control>
                 <group>[Channel2]</group>
-                <key>PioneerDDJFLX10.beatgridAdjust</key>
-                <description>Beatgrid adjust CH2 (Shift+Jog)</description>
+                <key>PioneerDDJFLX10.wheelSeek</key>
+                <description>SHIFT + touched jog: slow scroll (FLXXX3) CH2 (Shift+Jog)</description>
                 <status>0xB1</status>
                 <midino>0x26</midino>
                 <options>
@@ -2143,8 +2143,8 @@
             </control>
             <control>
                 <group>[Channel3]</group>
-                <key>PioneerDDJFLX10.beatgridAdjust</key>
-                <description>Beatgrid adjust CH3 (Shift+Jog)</description>
+                <key>PioneerDDJFLX10.wheelSeek</key>
+                <description>SHIFT + touched jog: slow scroll (FLXXX3) CH3 (Shift+Jog)</description>
                 <status>0xB2</status>
                 <midino>0x26</midino>
                 <options>
@@ -2153,8 +2153,8 @@
             </control>
             <control>
                 <group>[Channel4]</group>
-                <key>PioneerDDJFLX10.beatgridAdjust</key>
-                <description>Beatgrid adjust CH4 (Shift+Jog)</description>
+                <key>PioneerDDJFLX10.wheelSeek</key>
+                <description>SHIFT + touched jog: slow scroll (FLXXX3) CH4 (Shift+Jog)</description>
                 <status>0xB3</status>
                 <midino>0x26</midino>
                 <options>
@@ -3807,6 +3807,88 @@
                     <script-binding/>
                 </options>
             </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.wheelFastSeek</key>
+                <description>Jog with a SEARCH key held CH1: fast scroll (FLXXX3)</description>
+                <status>0xB0</status>
+                <midino>0x29</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.wheelFastSeek</key>
+                <description>Jog with a SEARCH key held CH2: fast scroll (FLXXX3)</description>
+                <status>0xB1</status>
+                <midino>0x29</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.wheelFastSeek</key>
+                <description>Jog with a SEARCH key held CH3: fast scroll (FLXXX3)</description>
+                <status>0xB2</status>
+                <midino>0x29</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.wheelFastSeek</key>
+                <description>Jog with a SEARCH key held CH4: fast scroll (FLXXX3)</description>
+                <status>0xB3</status>
+                <midino>0x29</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <!-- FLXXX3: DECK 1/3 and 2/4: the FLX10 sends note 0x3C on (7F) on the channel of the
+                 deck that its side controls now (and off on the old one). -->
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.deckSelect</key>
+                <description>DECK 1 selected on its side (FLXXX3)</description>
+                <status>0x90</status>
+                <midino>0x3C</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.deckSelect</key>
+                <description>DECK 2 selected on its side (FLXXX3)</description>
+                <status>0x91</status>
+                <midino>0x3C</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.deckSelect</key>
+                <description>DECK 3 selected on its side (FLXXX3)</description>
+                <status>0x92</status>
+                <midino>0x3C</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.deckSelect</key>
+                <description>DECK 4 selected on its side (FLXXX3)</description>
+                <status>0x93</status>
+                <midino>0x3C</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
             <!-- FLXXX3: MASTER CUE puts the master into the headphones (like rekordbox). -->
             <control>
                 <group>[Master]</group>
@@ -3871,42 +3953,42 @@
             </control>
             <control>
                 <group>[Channel1]</group>
-                <key>back</key>
+                <key>PioneerDDJFLX10.searchButton</key>
                 <description>Rewind CH1</description>
                 <status>0x90</status>
                 <midino>0x70</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
                 <group>[Channel2]</group>
-                <key>back</key>
+                <key>PioneerDDJFLX10.searchButton</key>
                 <description>Rewind CH2</description>
                 <status>0x91</status>
                 <midino>0x70</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
                 <group>[Channel3]</group>
-                <key>back</key>
+                <key>PioneerDDJFLX10.searchButton</key>
                 <description>Rewind CH3</description>
                 <status>0x92</status>
                 <midino>0x70</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
                 <group>[Channel4]</group>
-                <key>back</key>
+                <key>PioneerDDJFLX10.searchButton</key>
                 <description>Rewind CH4</description>
                 <status>0x93</status>
                 <midino>0x70</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
@@ -3931,42 +4013,42 @@
             </control>
             <control>
                 <group>[Channel1]</group>
-                <key>fwd</key>
+                <key>PioneerDDJFLX10.searchButton</key>
                 <description>Forward CH1</description>
                 <status>0x90</status>
                 <midino>0x71</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
                 <group>[Channel2]</group>
-                <key>fwd</key>
+                <key>PioneerDDJFLX10.searchButton</key>
                 <description>Forward CH2</description>
                 <status>0x91</status>
                 <midino>0x71</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
                 <group>[Channel3]</group>
-                <key>fwd</key>
+                <key>PioneerDDJFLX10.searchButton</key>
                 <description>Forward CH3</description>
                 <status>0x92</status>
                 <midino>0x71</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
                 <group>[Channel4]</group>
-                <key>fwd</key>
+                <key>PioneerDDJFLX10.searchButton</key>
                 <description>Forward CH4</description>
                 <status>0x93</status>
                 <midino>0x71</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>

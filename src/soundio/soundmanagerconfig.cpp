@@ -709,10 +709,11 @@ bool SoundManagerConfig::applyPreferredRouting(SoundManager* soundManager) {
         clearOutputs();
         addOutput(deviceId,
                 AudioOutput(AudioPathType::Main, 0, mixxx::audio::ChannelCount::stereo(), 0));
-#ifdef __ANDROID__
-        // The own USB audio driver runs the sound card at its one sample rate
-        // (DDJ-FLX4 48 kHz, DDJ-FLX10 44.1 kHz).
+        // The sound card runs at its one sample rate (DDJ-FLX4 48 kHz, DDJ-FLX10
+        // 44.1 kHz): the own USB audio driver on Android, the maker's ASIO driver on
+        // Windows (another rate: "Invalid sample rate").
         m_sampleRate = mixxx::audio::SampleRate(pController->sampleRate);
+#ifdef __ANDROID__
         const bool stereoOnly = soundManager->androidStereoOnly();
 #else
         const bool stereoOnly = false;

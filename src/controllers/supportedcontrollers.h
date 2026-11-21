@@ -39,6 +39,9 @@ struct SupportedController {
     // feedback, like the Pioneer mixers in the Linux sound driver): the own USB
     // audio driver runs the input stream and sends as many frames as come in.
     bool implicitFeedback;
+    // Android: the jog screens are driven over the device's HID interface (DDJ-FLX10):
+    // the own USB audio driver sends the reports the mapping script builds.
+    bool hidScreen;
 };
 
 // DDJ-FLX10: the seven requests of the Pioneer driver, without them the jog
@@ -55,7 +58,16 @@ inline constexpr std::uint16_t kFlx10AudioUnlock[][2] = {
 };
 
 inline constexpr std::array<SupportedController, 2> kSupportedControllers = {{
-        {"DDJ-FLX4", "Pioneer-DDJ-FLX4.midi.xml", 0x2B73, 0x0045, 48000, nullptr, 0, false, false},
+        {"DDJ-FLX4",
+                "Pioneer-DDJ-FLX4.midi.xml",
+                0x2B73,
+                0x0045,
+                48000,
+                nullptr,
+                0,
+                false,
+                false,
+                false},
         {"DDJ-FLX10",
                 "Pioneer-DDJ-FLX10.midi.xml",
                 0x2B73,
@@ -63,6 +75,7 @@ inline constexpr std::array<SupportedController, 2> kSupportedControllers = {{
                 44100,
                 kFlx10AudioUnlock,
                 static_cast<int>(std::size(kFlx10AudioUnlock)),
+                true,
                 true,
                 true},
 }};

@@ -16,6 +16,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -30,6 +31,13 @@ void LIBUSB_CALL transferCallback(libusb_transfer* pTransfer) {
 void LIBUSB_CALL inputTransferCallback(libusb_transfer* pTransfer) {
     static_cast<AndroidUsbAudio*>(pTransfer->user_data)->inputTransferDone(pTransfer);
 }
+
+void LIBUSB_CALL hidTransferCallback(libusb_transfer* pTransfer) {
+    static_cast<AndroidUsbAudio*>(pTransfer->user_data)->hidTransferDone(pTransfer);
+}
+
+// Reports of the jog screens in flight at most (more are dropped: a newer one follows).
+constexpr int kMaxHidOutPending = 64;
 
 // Raises the calling thread to the audio priority of Android (Process.setThreadPriority).
 void boostThread() {
@@ -229,6 +237,11 @@ bool AndroidUsbAudio::connectUsb(bool firstTime) {
     m_bytesPerSample = 0;
     m_inInterface = -1;
     m_inFrameBytes = 0;
+    m_hidInterface = -1;
+    m_hidOutEndpoint = 0;
+    m_hidInEndpoint = 0;
+    m_hidClaimed = false;
+    m_hidFailed = false;
     for (int i = 0; i < pConfig->bNumInterfaces; ++i) {
         const libusb_interface& itf = pConfig->interface[i];
         for (int a = 0; a < itf.num_altsetting; ++a) {
@@ -250,6 +263,24 @@ bool AndroidUsbAudio::connectUsb(bool firstTime) {
                             ep.bmAttributes,
                             ep.wMaxPacketSize,
                             ep.bInterval);
+                }
+            }
+            // HID interface with an interrupt OUT endpoint: the jog screens (DDJ-FLX10).
+            if (alt.bInterfaceClass == LIBUSB_CLASS_HID && pController &&
+                    pController->hidScreen) {
+                for (int e = 0; e < alt.bNumEndpoints; ++e) {
+                    const libusb_endpoint_descriptor& ep = alt.endpoint[e];
+                    if ((ep.bmAttributes & 0x03) != LIBUSB_TRANSFER_TYPE_INTERRUPT) {
+                        continue;
+                    }
+                    if (ep.bEndpointAddress & 0x80) {
+                        m_hidInEndpoint = ep.bEndpointAddress;
+                        m_hidInMaxPacket = ep.wMaxPacketSize & 0x7FF;
+                    } else {
+                        m_hidOutEndpoint = ep.bEndpointAddress;
+                        m_hidOutMaxPacket = ep.wMaxPacketSize & 0x7FF;
+                        m_hidInterface = alt.bInterfaceNumber;
+                    }
                 }
             }
             // The sound card's input (capture) stream: some devices (DDJ-FLX10)
@@ -419,7 +450,101 @@ bool AndroidUsbAudio::connectUsb(bool firstTime) {
         ++m_pending;
     }
     m_eventThread = std::thread(&AndroidUsbAudio::eventLoop, this);
+    if (m_hidInterface >= 0) {
+        std::lock_guard<std::mutex> lock(s_screenMutex);
+        s_pScreenDriver = this;
+    }
     return true;
+}
+
+bool AndroidUsbAudio::sendScreenReport(const unsigned char* pData, int length) {
+    std::lock_guard<std::mutex> lock(s_screenMutex);
+    return s_pScreenDriver && s_pScreenDriver->sendHid(pData, length);
+}
+
+// Called with s_screenMutex held (disconnectUsb() takes it before it tears down).
+bool AndroidUsbAudio::sendHid(const unsigned char* pData, int length) {
+    if (!m_connected || m_hidFailed || m_hidInterface < 0 || length <= 0) {
+        return false;
+    }
+    if (!m_hidClaimed) {
+        // The kernel's HID driver is detached (auto detach of the handle).
+        const int rc = libusb_claim_interface(m_pHandle, m_hidInterface);
+        if (rc != 0) {
+            ULOG("jog screens: claim HID interface %d failed: %s",
+                    m_hidInterface,
+                    libusb_error_name(rc));
+            m_hidFailed = true;
+            return false;
+        }
+        m_hidClaimed = true;
+        // The device's reports to the host are read and thrown away.
+        if (m_hidInEndpoint != 0 && m_hidInMaxPacket > 0) {
+            m_hidInSlots.resize(2);
+            for (auto& slot : m_hidInSlots) {
+                slot.buffer.assign(static_cast<size_t>(m_hidInMaxPacket), 0);
+                slot.pTransfer = libusb_alloc_transfer(0);
+                libusb_fill_interrupt_transfer(slot.pTransfer,
+                        m_pHandle,
+                        static_cast<unsigned char>(m_hidInEndpoint),
+                        slot.buffer.data(),
+                        m_hidInMaxPacket,
+                        hidTransferCallback,
+                        this,
+                        0);
+                if (libusb_submit_transfer(slot.pTransfer) == 0) {
+                    ++m_hidPending;
+                }
+            }
+        }
+        ULOG("jog screens: HID interface %d, out 0x%02x (%d bytes), in 0x%02x",
+                m_hidInterface,
+                m_hidOutEndpoint,
+                m_hidOutMaxPacket,
+                m_hidInEndpoint);
+    }
+    if (m_hidPending.load() >= kMaxHidOutPending) {
+        return false;
+    }
+    const int size = m_hidOutMaxPacket > 0 ? std::min(length, m_hidOutMaxPacket) : length;
+    libusb_transfer* pTransfer = libusb_alloc_transfer(0);
+    auto* pBuffer = static_cast<unsigned char*>(std::malloc(static_cast<size_t>(size)));
+    if (!pTransfer || !pBuffer) {
+        libusb_free_transfer(pTransfer);
+        std::free(pBuffer);
+        return false;
+    }
+    std::memcpy(pBuffer, pData, static_cast<size_t>(size));
+    libusb_fill_interrupt_transfer(pTransfer,
+            m_pHandle,
+            static_cast<unsigned char>(m_hidOutEndpoint),
+            pBuffer,
+            size,
+            hidTransferCallback,
+            this,
+            200);
+    pTransfer->flags = LIBUSB_TRANSFER_FREE_BUFFER;
+    ++m_hidPending;
+    if (libusb_submit_transfer(pTransfer) != 0) {
+        --m_hidPending;
+        libusb_free_transfer(pTransfer);
+        return false;
+    }
+    return true;
+}
+
+// Events thread: an OUT report was sent (freed here) or an IN report came (submitted again).
+void AndroidUsbAudio::hidTransferDone(libusb_transfer* pTransfer) {
+    const bool isIn = (pTransfer->endpoint & 0x80) != 0;
+    if (isIn && m_connected && pTransfer->status != LIBUSB_TRANSFER_NO_DEVICE &&
+            pTransfer->status != LIBUSB_TRANSFER_CANCELLED &&
+            libusb_submit_transfer(pTransfer) == 0) {
+        return;
+    }
+    --m_hidPending;
+    if (!isIn) {
+        libusb_free_transfer(pTransfer);
+    }
 }
 
 void AndroidUsbAudio::fill(Slot& slot) {
@@ -617,14 +742,27 @@ void AndroidUsbAudio::renderLoop() {
 
 void AndroidUsbAudio::eventLoop() {
     boostThread();
-    while (m_connected || m_pending.load() > 0 || m_inPending.load() > 0) {
+    while (m_connected || m_pending.load() > 0 || m_inPending.load() > 0 ||
+            m_hidPending.load() > 0) {
         timeval tv{0, 100000};
         libusb_handle_events_timeout_completed(m_pContext, &tv, nullptr);
     }
 }
 
 void AndroidUsbAudio::disconnectUsb() {
+    {
+        // No more reports of the jog screens (a send in progress finishes first).
+        std::lock_guard<std::mutex> lock(s_screenMutex);
+        if (s_pScreenDriver == this) {
+            s_pScreenDriver = nullptr;
+        }
+    }
     m_connected = false;
+    for (auto& slot : m_hidInSlots) {
+        if (slot.pTransfer && m_hidPending.load() > 0) {
+            libusb_cancel_transfer(slot.pTransfer);
+        }
+    }
     for (auto& slot : m_slots) {
         if (slot.pTransfer && m_pending.load() > 0) {
             libusb_cancel_transfer(slot.pTransfer);
@@ -637,11 +775,14 @@ void AndroidUsbAudio::disconnectUsb() {
     }
     if (m_eventThread.joinable()) {
         // The event loop ends once all transfers came back.
-        for (int i = 0; i < 50 && (m_pending.load() > 0 || m_inPending.load() > 0); ++i) {
+        for (int i = 0; i < 50 &&
+                (m_pending.load() > 0 || m_inPending.load() > 0 || m_hidPending.load() > 0);
+                ++i) {
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
         m_pending = 0;
         m_inPending = 0;
+        m_hidPending = 0;
         m_eventThread.join();
     }
     for (auto& slot : m_slots) {
@@ -658,7 +799,18 @@ void AndroidUsbAudio::disconnectUsb() {
         }
     }
     m_inSlots.clear();
+    for (auto& slot : m_hidInSlots) {
+        if (slot.pTransfer) {
+            libusb_free_transfer(slot.pTransfer);
+            slot.pTransfer = nullptr;
+        }
+    }
+    m_hidInSlots.clear();
     if (m_pHandle) {
+        if (m_hidClaimed) {
+            libusb_release_interface(m_pHandle, m_hidInterface);
+            m_hidClaimed = false;
+        }
         if (m_interface >= 0) {
             libusb_release_interface(m_pHandle, m_interface);
         }

@@ -1,5 +1,7 @@
 #include "controllers/midi/androidmidicontroller.h"
 
+#include "controllers/midi/flx10jogscreen.h"
+
 #include <chrono>
 
 #include <android/log.h>
@@ -296,6 +298,11 @@ bool AndroidMidiController::sendBytes(const QByteArray& data) {
     if (!data.endsWith(MidiUtils::opCodeValue(MidiOpCode::EndOfExclusive))) {
         qCDebug(m_logOutput) << "SysEx message does not end with 0xF7 -- ignoring.";
         return false;
+    }
+    // FLXXX3: F0 7D 46 ... F7 is not for the MIDI port: reports and waveform of the
+    // DDJ-FLX10 jog screens (see flx10jogscreen.h).
+    if (flxxx3::jogscreen::handleRequest(data)) {
+        return true;
     }
     if (!m_pWritePort) {
         return false;

@@ -567,6 +567,9 @@ Item {
     }
     // Which SHIFT button of the controller is held: 0 = none, 1 = deck 1, 2 = deck 2.
     Mixxx.ControlProxy { id: shiftDeck; group: "[AndroidDJ]"; key: "shift_deck" }
+    // DDJ-FLX10 with 4 decks: which deck each side controls (DECK 1/3, 2/4).
+    Mixxx.ControlProxy { id: deckLeft; group: "[AndroidDJ]"; key: "deck_left" }
+    Mixxx.ControlProxy { id: deckRight; group: "[AndroidDJ]"; key: "deck_right" }
     Mixxx.ControlProxy { id: zoomIn1; group: "[Channel1]"; key: "waveform_zoom_down" }
     Mixxx.ControlProxy { id: zoomOut1; group: "[Channel1]"; key: "waveform_zoom_up" }
     Mixxx.ControlProxy { id: zoomIn2; group: "[Channel2]"; key: "waveform_zoom_down" }
@@ -1135,6 +1138,8 @@ Item {
             cdjGap: root.cdjView ? root.cdjGap : 0
             cdjLowerHeight: root.cdjLowerHeight
             deckNumber: 1
+            controllerActive: root.fourDecks && root.loadOpensLibrary &&
+                    (deckLeft.value === 1 || deckRight.value === 1)
             openPopup: root.popup1
             group: "[Channel1]"
             height: deckRow.panelHeight
@@ -1157,6 +1162,8 @@ Item {
             cdjGap: root.cdjView ? root.cdjGap : 0
             cdjLowerHeight: root.cdjLowerHeight
             deckNumber: 2
+            controllerActive: root.fourDecks && root.loadOpensLibrary &&
+                    (deckLeft.value === 2 || deckRight.value === 2)
             openPopup: root.popup2
             group: "[Channel2]"
             height: deckRow.panelHeight
@@ -1179,6 +1186,8 @@ Item {
             cdjGap: root.cdjView ? root.cdjGap : 0
             cdjLowerHeight: root.cdjLowerHeight
             deckNumber: 3
+            controllerActive: root.fourDecks && root.loadOpensLibrary &&
+                    (deckLeft.value === 3 || deckRight.value === 3)
             openPopup: root.popup3
             group: "[Channel3]"
             height: deckRow.panelHeight
@@ -1202,6 +1211,8 @@ Item {
             cdjGap: root.cdjView ? root.cdjGap : 0
             cdjLowerHeight: root.cdjLowerHeight
             deckNumber: 4
+            controllerActive: root.fourDecks && root.loadOpensLibrary &&
+                    (deckLeft.value === 4 || deckRight.value === 4)
             openPopup: root.popup4
             group: "[Channel4]"
             height: deckRow.panelHeight
