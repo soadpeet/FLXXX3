@@ -108,6 +108,9 @@ rekordbox mode (views, SHIFT + PAGE). Also: Serato's request `F0 00 20 7F 03 01 
 not be sent in rekordbox mode. The device keeps its mode until it is unplugged; it also
 keeps the chosen view of each side.
 
+**Waveforms (2026-11-22):** overview `xx 37`, beat grid `xx 2F` and detail `xx 38` made
+from Mixxx's waveform (flx10jogscreen.cpp) show on the screens (tested one at a time).
+
 ## Next
 
 Rebuild the rekordbox mode: its SysEx, the start reports, `xx 21` and the waveform

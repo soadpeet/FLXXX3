@@ -1314,7 +1314,7 @@ PioneerDDJFLX10.rb.trackLoaded = function(deck) {
 };
 
 // Which parts of the waveform are uploaded (1 overview, 2 beat grid, 4 detail).
-PioneerDDJFLX10.rb.UPLOAD_PARTS = 0;   // waveform upload off: it put the screens on the logo
+PioneerDDJFLX10.rb.UPLOAD_PARTS = 7;
 PioneerDDJFLX10.rb.upload = function(deck) {
     if (!PioneerDDJFLX10.rb.UPLOAD_PARTS) {
         return;
