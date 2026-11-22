@@ -215,6 +215,7 @@ TestCase {
     // F0 7D 46 48 .. F7 for the decks with a track: elapsed time, length, BPM, key.
     function test_hidJogScreens() {
         engine.set("[AndroidDJ]", "hid_screens", 1);
+        flx10.SCREEN_MODE = "serato";
         const g = "[Channel1]";
         engine.set(g, "duration", 200);
         engine.set(g, "playposition", 0.5);   // 100 s = 1:40.000
@@ -263,6 +264,43 @@ TestCase {
         flx10.shutdown();
     }
 
+    // Jog screens in rekordbox mode: rekordbox's SysEx, start reports for 4 decks, deck state
+    // xx 21 (elapsed time, length, key), BPM SysEx and the waveform upload request.
+    function test_rekordboxJogScreens() {
+        engine.set("[AndroidDJ]", "hid_screens", 1);
+        engine.set("[AndroidDJ]", "master_deck", 1);
+        flx10.SCREEN_MODE = "rekordbox";
+        flx10.rb.UPLOAD_PARTS = 7;
+        const g = "[Channel1]";
+        engine.set(g, "duration", 200);
+        engine.set(g, "playposition", 0.5);   // 100 s = 1:40.000
+        engine.set(g, "rate_ratio", 1);
+        engine.set(g, "bpm", 163);
+        engine.set(g, "key", 18);             // F minor = 4A
+        engine.set(g, "play", 1);
+        flx10.init();
+        verify(midi.sysex.some(function(m) { return m[10] === 0x0b && m[11] === 0x35; }),
+            "rekordbox init SysEx");
+        engine.runTimers();   // handshake again + start reports, then the timers
+        engine.runTimers();
+        const reports = midi.sysex.filter(function(m) {
+            return m[1] === 0x7D && m[2] === 0x46 && m[3] === 0x48;
+        }).map(function(m) { return m.slice(4, m.length - 1); });
+        verify(reports.some(function(r) { return r[0] === 0x40 && r[1] === 0x2c; }), "xx 2c deck 4");
+        const state = reports.filter(function(r) { return r[0] === 0x10 && r[1] === 0x21; }).pop();
+        compare(state[5], 0x81);              // playing
+        compare(state[11], 1);                // 1:40.000
+        compare(state[12], 40);
+        compare(state[15], 3);                // length 3:20
+        compare(state[16], 20);
+        compare(state[60], 0x92);             // 4A
+        verify(midi.sysex.some(function(m) {
+            return m[9] === 0x11 && m[12] === 0x3 && m[13] === 0xF && m[14] === 0xA && m[15] === 0xC;
+        }), "BPM 163.00 of deck 1");
+        verify(midi.sysex.some(function(m) { return m[3] === 0x52 && m[4] === 1; }), "upload");
+        flx10.shutdown();
+    }
+
     // Without HID (Windows): no screen reports, the MIDI jog display as before.
     function test_noHidScreensWithoutAndroid() {
         engine.set("[Channel1]", "duration", 200);
@@ -298,6 +336,21 @@ TestCase {
         verify(Math.abs(flx10.barPhase(g, 4.0999 / 120) - 3.9998 / 4) < 1e-3);
         engine.set(g, "file_bpm", 0);         // no grid: place in the track
         compare(flx10.barPhase(g, 0.3), 0.3);
+    }
+
+    // CALL only calls memory cues (hotcue 17..36), never hotcues A..H (1..8).
+    function test_callOnlyMemoryCues() {
+        const g = "[Channel1]";
+        engine.set(g, "track_samples", 1000000);
+        engine.set(g, "track_samplerate", 44100);
+        engine.set(g, "playposition", 0.5);
+        engine.set(g, "hotcue_2_status", 1);          // hotcue B just after: not called
+        engine.set(g, "hotcue_2_position", 600000);
+        engine.set(g, "hotcue_18_status", 1);         // memory cue further on
+        engine.set(g, "hotcue_18_position", 800000);
+        flx10.memCueNext(0, 0x52, 0x7F, 0x90, g);
+        compare(engine.getValue(g, "cue_point"), 800000);
+        verify(!engine.writes.some(function(w) { return w.key === "hotcue_2_goto"; }));
     }
 
     // EQ and TRIM are absolute knobs: "selectknob" (relative) made them jump to the maximum.

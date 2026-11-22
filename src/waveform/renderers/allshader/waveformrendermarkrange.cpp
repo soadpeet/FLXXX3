@@ -74,8 +74,12 @@ void WaveformRenderMarkRange::update() {
 
         QColor color = markRange.enabled() ? markRange.m_activeColor : markRange.m_disabledColor;
 #ifdef FLXXX3
-        // Active loop: orange (like Rekordbox); left loop: see-through white.
-        color.setAlphaF(markRange.enabled() ? 0.5f : 0.3f);
+        // Like rekordbox: the loop's area only while it is on (orange). A loop that is not on
+        // (e.g. the saved loop Mixxx takes over at load) shows only its mark (orange bar).
+        if (!markRange.enabled()) {
+            continue;
+        }
+        color.setAlphaF(0.5f);
 #else
         color.setAlphaF(0.3f);
 #endif

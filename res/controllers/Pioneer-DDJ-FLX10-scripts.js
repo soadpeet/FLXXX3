@@ -704,62 +704,86 @@ PioneerDDJFLX10.sensitivityMaximizer = function (value, factor) {
 };
 
 // ─── Memory cue navigation ───────────────────────────────────────────────────
-// Hot cue slots are used as memory cues. Navigation finds the nearest set cue
-// before/after the current playback position. Save finds the next empty slot.
-var MEM_CUE_SLOTS = 36;
+// FLXXX3: the CALL buttons only call memory cues and memory loops (rekordbox's memory
+// cues are hotcue 17..36 in the app, hotcues A..H 1..8), like the DDJ-FLX4 script: a
+// memory loop starts its loop, a memory cue only jumps; the called point becomes the CUE.
+// MEMORY saves a memory cue in the next free slot of 17..36, DELETE removes the nearest.
+var FIRST_MEMORY_CUE = 17;
+var LAST_MEMORY_CUE = 36;
 
 PioneerDDJFLX10.memCueSave = function(channel, control, value, status, group) {
     if (value === 0) return;
-    for (var i = 1; i <= MEM_CUE_SLOTS; i++) {
-        if (!engine.getValue(group, "hotcue_" + i + "_enabled")) {
+    for (var i = FIRST_MEMORY_CUE; i <= LAST_MEMORY_CUE; i++) {
+        if (!(engine.getValue(group, "hotcue_" + i + "_status") > 0)) {
             engine.setValue(group, "hotcue_" + i + "_set", 1);
+            engine.setValue(group, "hotcue_" + i + "_set", 0);
             return;
         }
     }
 };
 
-PioneerDDJFLX10.memCuePrev = function(channel, control, value, status, group) {
-    if (value === 0) return;
-    var current = engine.getValue(group, "playposition") * engine.getValue(group, "track_samples");
-    var best = -1, bestCue = -1;
-    for (var i = 1; i <= MEM_CUE_SLOTS; i++) {
-        if (engine.getValue(group, "hotcue_" + i + "_enabled")) {
-            var pos = engine.getValue(group, "hotcue_" + i + "_position");
-            if (pos < current - 2000 && pos > best) {
-                best = pos; bestCue = i;
-            }
+PioneerDDJFLX10.callMemoryCue = function(group, direction) {
+    var trackSamples = engine.getValue(group, "track_samples");
+    if (!(trackSamples > 0)) {
+        return;
+    }
+    var sampleRate = engine.getValue(group, "track_samplerate") || 44100;
+    var now = engine.getValue(group, "playposition") * trackSamples;
+    // A quarter of a second: a cue that was just called is not called again.
+    var margin = sampleRate * 2 * 0.25;
+    var best = -1;
+    var bestPosition = 0;
+    for (var i = FIRST_MEMORY_CUE; i <= LAST_MEMORY_CUE; i++) {
+        if (!(engine.getValue(group, "hotcue_" + i + "_status") > 0)) {
+            continue;
+        }
+        var position = engine.getValue(group, "hotcue_" + i + "_position");
+        if (position < 0) {
+            continue;
+        }
+        if (direction < 0 && position < now - margin && (best < 0 || position > bestPosition)) {
+            best = i;
+            bestPosition = position;
+        } else if (direction > 0 && position > now + margin &&
+                (best < 0 || position < bestPosition)) {
+            best = i;
+            bestPosition = position;
         }
     }
-    if (bestCue > 0) engine.setValue(group, "hotcue_" + bestCue + "_gotoandstop", 1);
+    if (best < 0) {
+        return;
+    }
+    var isLoop = engine.getValue(group, "hotcue_" + best + "_type") === 4;
+    var key = "hotcue_" + best + (isLoop ? "_gotoandloop" : "_goto");
+    engine.setValue(group, key, 1);
+    engine.setValue(group, key, 0);
+    engine.setValue(group, "cue_point", bestPosition);
+};
+
+PioneerDDJFLX10.memCuePrev = function(channel, control, value, status, group) {
+    if (value === 0) return;
+    PioneerDDJFLX10.callMemoryCue(group, -1);
 };
 
 PioneerDDJFLX10.memCueNext = function(channel, control, value, status, group) {
     if (value === 0) return;
-    var current = engine.getValue(group, "playposition") * engine.getValue(group, "track_samples");
-    var best = Infinity, bestCue = -1;
-    for (var i = 1; i <= MEM_CUE_SLOTS; i++) {
-        if (engine.getValue(group, "hotcue_" + i + "_enabled")) {
-            var pos = engine.getValue(group, "hotcue_" + i + "_position");
-            if (pos > current + 2000 && pos < best) {
-                best = pos; bestCue = i;
-            }
-        }
-    }
-    if (bestCue > 0) engine.setValue(group, "hotcue_" + bestCue + "_gotoandstop", 1);
+    PioneerDDJFLX10.callMemoryCue(group, 1);
 };
 
 PioneerDDJFLX10.memCueDelete = function(channel, control, value, status, group) {
     if (value === 0) return;
     var current = engine.getValue(group, "playposition") * engine.getValue(group, "track_samples");
     var best = Infinity, bestCue = -1;
-    for (var i = 1; i <= MEM_CUE_SLOTS; i++) {
-        if (engine.getValue(group, "hotcue_" + i + "_enabled")) {
-            var pos = engine.getValue(group, "hotcue_" + i + "_position");
-            var dist = Math.abs(pos - current);
+    for (var i = FIRST_MEMORY_CUE; i <= LAST_MEMORY_CUE; i++) {
+        if (engine.getValue(group, "hotcue_" + i + "_status") > 0) {
+            var dist = Math.abs(engine.getValue(group, "hotcue_" + i + "_position") - current);
             if (dist < best) { best = dist; bestCue = i; }
         }
     }
-    if (bestCue > 0) engine.setValue(group, "hotcue_" + bestCue + "_clear", 1);
+    if (bestCue > 0) {
+        engine.setValue(group, "hotcue_" + bestCue + "_clear", 1);
+        engine.setValue(group, "hotcue_" + bestCue + "_clear", 0);
+    }
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1115,12 +1139,305 @@ PioneerDDJFLX10.screen.handshake = function() {
     self.loadedDuration = {};   // and the track reports
 };
 
+// ─── FLXXX3: jog screens in rekordbox mode ───────────────────────────────────
+// With the SysEx and reports of rekordbox (from a USB capture, docs/flx10-jog-screens.md)
+// the firmware shows its own views (waveform, section, pointer, logo) and switches them
+// with SHIFT + PAGE itself. The script sends the deck state (xx 21, about 100 a second),
+// the BPM (SysEx) and the reports of a new track; the app uploads the waveform and beat
+// grid (F0 7D 46 52 <deck> <rate> F7, flx10jogscreen.cpp).
+PioneerDDJFLX10.SCREEN_MODE = "rekordbox";
+PioneerDDJFLX10.rb = {
+    STATE_MS: 10,
+    SYSEX_INIT: [
+        "f00040050000040100000b356014010000f7",
+        "f00040050000040100000c0000020e0e000000f7",
+        "f00040050000040100000a002800260024153255481421000000000000000000000000000000000000000000000000000000000000f7",
+        "f000400500000401000301f7",
+        "f00040050000040100110f0f0f0f0f0ff7",
+        "f00040050000040100120f0f0f0f0f0ff7",
+        "f00040050000040100130f0f0f0f0f0ff7",
+        "f00040050000040100140f0f0f0f0f0ff7",
+        "f00040050000040100000b000000000000f7",
+        "f00040050000040100000a002800260026414a242a1026000000000000000000000000000000000000000000000000000000000000f7",
+        "f00040050000040100000b315e50010000f7",
+        "f00040050000040100000b310000000000f7"
+    ],
+    KEEPALIVE: [0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x01, 0x00, 0x50, 0x00, 0xF7],
+    // MIDI channel 16 (the jog screens) at rekordbox's start, in its order: 9F 70 00 first
+    // (right after the first keepalive), then the rest after the SysEx.
+    CH16_FIRST: [0x9F, 0x70, 0x00],
+    CH16: [[0x9F, 0x40, 0x7F], [0x9F, 0x41, 0x00], [0x9F, 0x42, 0x7F], [0xBF, 0x46, 0x10],
+        [0xBF, 0x3E, 0x00], [0x9F, 0x3F, 0x7F], [0xBF, 0x0D, 0x00], [0x9F, 0x00, 0x00],
+        [0x9F, 0x24, 0x00], [0x9F, 0x04, 0x00], [0x9F, 0x01, 0x00], [0x9F, 0x25, 0x00],
+        [0x9F, 0x05, 0x00], [0x9F, 0x02, 0x00], [0x9F, 0x26, 0x00], [0x9F, 0x06, 0x00],
+        [0x9F, 0x03, 0x00], [0x9F, 0x40, 0x7F], [0x9F, 0x41, 0x00], [0x9F, 0x42, 0x7F],
+        [0xBF, 0x46, 0x10], [0xBF, 0x3E, 0x00], [0x9F, 0x3F, 0x7F], [0xBF, 0x0D, 0x00]],
+    // deck state of rekordbox for an empty and a loaded deck (deck byte and fields set)
+    EMPTY: "20210008140100018010000000000000000000000000000000000080000000000000000000000000" +
+        "000000ffff000000000000000000000000000000800d",
+    LOADED: "1021000a1401000280b40000000300042cac000000a3000000000080000000030000000000000000" +
+        "000000ffff000000000000000000000300000100960d",
+    XX2D: "102d01000100042cac000a009e2f2701009e2f2701009e2f2701009e2f2701009e2f2701009e2f2701" +
+        "009e2f2701009e2f2701009e2f2701009e2f2701",
+    timers: [],
+    sent: {},
+    loaded: {},
+    bpmSent: {},
+};
+
+PioneerDDJFLX10.rb.report = function(hex, deck) {
+    var p = PioneerDDJFLX10.screen.zeros();
+    for (var i = 0; i * 2 + 1 < hex.length && i < 128; i++) {
+        p[i] = parseInt(hex.substr(i * 2, 2), 16);
+    }
+    if (deck) {
+        p[0] = deck * 0x10;
+    }
+    return p;
+};
+
+// A short report: <deck> <type> 01 00 <b4> 00 ...
+PioneerDDJFLX10.rb.small = function(deck, type, b4, seg) {
+    var p = PioneerDDJFLX10.screen.zeros();
+    p[0] = deck * 0x10;
+    p[1] = type;
+    p[2] = seg || 1;
+    p[4] = b4;
+    return p;
+};
+
+// Length at the deck's tempo: minutes, seconds, milliseconds (LE16).
+PioneerDDJFLX10.rb.lengthBytes = function(deck) {
+    var group = "[Channel" + deck + "]";
+    var rate = engine.getValue(group, "rate_ratio");
+    if (!(rate > 0)) {
+        rate = 1;
+    }
+    var ms = Math.round(engine.getValue(group, "duration") / rate * 1000);
+    var sub = ms % 1000;
+    return [Math.floor(ms / 60000) & 0xFF, Math.floor(ms / 1000) % 60, sub & 0xFF, sub >> 8];
+};
+
+PioneerDDJFLX10.rb.state = function(deck) {
+    var self = PioneerDDJFLX10.rb;
+    var group = "[Channel" + deck + "]";
+    var duration = engine.getValue(group, "duration");
+    if (!(duration > 0)) {
+        return self.report(self.EMPTY, deck);
+    }
+    var p = self.report(self.LOADED, deck);
+    var rate = engine.getValue(group, "rate_ratio");
+    if (!(rate > 0)) {
+        rate = 1;
+    }
+    var master = Math.round(engine.getValue("[AndroidDJ]", "master_deck")) === deck;
+    var playing = engine.getValue(group, "play") > 0;
+    p[3] = master ? 0x0a : 0x08;
+    p[5] = playing ? 0x81 : 0x01;
+    p[7] = master ? 0x02 : 0x01;
+    if (engine.isScratching(deck)) {
+        p[2] = 0x02;
+        p[3] |= 0x10;
+    }
+    // smooth between the position updates: the firmware draws the pointer from this time
+    var pos = PioneerDDJFLX10.screen.smoothPosition(deck, group, duration);
+    var ms = Math.floor(duration * pos / rate * 1000);
+    var sub = ms % 1000;
+    p[11] = Math.floor(ms / 60000) & 0xFF;
+    p[12] = Math.floor(ms / 1000) % 60;
+    p[13] = sub & 0xFF;
+    p[14] = sub >> 8;
+    var length = self.lengthBytes(deck);
+    for (var i = 0; i < 4; i++) {
+        p[15 + i] = length[i];
+    }
+    var key = engine.getValue(group, "key") | 0;
+    p[60] = PioneerDDJFLX10.screen.KEY_BYTE[key >= 1 && key <= 24 ? key : 0];
+    return p;
+};
+
+// BPM as rekordbox sends it: x 100 in four nibbles.
+PioneerDDJFLX10.rb.nibbles = function(bpm) {
+    var v = Math.max(0, Math.min(0xFFFF, Math.round(bpm * 100)));
+    return [(v >> 12) & 0x0F, (v >> 8) & 0x0F, (v >> 4) & 0x0F, v & 0x0F];
+};
+PioneerDDJFLX10.rb.sendBpm = function(deck) {
+    var self = PioneerDDJFLX10.rb;
+    var bpm = engine.getValue("[Channel" + deck + "]", "bpm");
+    var key = Math.round(bpm * 100);
+    if (self.bpmSent[deck] === key) {
+        return;
+    }
+    self.bpmSent[deck] = key;
+    var n = self.nibbles(bpm);
+    var d = [0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x01, 0x00, 0x10 + deck, 0x00, 0x00]
+            .concat(n, [0xF7]);
+    midi.sendSysexMsg(d, d.length);
+    if (Math.round(engine.getValue("[AndroidDJ]", "master_deck")) === deck) {
+        var m = [0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x0C, 0x00, 0x00]
+                .concat(n, [0x00, 0x00, 0xF7]);
+        midi.sendSysexMsg(m, m.length);
+    }
+};
+
+PioneerDDJFLX10.rb.rateCode = function(deck) {
+    var rate = engine.getValue("[Channel" + deck + "]", "rate_ratio");
+    var v = Math.max(1, Math.min(0x1FFFFF, Math.round((rate > 0 ? rate : 1) * 10000)));
+    return [v & 0x7F, (v >> 7) & 0x7F, (v >> 14) & 0x7F];
+};
+
+PioneerDDJFLX10.rb.trackLoaded = function(deck) {
+    var self = PioneerDDJFLX10.rb;
+    var screen = PioneerDDJFLX10.screen;
+    var length = self.lengthBytes(deck);
+    var x30 = self.small(deck, 0x30, 0x01);
+    for (var i = 0; i < 4; i++) {
+        x30[6 + i] = length[i];
+    }
+    screen.sendReport(x30);
+    for (var s = 0; s < screen.XX39.length; s++) {
+        screen.sendReport(self.report(screen.XX39[s], deck));
+    }
+    var x2d = self.report(self.XX2D, deck);
+    for (var k = 0; k < 4; k++) {
+        x2d[6 + k] = length[k];
+    }
+    screen.sendReport(x2d);
+    for (var b = 1; b <= 5; b++) {
+        screen.sendReport(self.small(deck, 0x3b, 0x05, b));
+    }
+    screen.sendReport(self.small(deck, 0x2b, 0x01));
+    screen.sendReport(self.small(deck, 0x33, 0x01));
+    self.bpmSent[deck] = undefined;
+    self.sendBpm(deck);
+    self.upload(deck);
+};
+
+// Which parts of the waveform are uploaded (1 overview, 2 beat grid, 4 detail).
+PioneerDDJFLX10.rb.UPLOAD_PARTS = 0;   // waveform upload off: it put the screens on the logo
+PioneerDDJFLX10.rb.upload = function(deck) {
+    if (!PioneerDDJFLX10.rb.UPLOAD_PARTS) {
+        return;
+    }
+    var d = [0xF0, 0x7D, 0x46, 0x52, deck].concat(PioneerDDJFLX10.rb.rateCode(deck),
+        [PioneerDDJFLX10.rb.UPLOAD_PARTS, 0xF7]);
+    midi.sendSysexMsg(d, d.length);
+};
+
+PioneerDDJFLX10.rb.startReports = function() {
+    var self = PioneerDDJFLX10.rb;
+    var screen = PioneerDDJFLX10.screen;
+    for (var deck = 1; deck <= 4; deck++) {
+        for (var s = 0; s < screen.XX39.length; s++) {
+            screen.sendReport(self.report(screen.XX39[s], deck));
+        }
+        screen.sendReport(self.small(deck, 0x3e, 0x01));
+        for (var seg = 1; seg <= 35; seg++) {
+            screen.sendReport(self.small(deck, 0x2c, 0x23, seg));
+        }
+        screen.sendReport(self.small(deck, 0x2f, 0x01));
+        screen.sendReport(self.small(deck, 0x30, 0x01));
+        screen.sendReport(self.small(deck, 0x2d, 0x01));
+        for (var b = 1; b <= 5; b++) {
+            screen.sendReport(self.small(deck, 0x3b, 0x05, b));
+        }
+        var x3c = self.small(deck, 0x3c, 0x01);
+        x3c[6] = 0x09;
+        screen.sendReport(x3c);
+        screen.sendReport(self.small(deck, 0x2b, 0x01));
+        screen.sendReport(self.small(deck, 0x33, 0x01));
+        screen.sendReport(self.small(deck, 0x2e, 0x01));
+    }
+    self.sent = {};
+    self.loaded = {};
+};
+
+PioneerDDJFLX10.rb.tick = function() {
+    var self = PioneerDDJFLX10.rb;
+    for (var deck = 1; deck <= 4; deck++) {
+        var duration = engine.getValue("[Channel" + deck + "]", "duration");
+        if (duration > 0 && self.loaded[deck] !== duration) {
+            self.loaded[deck] = duration;
+            self.trackLoaded(deck);
+        } else if (!(duration > 0)) {
+            self.loaded[deck] = 0;
+        }
+        var p = self.state(deck);
+        var key = p.join(",");
+        if (self.sent[deck] !== key) {
+            self.sent[deck] = key;
+            PioneerDDJFLX10.screen.sendReport(p);
+        }
+    }
+};
+
+// Every second: BPM (tempo fader) and the waveform again (once analysed; again at another
+// tempo, like rekordbox).
+PioneerDDJFLX10.rb.slowTick = function() {
+    var self = PioneerDDJFLX10.rb;
+    for (var deck = 1; deck <= 4; deck++) {
+        if (engine.getValue("[Channel" + deck + "]", "duration") > 0) {
+            self.sendBpm(deck);
+            self.upload(deck);
+        }
+    }
+};
+
+PioneerDDJFLX10.rb.handshake = function() {
+    var self = PioneerDDJFLX10.rb;
+    var hex = function(h) {
+        var out = [];
+        for (var i = 0; i + 1 < h.length; i += 2) {
+            out.push(parseInt(h.substr(i, 2), 16));
+        }
+        return out;
+    };
+    midi.sendSysexMsg(self.KEEPALIVE, self.KEEPALIVE.length);
+    midi.sendShortMsg(self.CH16_FIRST[0], self.CH16_FIRST[1], self.CH16_FIRST[2]);
+    self.SYSEX_INIT.forEach(function(h) {
+        var b = hex(h);
+        midi.sendSysexMsg(b, b.length);
+    });
+    self.CH16.forEach(function(m) {
+        midi.sendShortMsg(m[0], m[1], m[2]);
+    });
+};
+
+PioneerDDJFLX10.rb.start = function() {
+    var self = PioneerDDJFLX10.rb;
+    // The MIDI output may not be open right after the start: again a bit later.
+    self.handshake();
+    engine.beginTimer(600, function() {
+        self.handshake();
+        self.startReports();
+    }, true);
+    engine.beginTimer(1500, function() {
+        self.timers.push(engine.beginTimer(self.STATE_MS, self.tick));
+        self.timers.push(engine.beginTimer(1000, self.slowTick));
+    }, true);
+    self.timers.push(engine.beginTimer(200, function() {
+        midi.sendSysexMsg(self.KEEPALIVE, self.KEEPALIVE.length);
+    }));
+};
+
+PioneerDDJFLX10.rb.stop = function() {
+    var self = PioneerDDJFLX10.rb;
+    for (var i = 0; i < self.timers.length; i++) {
+        engine.stopTimer(self.timers[i]);
+    }
+    self.timers = [];
+};
+
 PioneerDDJFLX10.screen.start = function() {
     // Only where the app can send the reports (Android); elsewhere the MIDI jog display.
     if (engine.getValue("[AndroidDJ]", "hid_screens") !== 1) {
         PioneerDDJFLX10.HID_SCREENS = false;
     }
     if (!PioneerDDJFLX10.HID_SCREENS) {
+        return;
+    }
+    if (PioneerDDJFLX10.SCREEN_MODE === "rekordbox") {
+        PioneerDDJFLX10.rb.start();
         return;
     }
     var self = PioneerDDJFLX10.screen;
@@ -1139,6 +1456,7 @@ PioneerDDJFLX10.screen.start = function() {
 };
 
 PioneerDDJFLX10.screen.stop = function() {
+    PioneerDDJFLX10.rb.stop();
     var self = PioneerDDJFLX10.screen;
     for (var i = 0; i < self.timers.length; i++) {
         engine.stopTimer(self.timers[i]);
@@ -1158,7 +1476,11 @@ PioneerDDJFLX10.deckSelect = function(channel, control, value, status) {
 
 PioneerDDJFLX10.queryPositions = function() {
     midi.sendSysexMsg([0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x04, 0x01, 0x00, 0x03, 0x01, 0xF7], 12);
-    midi.sendSysexMsg([0xF0, 0x00, 0x20, 0x7F, 0x03, 0x01, 0xF7], 7);
+    // Not in rekordbox mode: Serato's request (F0 00 20 7F ...) puts the FLX10 into Serato
+    // mode until it is unplugged; its jog screens then no longer take rekordbox mode.
+    if (PioneerDDJFLX10.SCREEN_MODE !== "rekordbox") {
+        midi.sendSysexMsg([0xF0, 0x00, 0x20, 0x7F, 0x03, 0x01, 0xF7], 7);
+    }
 };
 
 // Shift buttons management

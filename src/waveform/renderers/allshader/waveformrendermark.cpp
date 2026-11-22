@@ -461,6 +461,14 @@ void allshader::WaveformRenderMark::update() {
                             sampleEndPosition, positionType));
 
             if (visible || currentMarkEndPos > 0.f) {
+#ifdef FLXXX3
+                // Like rekordbox: a saved loop (hot loop, memory loop) has no bar or area,
+                // only its mark; the running loop is the orange range
+                // (WaveformRendererMarkRange).
+                if (pMark->isLoop()) {
+                    visible = true;
+                } else
+#endif
                 if (pMark->isLoop()) {
                     // Reuse, or create new when needed
                     if (!pRangeChild) {

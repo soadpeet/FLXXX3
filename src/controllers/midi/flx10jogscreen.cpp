@@ -20,9 +20,9 @@
 #include "soundio/androidusbaudio.h"
 #elif defined(__HID__)
 #include <hidapi.h>
+#endif
 
 #include <QtDebug>
-#endif
 
 namespace flxxx3::jogscreen {
 
@@ -270,6 +270,178 @@ void sendPlayhead(int deck, int entry) {
     sendReport(report.data(), static_cast<int>(report.size()));
 }
 
+// ---- rekordbox mode ------------------------------------------------------------
+// The reports rekordbox sends for a loaded track (from a USB capture, see
+// docs/flx10-jog-screens.md): xx 37 overview, xx 2F beat grid, xx 38 detail waveform.
+// Times are in real time at the deck's tempo (rate), as rekordbox does.
+
+struct RekordboxDeck {
+    const void* pTrack = nullptr;
+    int completion = -1;
+    int rate10000 = 0;
+    int parts = 0;
+    bool uploading = false;
+};
+std::array<RekordboxDeck, 4> s_rbDecks;
+
+using Report = std::array<unsigned char, 128>;
+
+// Reports of a byte stream, 122 bytes each after a 6 byte header.
+template<typename Header>
+std::vector<Report> streamReports(const std::vector<unsigned char>& stream, Header header) {
+    constexpr size_t kPayload = 122;
+    const size_t count = std::max<size_t>(1, (stream.size() + kPayload - 1) / kPayload);
+    std::vector<Report> reports;
+    for (size_t i = 0; i < count; ++i) {
+        Report p{};
+        header(p, i, count);
+        for (size_t k = 0; k < kPayload && i * kPayload + k < stream.size(); ++k) {
+            p[6 + k] = stream[i * kPayload + k];
+        }
+        reports.push_back(p);
+    }
+    return reports;
+}
+
+// Low / mid / high (0..127) of the waveform over [from, to) of its visual frames.
+void bands(const Waveform& waveform, int from, int to, unsigned char* pOut) {
+    int low = 0;
+    int mid = 0;
+    int high = 0;
+    for (int f = from; f < to; ++f) {
+        for (int side = 0; side < 2; ++side) {
+            const int i = f * 2 + side;
+            low = std::max(low, static_cast<int>(waveform.getLow(i)));
+            mid = std::max(mid, static_cast<int>(waveform.getMid(i)));
+            high = std::max(high, static_cast<int>(waveform.getHigh(i)));
+        }
+    }
+    pOut[0] = static_cast<unsigned char>(low >> 1);
+    pOut[1] = static_cast<unsigned char>(mid >> 1);
+    pOut[2] = static_cast<unsigned char>(high >> 1);
+}
+
+std::vector<Report> rekordboxReports(
+        int deck, const Track& track, const Waveform& waveform, double rate, int parts) {
+    std::vector<Report> out;
+    const unsigned char db = kDeckByte[deck];
+    const int frames = waveform.getDataSize() / 2;
+    const double duration = track.getDuration();
+    if (frames <= 0 || duration <= 0 || rate <= 0) {
+        return out;
+    }
+    const double wallSeconds = duration / rate;
+
+    // xx 37 overview: 0x80, then 1219 entries over the whole track (30 reports).
+    if (parts & 1) {
+        constexpr int kOverview = 1219;
+        std::vector<unsigned char> stream(1 + kOverview * 3, 0);
+        stream[0] = 0x80;
+        for (int o = 0; o < kOverview; ++o) {
+            const int from = static_cast<int>(static_cast<double>(o) * frames / kOverview);
+            const int to = std::max(from + 1, static_cast<int>(static_cast<double>(o + 1) * frames / kOverview));
+            bands(waveform, from, std::min(to, frames), &stream[1 + o * 3]);
+        }
+        stream.resize(30 * 122, 0);
+        auto reports = streamReports(stream, [db](Report& p, size_t i, size_t) {
+            p[0] = db;
+            p[1] = 0x37;
+            p[2] = static_cast<unsigned char>(i + 1);
+            p[4] = 0x1E;
+        });
+        out.insert(out.end(), reports.begin(), reports.end());
+    }
+
+    // xx 2F beat grid: count (LE16), then per beat its place in the bar (1..4) and its time
+    // in ms (LE24).
+    const mixxx::BeatsPointer pBeats = track.getBeats();
+    const double sampleRate = track.getSampleRate().toDouble();
+    if ((parts & 2) && pBeats && sampleRate > 0) {
+        std::vector<unsigned char> stream = {0, 0};
+        int count = 0;
+        const double endFrame = duration * sampleRate;
+        for (auto it = pBeats->iteratorFrom(mixxx::audio::kStartFramePos);
+                it != pBeats->cend() && it->value() <= endFrame && count < 0xFFFF;
+                ++it, ++count) {
+            const auto ms = static_cast<uint32_t>(
+                    std::lround(it->value() / sampleRate * 1000.0 / rate));
+            stream.push_back(static_cast<unsigned char>(count % 4 + 1));
+            stream.push_back(static_cast<unsigned char>(ms & 0xFF));
+            stream.push_back(static_cast<unsigned char>((ms >> 8) & 0xFF));
+            stream.push_back(static_cast<unsigned char>((ms >> 16) & 0xFF));
+        }
+        stream[0] = static_cast<unsigned char>(count & 0xFF);
+        stream[1] = static_cast<unsigned char>(count >> 8);
+        auto reports = streamReports(stream, [db](Report& p, size_t i, size_t total) {
+            p[0] = db;
+            p[1] = 0x2F;
+            p[2] = static_cast<unsigned char>(i + 1);
+            p[4] = static_cast<unsigned char>(total);
+        });
+        out.insert(out.end(), reports.begin(), reports.end());
+    }
+
+    // xx 38 detail: count (LE16) and 2 zero bytes, then 150 entries per second (real time).
+    if (parts & 4) {
+        const int count = std::min(0xFFFF, static_cast<int>(wallSeconds * kEntriesPerSecond));
+        std::vector<unsigned char> stream(4 + static_cast<size_t>(count) * 3, 0);
+        stream[0] = static_cast<unsigned char>(count & 0xFF);
+        stream[1] = static_cast<unsigned char>(count >> 8);
+        const double framesPerEntry = static_cast<double>(frames) / std::max(1, count);
+        for (int o = 0; o < count; ++o) {
+            const int from = static_cast<int>(o * framesPerEntry);
+            const int to = std::max(from + 1, static_cast<int>((o + 1) * framesPerEntry));
+            bands(waveform, std::min(from, frames - 1), std::min(to, frames), &stream[4 + o * 3]);
+        }
+        auto reports = streamReports(stream, [db](Report& p, size_t i, size_t total) {
+            p[0] = db;
+            p[1] = 0x38;
+            p[2] = static_cast<unsigned char>((i + 1) & 0xFF);
+            p[3] = static_cast<unsigned char>((i + 1) >> 8);
+            p[4] = static_cast<unsigned char>(total & 0xFF);
+            p[5] = static_cast<unsigned char>(total >> 8);
+        });
+        out.insert(out.end(), reports.begin(), reports.end());
+    }
+    return out;
+}
+
+void uploadRekordbox(int deck, int rate10000, int parts) {
+    const TrackPointer pTrack = PlayerInfo::instance().getTrackInfo(
+            QStringLiteral("[Channel%1]").arg(deck + 1));
+    if (!pTrack || rate10000 <= 0) {
+        return;
+    }
+    const ConstWaveformPointer pWaveform = pTrack->getWaveform();
+    if (!pWaveform || pWaveform->getCompletion() < pWaveform->getDataSize()) {
+        return; // not analysed yet: the script asks again
+    }
+    {
+        std::lock_guard<std::mutex> lock(s_mutex);
+        RekordboxDeck& state = s_rbDecks[deck];
+        if (state.uploading ||
+                (state.pTrack == pTrack.get() && state.completion == pWaveform->getCompletion() &&
+                        state.rate10000 == rate10000 && state.parts == parts)) {
+            return;
+        }
+        state.pTrack = pTrack.get();
+        state.completion = pWaveform->getCompletion();
+        state.rate10000 = rate10000;
+        state.parts = parts;
+        state.uploading = true;
+    }
+    std::vector<Report> reports = rekordboxReports(deck, *pTrack, *pWaveform, rate10000 / 10000.0, parts);
+    qInfo() << "FLXXX3: DDJ-FLX10 jog screen waveform of deck" << deck + 1 << ":"
+            << reports.size() << "reports";
+    std::thread([deck, reports = std::move(reports)]() {
+        for (const auto& report : reports) {
+            sendWaiting(report);
+        }
+        std::lock_guard<std::mutex> lock(s_mutex);
+        s_rbDecks[deck].uploading = false;
+    }).detach();
+}
+
 } // namespace
 
 bool handleRequest(const QByteArray& data) {
@@ -285,11 +457,22 @@ bool handleRequest(const QByteArray& data) {
     }
     const int deck = static_cast<uint8_t>(data[4]) - 1;
     if (deck < 0 || deck > 3) {
-        return kind == 0x57 || kind == 0x50;
+        return kind == 0x57 || kind == 0x50 || kind == 0x52;
     }
     if (kind == 0x57) {
         // F0 7D 46 57 <deck> [<beat grid 0/1>] F7
         uploadWaveform(deck, data.size() < 7 || data[5] != 0);
+        return true;
+    }
+    if (kind == 0x52 && data.size() >= 9) {
+        // F0 7D 46 52 <deck> <rate x 10000, 3 x 7 bit> [<parts>] F7: rekordbox mode upload
+        // (parts: 1 overview, 2 beat grid, 4 detail; default all)
+        int rate10000 = 0;
+        for (int i = 0; i < 3; ++i) {
+            rate10000 |= (static_cast<uint8_t>(data[5 + i]) & 0x7F) << (7 * i);
+        }
+        const int parts = data.size() >= 10 ? static_cast<uint8_t>(data[8]) & 0x07 : 7;
+        uploadRekordbox(deck, rate10000, parts);
         return true;
     }
     if (kind == 0x50 && data.size() >= 10) {
