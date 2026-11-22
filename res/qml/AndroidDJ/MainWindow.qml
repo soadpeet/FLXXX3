@@ -173,10 +173,9 @@ Item {
         return deck >= 1 && deck <= root.deckCount
                 && [masterPlay1, masterPlay2, masterPlay3, masterPlay4][deck - 1].value > 0;
     }
-    // MASTER like on the Pioneer players: the first deck that gets a track is MASTER, loading
-    // further decks never moves it. It moves only when the MASTER deck is not playing: to a
-    // deck that starts, or, when the MASTER stops, to another deck that plays (the lowest
-    // number). An emptied MASTER deck hands over to a playing deck, else to a loaded one.
+    // MASTER like rekordbox: the first deck that gets a track is MASTER, loading further decks
+    // never moves it. It moves only when the MASTER deck is not on air (see deckOnAir). An
+    // emptied MASTER deck hands over to a playing deck, else to a loaded one.
     function deckLoaded(deck) {
         return deck >= 1 && deck <= root.deckCount
                 && [masterLoaded1, masterLoaded2, masterLoaded3, masterLoaded4][deck - 1].value > 0;
@@ -191,12 +190,29 @@ Item {
         }
         return 0;
     }
+    // Like rekordbox: a deck is "on air" while it plays with its channel fader open. The
+    // MASTER stays while it is on air; when it is not (stopped or its fader cut), the MASTER
+    // moves to a deck that is on air (the lowest number).
+    function deckOnAir(deck) {
+        return root.deckPlaying(deck)
+                && [masterVolume1, masterVolume2, masterVolume3, masterVolume4][deck - 1].value > 0.01;
+    }
     function masterPlayChanged(deck) {
-        if (root.deckPlaying(deck)) {
-            if (!root.hasMaster() || (root.masterDeck !== deck && !root.deckPlaying(root.masterDeck)))
-                setMaster(deck);
-        } else if (root.masterDeck === deck) {
-            const playing = root.firstDeck(root.deckPlaying, deck);
+        if (root.deckPlaying(deck) && !root.hasMaster()) {
+            setMaster(deck);
+            return;
+        }
+        root.updateOnAirMaster();
+    }
+    function updateOnAirMaster() {
+        if (!root.hasMaster() || root.deckOnAir(root.masterDeck))
+            return;
+        const onAir = root.firstDeck(root.deckOnAir, root.masterDeck);
+        if (onAir > 0)
+            setMaster(onAir);
+        else if (!root.deckPlaying(root.masterDeck)) {
+            // nothing on air: a deck that plays (fader closed) takes over from a stopped master
+            const playing = root.firstDeck(root.deckPlaying, root.masterDeck);
             if (playing > 0)
                 setMaster(playing);
         }
@@ -211,6 +227,10 @@ Item {
         const next = root.firstDeck(root.deckPlaying, deck) || root.firstDeck(root.deckLoaded, deck);
         setMaster(next);
     }
+    Mixxx.ControlProxy { id: masterVolume1; group: "[Channel1]"; key: "volume"; onValueChanged: root.updateOnAirMaster() }
+    Mixxx.ControlProxy { id: masterVolume2; group: "[Channel2]"; key: "volume"; onValueChanged: root.updateOnAirMaster() }
+    Mixxx.ControlProxy { id: masterVolume3; group: "[Channel3]"; key: "volume"; onValueChanged: root.updateOnAirMaster() }
+    Mixxx.ControlProxy { id: masterVolume4; group: "[Channel4]"; key: "volume"; onValueChanged: root.updateOnAirMaster() }
     Mixxx.ControlProxy { id: masterPlay1; group: "[Channel1]"; key: "play"; onValueChanged: root.masterPlayChanged(1) }
     Mixxx.ControlProxy { id: masterPlay2; group: "[Channel2]"; key: "play"; onValueChanged: root.masterPlayChanged(2) }
     Mixxx.ControlProxy { id: masterPlay3; group: "[Channel3]"; key: "play"; onValueChanged: root.masterPlayChanged(3) }

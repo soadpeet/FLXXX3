@@ -1236,7 +1236,8 @@ PioneerDDJFLX10.rb.state = function(deck) {
     var master = Math.round(engine.getValue("[AndroidDJ]", "master_deck")) === deck;
     var playing = engine.getValue(group, "play") > 0;
     p[3] = master ? 0x0a : 0x08;
-    p[5] = playing ? 0x81 : 0x01;
+    // bit 7: the MASTER deck playing (rekordbox: a second playing deck has 0x01)
+    p[5] = master && playing ? 0x81 : 0x01;
     p[7] = master ? 0x02 : 0x01;
     if (engine.isScratching(deck)) {
         p[2] = 0x02;
