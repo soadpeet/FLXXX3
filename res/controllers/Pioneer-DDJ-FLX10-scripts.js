@@ -501,8 +501,7 @@ PioneerDDJFLX10.wheelTurn = function(channel, control, value, status, group) {
 // FLXXX3: the channel level LEDs show the level after the channel fader (cut = off), in dB.
 // vu_meter of Mixxx is measured before the fader, log10(32.767 * mean level + 1), and is at
 // its maximum from a mean level of 0.27 (-11 dB) on, so quiet passages lit hardly any LED.
-// Here: -36 dB .. -12 dB over all LEDs (loud passages reach the top), top LED also when the
-// deck clips.
+// The scale is rekordbox's (see vuLevel); top LED also when the deck clips.
 PioneerDDJFLX10._vuSent = {};
 PioneerDDJFLX10._sendVu = function(status, ctrl, value) {
     var v = Math.floor(Math.max(0, Math.min(1, value)) * 127);
@@ -524,7 +523,11 @@ PioneerDDJFLX10.vuLevel = function(deck) {
         return 1;
     }
     var db = 20 * Math.log(mean) / Math.LN10;
-    return Math.max(0, Math.min(127, (db + 36) * 127 / 24)) / 127;
+    // Matched to rekordbox (USB capture and the same kind of track in FLXXX3): a loud track
+    // at about -15 dB is 90, peaks at -12.6 dB 105, -19 dB 65 (6.25 per dB, 0 at -29.4 dB);
+    // in rekordbox's steps of 7.2 (one LED step), rounded up like rekordbox (65, 72, 80, 87 ..).
+    var level = Math.max(0, Math.min(127, (db + 29.4) * 6.25));
+    return Math.min(127, Math.ceil(Math.round(level / 7.2) * 7.2 - 1e-9)) / 127;
 };
 PioneerDDJFLX10.updateVu = function(deck) {
     PioneerDDJFLX10._sendVu(0xB0 + deck - 1, 0x02, PioneerDDJFLX10.vuLevel(deck));

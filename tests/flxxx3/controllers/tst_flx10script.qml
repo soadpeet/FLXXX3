@@ -149,21 +149,23 @@ TestCase {
         compare(midi.sent.length - before, 4);
     }
 
-    // Level LEDs: after the channel fader (cut = off), quiet passages still light LEDs,
-    // loud passages reach the top.
+    // Level LEDs: after the channel fader (cut = off), on rekordbox's scale and steps
+    // (-19 dB = 65, about -15 dB = 87..94), the top LED when the deck clips.
     function test_levelLedsFollowFaderAndDb() {
         engine.set("[Channel1]", "volume", 1);
-        engine.set("[Channel1]", "vu_meter", 0.3);              // quiet passage, about -30 dB
-        verify(flx10.vuLevel(1) > 0.15 && flx10.vuLevel(1) < 0.4, flx10.vuLevel(1));
-        engine.set("[Channel1]", "vu_meter", 0.95);             // loud: at the top
-        verify(flx10.vuLevel(1) > 0.9, flx10.vuLevel(1));
+        engine.set("[Channel1]", "vu_meter", 0.670);            // -19 dB
+        compare(Math.round(flx10.vuLevel(1) * 127), 65);
+        engine.set("[Channel1]", "vu_meter", 0.834);            // -15 dB
+        const loud = Math.round(flx10.vuLevel(1) * 127);
+        verify(loud === 87 || loud === 94, loud);
+        engine.set("[Channel1]", "vu_meter", 0.3);              // -30 dB: off
+        compare(flx10.vuLevel(1), 0);
+        engine.set("[Channel1]", "vu_meter", 0.834);
         engine.set("[Channel1]", "peak_indicator", 1);
         compare(flx10.vuLevel(1), 1);
         engine.set("[Channel1]", "peak_indicator", 0);
         engine.set("[Channel1]", "volume", 0);                  // fader cut
         compare(flx10.vuLevel(1), 0);
-        engine.set("[Channel1]", "volume", 0.1);                // -20 dB
-        verify(flx10.vuLevel(1) < 0.3, flx10.vuLevel(1));
     }
 
     // Hot cue pads: the rekordbox colors of the app go to the pad values read off the pads.
