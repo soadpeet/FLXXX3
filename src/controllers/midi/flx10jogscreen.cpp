@@ -5,12 +5,14 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <mutex>
 #include <thread>
 #include <vector>
 
 #include "mixer/playerinfo.h"
+#include "track/beats.h"
 #include "track/track.h"
 #include "waveform/waveform.h"
 
@@ -115,6 +117,50 @@ std::array<unsigned char, 128> waveReport(int deck, const std::vector<uint16_t>&
     return p;
 }
 
+// Beat grid of the track as xx 2f reports: after a start record (80 02 01 00) one
+// record per beat: its place in the bar (03 04 00 02 for beats 1..4, as Serato sends
+// them) and its time in samples at 22050 Hz (24 bit LE); 30 records a report after
+// the header <deck> 2f <segment 1..> 00 15 00. The first beat of the grid counts as
+// beat 1 of a bar.
+std::vector<std::array<unsigned char, 128>> beatGridReports(int deck, const Track& track) {
+    std::vector<std::array<unsigned char, 128>> reports;
+    const mixxx::BeatsPointer pBeats = track.getBeats();
+    const double sampleRate = track.getSampleRate().toDouble();
+    if (!pBeats || sampleRate <= 0) {
+        return reports;
+    }
+    static constexpr unsigned char kBeatType[4] = {0x03, 0x04, 0x00, 0x02};
+    std::vector<std::array<unsigned char, 4>> records = {{0x80, 0x02, 0x01, 0x00}};
+    const double endFrame = track.getDuration() * sampleRate;
+    int index = 0;
+    for (auto it = pBeats->iteratorFrom(mixxx::audio::kStartFramePos);
+            it != pBeats->cend() && it->value() <= endFrame && records.size() < 20000;
+            ++it, ++index) {
+        const auto samples = static_cast<uint32_t>(std::lround(it->value() / sampleRate * 22050.0)) &
+                0xFFFFFF;
+        records.push_back({kBeatType[index & 3],
+                static_cast<unsigned char>(samples & 0xFF),
+                static_cast<unsigned char>((samples >> 8) & 0xFF),
+                static_cast<unsigned char>((samples >> 16) & 0xFF)});
+    }
+    constexpr size_t kPerReport = 30;
+    for (size_t first = 0, segment = 1; first < records.size(); first += kPerReport, ++segment) {
+        std::array<unsigned char, 128> p{};
+        p[0] = kDeckByte[deck];
+        p[1] = 0x2f;
+        p[2] = static_cast<unsigned char>(segment & 0xFF);
+        p[4] = 0x15;
+        size_t offset = 6;
+        for (size_t i = first; i < std::min(records.size(), first + kPerReport); ++i) {
+            for (unsigned char byte : records[i]) {
+                p[offset++] = byte;
+            }
+        }
+        reports.push_back(p);
+    }
+    return reports;
+}
+
 // Sends a report; waits while the driver has too many in flight.
 void sendWaiting(const std::array<unsigned char, 128>& report) {
     for (int attempt = 0; attempt < 200; ++attempt) {
@@ -161,7 +207,7 @@ std::vector<uint16_t> pwv5Of(const Waveform& waveform, double durationSeconds) {
     return out;
 }
 
-void uploadWaveform(int deck) {
+void uploadWaveform(int deck, bool withBeatGrid) {
     const TrackPointer pTrack = PlayerInfo::instance().getTrackInfo(
             QStringLiteral("[Channel%1]").arg(deck + 1));
     if (!pTrack) {
@@ -184,6 +230,10 @@ void uploadWaveform(int deck) {
     if (entries.empty()) {
         return; // not analysed yet: the script asks again
     }
+    std::vector<std::array<unsigned char, 128>> grid;
+    if (withBeatGrid) {
+        grid = beatGridReports(deck, *pTrack);
+    }
     {
         std::lock_guard<std::mutex> lock(s_mutex);
         DeckWave& state = s_decks[deck];
@@ -194,9 +244,12 @@ void uploadWaveform(int deck) {
     }
     // The whole track takes a few seconds (one report per ms): not in the
     // controller thread.
-    std::thread([deck, entries = std::move(entries)]() {
+    std::thread([deck, entries = std::move(entries), grid = std::move(grid)]() {
         for (int at = 0; at < static_cast<int>(entries.size()); at += kEntriesPerReport) {
             sendWaiting(waveReport(deck, entries, at));
+        }
+        for (const auto& report : grid) {
+            sendWaiting(report);
         }
         std::lock_guard<std::mutex> lock(s_mutex);
         s_decks[deck].uploading = false;
@@ -235,7 +288,8 @@ bool handleRequest(const QByteArray& data) {
         return kind == 0x57 || kind == 0x50;
     }
     if (kind == 0x57) {
-        uploadWaveform(deck);
+        // F0 7D 46 57 <deck> [<beat grid 0/1>] F7
+        uploadWaveform(deck, data.size() < 7 || data[5] != 0);
         return true;
     }
     if (kind == 0x50 && data.size() >= 10) {

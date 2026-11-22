@@ -33,6 +33,7 @@ Item {
         { key: "headroom", area: "AUDIO", label: "MASTER HEADROOM (LOWERS THE MASTER OUTPUT)", kind: "number", min: 0, max: 12, step: 0.5, fine: 0.1, decimals: 1, unit: "dB", def: 0 },
         // ---- START (values the app starts with) ----
         { key: "stickAuto", area: "START", label: "READ REKORDBOX STICKS", kind: "choice", choices: [{ t: "AUTOMATIC", v: 1 }, { t: "ON REQUEST", v: 0 }], def: 1, mirror: "adv_stick_auto" },
+        { key: "startScreen", area: "START", label: "SCREEN (MONITOR) THE APP STARTS ON (WINDOWS)", kind: "choice", choices: [{ t: "MONITOR 1", v: 1 }, { t: "MONITOR 2", v: 2 }, { t: "MONITOR 3", v: 3 }], def: 2, mirror: "adv_start_screen" },
         { key: "startTempoRange", area: "START", label: "TEMPO RANGE AT START", kind: "choice", choices: [{ t: "LAST USED", v: 0 }, { t: "6%", v: 0.06 }, { t: "10%", v: 0.10 }, { t: "16%", v: 0.16 }, { t: "WIDE", v: 1.0 }], def: 0.06 },
         // ---- WAVEFORM ----
         { key: "waveFps", area: "WAVEFORM", label: "WAVEFORM FRAME RATE", kind: "choice", choices: [{ t: "30", v: 30 }, { t: "45", v: 45 }, { t: "60", v: 60 }], def: 60 },

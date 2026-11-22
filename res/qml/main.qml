@@ -36,6 +36,18 @@ ApplicationWindow {
         if (isMobile && Mixxx.Product.ui) {
             return;
         }
+        // FLXXX3 on the desktop: on the monitor chosen in ADVANCED SETTINGS > START (default
+        // the second one; the last one there is when it is not connected).
+        if (Mixxx.Product.ui) {
+            const screens = Qt.application.screens;
+            const wanted = parseInt(Mixxx.Config.androidSetting("adv_start_screen", "2")) || 2;
+            const target = screens[Math.max(0, Math.min(wanted, screens.length) - 1)];
+            if (target) {
+                root.screen = target;
+                root.x = target.virtualX;
+                root.y = target.virtualY;
+            }
+        }
         // FLXXX3 starts full screen everywhere (desktop: F11 switches to a maximized window).
         root.visibility = Mixxx.Config.configStartInFullscreenKey || isMobile || Mixxx.Product.ui
                 ? Window.FullScreen

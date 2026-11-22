@@ -14,7 +14,7 @@
 //
 // The script talks to it with SysEx that the MIDI controller keeps from the MIDI port:
 //   F0 7D 46 48 <report, 8 bit> F7          send this report to the screens
-//   F0 7D 46 57 <deck> F7                   upload the waveform of the deck's track
+//   F0 7D 46 57 <deck> [<grid 0/1>] F7      upload the waveform (and beat grid) of the deck's track
 //                                           (nothing when it is already uploaded or the
 //                                           track is not analysed yet: the script asks
 //                                           again every second)

@@ -285,6 +285,21 @@ TestCase {
         compare(engine.getValue("[AndroidDJ]", "deck_left"), 3);
     }
 
+    // The ring pointer of the jog screen turns once per bar (4 beats); the grid start is
+    // taken once, later beat_distance values (not in step with the position) change nothing.
+    function test_ringPointerTurnsOncePerBar() {
+        const g = "[Channel1]";
+        engine.set(g, "duration", 120);
+        engine.set(g, "file_bpm", 120);       // a beat every 0.5 s, first beat at 0.1 s
+        engine.set(g, "beat_distance", 0.25); // at 2.725 s: 0.1 s + 5.25 beats
+        verify(Math.abs(flx10.barPhase(g, 2.725 / 120) - 1.25 / 4) < 1e-6);
+        engine.set(g, "beat_distance", 0.9);  // out of step: ignored now
+        verify(Math.abs(flx10.barPhase(g, 4.35 / 120) - 0.5 / 4) < 1e-6);   // 8.5 beats
+        verify(Math.abs(flx10.barPhase(g, 4.0999 / 120) - 3.9998 / 4) < 1e-3);
+        engine.set(g, "file_bpm", 0);         // no grid: place in the track
+        compare(flx10.barPhase(g, 0.3), 0.3);
+    }
+
     // EQ and TRIM are absolute knobs: "selectknob" (relative) made them jump to the maximum.
     // Only the BROWSE knobs are relative.
     function test_onlyBrowseKnobIsRelative() {

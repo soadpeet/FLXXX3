@@ -617,10 +617,34 @@ PioneerDDJFLX10._jogSend14 = function(msbCC, lsbCC, value14) {
     midi.sendShortMsg(JOG_DISPLAY_CC, lsbCC, value14 & 0x7F);
 };
 
-// Rotating marker: playposition (0–1) mapped to 0–359 degrees
+// Rotating marker. FLXXX3: one turn per bar (4 beats), like the CDJ: the angle is the
+// place in the bar, from the position and the beat grid (one tempo; its first beat
+// counts as beat 1 of a bar). Where the grid starts is taken once per track from
+// beat_distance (it and the position are not updated at the same moment: taken each time
+// the beat number flipped at every beat). Without a beat grid: the place in the track.
+PioneerDDJFLX10._gridStart = {};
+PioneerDDJFLX10.barPhase = function(group, position) {
+    var duration = engine.getValue(group, "duration");
+    var bpm = engine.getValue(group, "file_bpm");
+    if (!(duration > 0) || !(bpm > 0)) {
+        return position;
+    }
+    var beatLength = 60 / bpm;
+    var seconds = position * duration;
+    var grid = PioneerDDJFLX10._gridStart[group];
+    if (!grid || grid.duration !== duration || grid.bpm !== bpm) {
+        var beatStart = seconds - engine.getValue(group, "beat_distance") * beatLength;
+        grid = {duration: duration, bpm: bpm,
+            start: ((beatStart % beatLength) + beatLength) % beatLength};
+        PioneerDDJFLX10._gridStart[group] = grid;
+    }
+    var beats = (seconds - grid.start) / beatLength;
+    var bar = beats / 4;
+    return bar - Math.floor(bar);
+};
 PioneerDDJFLX10.jogMarker = function(value, group, control) {
     var i = PioneerDDJFLX10._getDeckFromGroup(group) - 1;
-    var deg = Math.round(value * 359);
+    var deg = Math.round(PioneerDDJFLX10.barPhase(group, value) * 359);
     if (deg < 0) { deg = 0; }
     if (deg > 359) { deg = 359; }
     PioneerDDJFLX10._jogSend14(_JOG_MARKER_MSB[i], _JOG_MARKER_LSB[i], deg);
@@ -780,7 +804,9 @@ PioneerDDJFLX10.masterCue = function(channel, control, value, status) {
 // Not yet: the waveform on the screens (needs the track's waveform data, native).
 PioneerDDJFLX10.HID_SCREENS = true;
 PioneerDDJFLX10.screen = {
-    STATE_MS: 20,
+    STATE_MS: 10,
+    // steps of the ring pointer (byte 22) in one turn
+    POINTER_STEPS: 15,
     DECK_BYTE: [0x10, 0x20, 0x30, 0x40],
     // byte 31: which deck the report is for
     DECK_STATE: [0x02, 0x01, 0x04, 0x03],
@@ -798,11 +824,6 @@ PioneerDDJFLX10.screen = {
         0x0e, 0x0e, 0x05, 0x00, 0x01, 0xF7],
     timers: [],
     sent: {},
-    // Smoothed time of each deck: the position control comes in steps, the screen
-    // must not see the time go back (it redraws then).
-    anchorMs: {},
-    anchorAt: {},
-    lastPos: {},
 };
 
 PioneerDDJFLX10.screen.sendReport = function(report) {
@@ -814,34 +835,53 @@ PioneerDDJFLX10.screen.deckInit = function(deck) {
         0x02, 0x0e, 0x0e, 0x05, 0xF7];
 };
 
-// Elapsed time of the deck in ms of real time (tempo applied), smoothed.
+// Elapsed time of the deck in ms of real time (tempo applied). The exact position each
+// time: Mixxx updates it with every audio buffer. (A guess running at normal speed
+// between updates drifted while bending or scratching with the jog and then jumped back.)
 PioneerDDJFLX10.screen.elapsedMs = function(deck, group, duration, rate) {
     var pos = Math.max(0, Math.min(1, engine.getValue(group, "playposition")));
-    var exact = duration * pos / rate * 1000;
+    return duration * pos / rate * 1000;
+};
+
+// Position for the ring pointer, smooth between the updates of the position (they come
+// with the audio buffers, the timer of the script not evenly either): moved on with the
+// deck's measured speed; a jump (cue, loop, scratch) is taken over at once.
+PioneerDDJFLX10.screen.smooth = {};
+PioneerDDJFLX10.screen.smoothPosition = function(deck, group, duration) {
+    var exact = Math.max(0, Math.min(1, engine.getValue(group, "playposition")));
     var now = Date.now();
-    var playing = engine.getValue(group, "play") > 0;
-    if (!playing || this.anchorAt[deck] === undefined) {
-        this.anchorMs[deck] = exact;
-        this.anchorAt[deck] = now;
-        this.lastPos[deck] = pos;
+    var st = this.smooth[deck];
+    if (!st || !(duration > 0)) {
+        this.smooth[deck] = {pos: exact, at: now, lastExact: exact, lastExactAt: now, speed: 0};
         return exact;
     }
-    var guess = this.anchorMs[deck] + (now - this.anchorAt[deck]);
-    if (pos !== this.lastPos[deck]) {
-        this.lastPos[deck] = pos;
-        // A jump (cue, loop, seek) or the engine ahead of the guess: take it over.
-        if (Math.abs(exact - guess) > 500 || exact > guess) {
-            this.anchorMs[deck] = exact;
-            this.anchorAt[deck] = now;
-            return exact;
+    if (exact !== st.lastExact) {
+        // speed in position per ms, from the updates (low pass)
+        var dt = now - st.lastExactAt;
+        if (dt > 0 && dt < 200) {
+            var measured = (exact - st.lastExact) / dt;
+            st.speed = st.speed * 0.7 + measured * 0.3;
+        } else {
+            st.speed = 0;
         }
-    } else if (guess - exact > 300) {
-        // Position stands still while playing (held jog): stop counting.
-        this.anchorMs[deck] = exact;
-        this.anchorAt[deck] = now;
-        return exact;
+        st.lastExact = exact;
+        st.lastExactAt = now;
     }
-    return guess;
+    var guess = st.pos + st.speed * (now - st.at);
+    // more than 60 ms off: take the exact position
+    if (Math.abs(guess - exact) * duration > 0.06) {
+        guess = exact;
+    } else {
+        // pull gently towards the exact position
+        guess += (exact - guess) * 0.2;
+    }
+    if (engine.getValue(group, "play") <= 0 && !engine.isScratching(deck)) {
+        guess = exact;
+        st.speed = 0;
+    }
+    st.pos = guess;
+    st.at = now;
+    return Math.max(0, Math.min(1, guess));
 };
 
 // The xx 27 report of a deck with a track.
@@ -891,10 +931,14 @@ PioneerDDJFLX10.screen.stateReport = function(deck) {
     p[17] = (tempo >> 8) & 0xFF;
     p[19] = 0x07;
     p[20] = 0x0e;
-    // position counters of the firmware (1024 steps a second)
-    var ticks = sec * 1024 + Math.floor(sub * 1024 / 1000);
-    p[21] = (ticks * 2) & 0xFF;
-    p[22] = deck <= 2 ? Math.floor(ticks / 123.2) % 15 : 0;
+    // The pointer of the ring: byte 22 is its step (15 a turn, 0 = top), byte 21 the fine
+    // place within the step (0..255); measured on the device. Serato turns it like a
+    // record (1.8 s); FLXXX3: one turn per bar (4 beats), like the CDJ.
+    var steps = PioneerDDJFLX10.barPhase(group, this.smoothPosition(deck, group, duration)) *
+            this.POINTER_STEPS;
+    var step = Math.min(this.POINTER_STEPS - 1, Math.floor(steps));
+    p[22] = step;
+    p[21] = Math.min(255, Math.floor((steps - step) * 256));
     p[25] = 0x80;
     var key = engine.getValue(group, "key") | 0;
     p[29] = this.KEY_BYTE[key >= 1 && key <= 24 ? key : 0];
@@ -992,9 +1036,12 @@ PioneerDDJFLX10.screen.trackLoaded = function(deck) {
     grid[4] = 0x01;
     self.sendReport(grid);
     self.playheadSent[deck] = -1;
-    midi.sendSysexMsg([0xF0, 0x7D, 0x46, 0x57, deck, 0xF7], 6);
+    midi.sendSysexMsg([0xF0, 0x7D, 0x46, 0x57, deck, PioneerDDJFLX10.screen.BEAT_GRID ? 1 : 0,
+        0xF7], 7);
 };
 PioneerDDJFLX10.screen.loadedDuration = {};
+PioneerDDJFLX10.screen.PLAYHEAD_REPORTS = true;
+PioneerDDJFLX10.screen.BEAT_GRID = true;
 PioneerDDJFLX10.screen.playheadSent = {};
 
 // Every second: the waveform again (the app uploads it once the track is analysed).
@@ -1002,7 +1049,8 @@ PioneerDDJFLX10.screen.playheadSent = {};
 PioneerDDJFLX10.screen.waveTick = function() {
     for (var deck = 1; deck <= 4; deck++) {
         if (engine.getValue("[Channel" + deck + "]", "duration") > 0) {
-            midi.sendSysexMsg([0xF0, 0x7D, 0x46, 0x57, deck, 0xF7], 6);
+            midi.sendSysexMsg([0xF0, 0x7D, 0x46, 0x57, deck,
+                PioneerDDJFLX10.screen.BEAT_GRID ? 1 : 0, 0xF7], 7);
         }
     }
 };
@@ -1085,7 +1133,9 @@ PioneerDDJFLX10.screen.start = function() {
     }));
     self.timers.push(engine.beginTimer(self.STATE_MS, self.tick));
     self.timers.push(engine.beginTimer(1000, self.waveTick));
-    self.timers.push(engine.beginTimer(125, self.playheadTick));
+    if (self.PLAYHEAD_REPORTS) {
+        self.timers.push(engine.beginTimer(125, self.playheadTick));
+    }
 };
 
 PioneerDDJFLX10.screen.stop = function() {
