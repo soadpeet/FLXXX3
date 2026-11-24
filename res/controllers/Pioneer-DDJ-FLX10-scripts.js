@@ -242,7 +242,28 @@ PioneerDDJFLX10.init = function(id) {
     engine.makeConnection(PioneerDDJFLX10._beatFxGroup, "parameter1", function() {
         PioneerDDJFLX10.updateFxDisplay(false);
     });
+    // A newly loaded effect is switched on by the effect system a moment later: while the ON/OFF key
+    // is off that is undone (not during a tail). Otherwise the key follows the effect (switched on
+    // or off in the touch window): its LED is set and the state remembered.
+    engine.makeConnection(PioneerDDJFLX10._beatFxGroup, "enabled", function(value) {
+        var tail = PioneerDDJFLX10._beatFxTailTimer;
+        if (value > 0 && !PioneerDDJFLX10._beatFxActive && !tail &&
+                Date.now() - PioneerDDJFLX10._beatFxSelectAt < 2000) {
+            engine.setValue(PioneerDDJFLX10._beatFxGroup, "enabled", 0);
+            return;
+        }
+        var lit = value > 0 && !tail;
+        PioneerDDJFLX10._beatFxActive = lit;
+        midi.sendShortMsg(0x94, 0x46, lit ? 0x7F : 0x00);
+    });
     // Beat FX: read the position of the selector at the start and set the effect again later.
+    // After the start the app switches the Beat FX off (the effect system loads it on): the
+    // ON/OFF key follows the real state then (it latches by itself and may still be lit from before).
+    engine.beginTimer(16000, function() {
+        var on = engine.getValue(PioneerDDJFLX10._beatFxGroup, "enabled") > 0;
+        PioneerDDJFLX10._beatFxActive = on;
+        midi.sendShortMsg(0x94, 0x46, on ? 0x7F : 0x00);
+    }, true);
     [3000, 8000, 14000].forEach(function(ms) {
         engine.beginTimer(ms, PioneerDDJFLX10.reapplyBeatFxPosition, true);
     });
@@ -2179,58 +2200,49 @@ PioneerDDJFLX10._initEqKillLeds = function() {
     }
 };
 
-// ─── Master EQ kill (applies to ALL channels) ───────────────────────────────
-// The master section's STEM buttons (notes 0x1B/0x1C/0x1D on status 0x96) have
-// no stem use; map them to LOW/MID/HIGH kills across ALL 4 decks at once (Mixxx
-// has no master EQ kill). Default = lit (bands on). Press kills the band on every
-// deck; press again restores it everywhere. LED stays lit unless killed on all 4.
+// ─── FX PART SELECT: the bands of the Beat FX ───────────────────────────────
+// FLXXX3: the DRUMS / VOCAL / INST buttons (notes 0x1C / 0x1B / 0x1D on status 0x96) switch the
+// LOW / MID / HIGH band of the Beat FX on and off ([EffectRack1_EffectUnit1] bands: 1 low, 2 mid,
+// 4 high; the same as the LOW / MID / HI fields of the Beat FX window). The buttons latch: Note ON
+// = lit = band on. One band always stays on.
 PioneerDDJFLX10._MASTER_EQ_STATUS = 0x96;
 PioneerDDJFLX10._MASTER_EQ_KILL = [
-    {note: 0x1B, param: "button_parameter2"},  // 27 = Vocal → Mid
-    {note: 0x1C, param: "button_parameter1"},  // 28 = Drums → Low
-    {note: 0x1D, param: "button_parameter3"}   // 29 = Inst  → High
+    {note: 0x1B, bit: 2},  // VOCAL -> mid
+    {note: 0x1C, bit: 1},  // DRUMS -> low
+    {note: 0x1D, bit: 4}   // INST  -> high
 ];
-PioneerDDJFLX10._masterBandAllKilled = function(param) {
-    for (var d = 1; d <= PioneerDDJFLX10.numDecks; d++) {
-        if (engine.getValue(PioneerDDJFLX10._eqGroup(d), param) <= 0) {
-            return false;
-        }
-    }
-    return true;
-};
 PioneerDDJFLX10._renderMasterEqKillLed = function(idx) {
-    var allKilled = PioneerDDJFLX10._masterBandAllKilled(
-        PioneerDDJFLX10._MASTER_EQ_KILL[idx].param);
+    var mask = Math.round(engine.getValue("[EffectRack1_EffectUnit1]", "bands"));
     midi.sendShortMsg(PioneerDDJFLX10._MASTER_EQ_STATUS,
                       PioneerDDJFLX10._MASTER_EQ_KILL[idx].note,
-                      allKilled ? 0x00 : 0x7F);   // lit unless killed on all decks
+                      (mask & PioneerDDJFLX10._MASTER_EQ_KILL[idx].bit) ? 0x7F : 0x00);
 };
 PioneerDDJFLX10.masterEqKill = function(channel, control, value, status, group) {
-    // Latching button: Note ON (status 0x9n, vel>0) = lit = band ON; Note OFF
-    // (status 0x8n, or vel 0) = unlit = band KILLED. Set the kill to match the
-    // button's reported state (don't toggle) so one press = one change.
     var lit = ((status & 0xF0) === 0x90) && (value > 0);
+    var unit = "[EffectRack1_EffectUnit1]";
     for (var i = 0; i < PioneerDDJFLX10._MASTER_EQ_KILL.length; i++) {
         if (PioneerDDJFLX10._MASTER_EQ_KILL[i].note === control) {
-            var p = PioneerDDJFLX10._MASTER_EQ_KILL[i].param;
-            for (var d = 1; d <= PioneerDDJFLX10.numDecks; d++) {
-                engine.setValue(PioneerDDJFLX10._eqGroup(d), p, lit ? 0 : 1);
+            var bit = PioneerDDJFLX10._MASTER_EQ_KILL[i].bit;
+            var mask = Math.round(engine.getValue(unit, "bands"));
+            var next = lit ? (mask | bit) : (mask & ~bit);
+            if (next === 0) {
+                // the last band stays on: the button is lit again
+                PioneerDDJFLX10._renderMasterEqKillLed(i);
+                return;
             }
-            return;   // master + per-deck LEDs update via their connections
+            engine.setValue(unit, "bands", next);
+            return;   // the LEDs follow the control
         }
     }
 };
 PioneerDDJFLX10._initMasterEqKillLeds = function() {
+    engine.makeConnection("[EffectRack1_EffectUnit1]", "bands", function() {
+        for (var i = 0; i < PioneerDDJFLX10._MASTER_EQ_KILL.length; i++) {
+            PioneerDDJFLX10._renderMasterEqKillLed(i);
+        }
+    });
     for (var i = 0; i < PioneerDDJFLX10._MASTER_EQ_KILL.length; i++) {
-        (function(idx){
-            for (var d = 1; d <= PioneerDDJFLX10.numDecks; d++) {
-                engine.makeConnection(PioneerDDJFLX10._eqGroup(d),
-                    PioneerDDJFLX10._MASTER_EQ_KILL[idx].param, function(){
-                        PioneerDDJFLX10._renderMasterEqKillLed(idx);
-                    });
-            }
-            PioneerDDJFLX10._renderMasterEqKillLed(idx);   // seed current LED state
-        })(i);
+        PioneerDDJFLX10._renderMasterEqKillLed(i);   // seed current LED state
     }
 };
 
@@ -2371,8 +2383,10 @@ PioneerDDJFLX10.beatFxPad = function(channel, control, value, _status, _group) {
     PioneerDDJFLX10._beatFxKeysUsed = false;
     PioneerDDJFLX10.selectBeatFxPosition(position);
 };
+PioneerDDJFLX10._beatFxSelectAt = 0;
 PioneerDDJFLX10.selectBeatFxPosition = function(position) {
     PioneerDDJFLX10._beatFxPosition = position;
+    PioneerDDJFLX10._beatFxSelectAt = Date.now();
     // The list of the app shows which position is chosen (also for ROLL and SLIP ROLL).
     engine.setValue("[AndroidDJ]", "beat_fx_selected", position + 1);
     // ADVANCED SETTINGS > BEAT FX: the effect of this position (0 = none).
@@ -2431,12 +2445,11 @@ PioneerDDJFLX10._beatFxTailMs = function(loaded) {
 
 // ON/OFF (0x94 0x46 / 0x47; one press = one change). OFF lets DELAY, ECHO, PING
 // PONG, SPIRAL and REVERB ring out: no new sound goes in (depth 0), then it stops.
-PioneerDDJFLX10.beatFxOnOff = function(channel, control, value, _status, _group) {
-    if (value === 0) {
-        return;
-    }
+PioneerDDJFLX10.beatFxOnOff = function(channel, control, value, status, _group) {
+    // The ON/OFF key latches by itself: Note ON with velocity > 0 = lit = on, velocity 0 = unlit = off
+    // (one press = one message; the old "toggle on every message" lost every second press).
     var group = PioneerDDJFLX10._beatFxGroup;
-    PioneerDDJFLX10._beatFxActive = !PioneerDDJFLX10._beatFxActive;
+    PioneerDDJFLX10._beatFxActive = ((status & 0xF0) === 0x90) && value > 0;
     engine.setValue("[EffectRack1_EffectUnit1]", "focused_effect", 1);
     if (PioneerDDJFLX10._beatFxActive) {
         PioneerDDJFLX10._cancelBeatFxTail(true);

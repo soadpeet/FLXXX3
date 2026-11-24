@@ -31,6 +31,8 @@ Rectangle {
     // Something was changed (effect, time, level, bands, channel ...): the
     // window of the button shows the panel.
     signal activity()
+    // The whole window is wanted (a band button of the controller was pressed).
+    signal windowRequested()
     // Beat value of the effect (1/8 .. 2 beats, as the time parameter of the
     // delay effects) and the time that it makes. For the delay effects it
     // follows the parameter (BEAT buttons of the controller).
@@ -94,6 +96,23 @@ Rectangle {
     // The effect chain only works on the selected bands (1 low, 2 mid, 4 high).
     readonly property int bandMask: (root.bandLow ? 1 : 0) | (root.bandMid ? 2 : 0) | (root.bandHigh ? 4 : 0)
     onBandMaskChanged: fxBands.value = root.bandMask
+    // The FX PART SELECT buttons of the DDJ-FLX10 change the bands, too.
+    Connections {
+        function onValueChanged() {
+            const mask = Math.round(fxBands.value);
+            if (mask === root.bandMask || mask < 1 || mask > 7)
+                return;
+            root.bandLow = (mask & 1) !== 0;
+            root.bandMid = (mask & 2) !== 0;
+            root.bandHigh = (mask & 4) !== 0;
+            root.windowRequested();
+            Mixxx.Config.setAndroidSetting("bandLow", root.bandLow ? "1" : "0");
+            Mixxx.Config.setAndroidSetting("bandMid", root.bandMid ? "1" : "0");
+            Mixxx.Config.setAndroidSetting("bandHigh", root.bandHigh ? "1" : "0");
+        }
+
+        target: fxBands
+    }
     readonly property real effectMsec: root.anyLoaded
             ? 60000 / root.masterBpm * root.beatValues[root.beatIndex]
             : 2000

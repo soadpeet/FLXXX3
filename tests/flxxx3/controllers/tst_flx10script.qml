@@ -135,6 +135,20 @@ TestCase {
         compare(flx10.fxBeatText(12), "-2");
     }
 
+    // FX PART SELECT: DRUMS / VOCAL / INST switch the low / mid / high band of the Beat FX.
+    function test_fxPartSelectBands() {
+        const u = "[EffectRack1_EffectUnit1]";
+        engine.set(u, "bands", 7);
+        flx10.masterEqKill(6, 0x1C, 0x00, 0x96, "[Master]");   // DRUMS off: low off
+        compare(engine.getValue(u, "bands"), 6);
+        flx10.masterEqKill(6, 0x1D, 0x00, 0x96, "[Master]");   // INST off: high off
+        compare(engine.getValue(u, "bands"), 2);
+        flx10.masterEqKill(6, 0x1B, 0x00, 0x96, "[Master]");   // the last band stays on
+        compare(engine.getValue(u, "bands"), 2);
+        flx10.masterEqKill(6, 0x1C, 0x7F, 0x96, "[Master]");   // DRUMS on again
+        compare(engine.getValue(u, "bands"), 3);
+    }
+
     // A position taken from ADVANCED SETTINGS > BEAT FX.
     function test_beatFxPositionFromSettings() {
         const g = "[EffectRack1_EffectUnit1_Effect1]";
@@ -160,7 +174,7 @@ TestCase {
         flx10.beatFxPad(4, 0x21, 0x7F, 0x94, g);   // position 2: ECHO, still on
         compare(engine.getValue(g, "loaded_effect"), 2);
         compare(engine.getValue(g, "enabled"), 1);
-        flx10.beatFxOnOff(4, 0x47, 0x7F, 0x94, g); // OFF: ECHO rings out
+        flx10.beatFxOnOff(4, 0x47, 0x00, 0x94, g); // OFF: ECHO rings out
         compare(engine.getValue(g, "meta"), 0);
         engine.runTimers();
         compare(engine.getValue(g, "enabled"), 0);

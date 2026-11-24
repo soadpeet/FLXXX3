@@ -50,6 +50,15 @@ Rectangle {
             return;
         win.close();
     }
+    // The whole window (not only the list of the effects), e.g. for the band buttons of the controller.
+    function openFull() {
+        if (!root.windowEnabled)
+            return;
+        root.listOnly = false;
+        if (!win.opened)
+            win.open();
+        root.keep();
+    }
     function touched() {
         root.keep();
     }
@@ -189,6 +198,7 @@ Rectangle {
                 width: win.width
 
                 onActivity: root.activity()
+                onWindowRequested: root.openFull()
                 onPresetModeRequested: mode => root.presetModeRequested(mode)
             }
             // Opened by FX SELECT: the window closes together with the list of effects.
