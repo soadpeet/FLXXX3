@@ -195,6 +195,30 @@ TestCase {
         compare(flx10.rb.rateCode(1), [0x10, 0x4E, 0]);   // 10000 = 0x2710
     }
 
+    // The jog display of the DDJ-FLX10 gets BPM, tempo % and range like rekordbox (values from
+    // a capture of rekordbox moving the tempo fader) and the key of the track, not the shifted one.
+    function test_jogDisplayTempoBpmRangeKey() {
+        engine.set("[Channel1]", "duration", 200);
+        engine.set("[Channel1]", "bpm", 164.31);
+        engine.set("[Channel1]", "rate_ratio", 1.0399);
+        engine.set("[Channel1]", "rateRange", 0.10);
+        engine.set("[Channel1]", "file_key", 12);
+        engine.set("[Channel1]", "key", 3);               // the shifted key is not shown
+        const p = flx10.rb.state(1);
+        compare(p[21], 164);
+        compare(p[22], 0x30);
+        compare(p[23] + 256 * p[24], 399);                // +3.99 %
+        compare(p[4] >> 4, 2);                            // 10 %
+        engine.set("[Channel1]", "rate_ratio", 0.9);
+        engine.set("[Channel1]", "rateRange", 1.0);
+        const q = flx10.rb.state(1);
+        compare(q[23] + 256 * q[24], 65536 - 1000);       // -10.00 %
+        compare(q[4] >> 4, 4);                            // WIDE
+        const same = flx10.rb.state(1);
+        engine.set("[Channel1]", "key", 9);
+        compare(flx10.rb.state(1)[60], same[60]);
+    }
+
     // The jog screens get their waveform again at another tempo only when the tempo stood still
     // for a moment (otherwise the USB connection of the controller was flooded while the tempo
     // fader moved).
@@ -477,7 +501,7 @@ TestCase {
         engine.set(g, "playposition", 0.5);   // 100 s = 1:40.000
         engine.set(g, "rate_ratio", 1);
         engine.set(g, "bpm", 163);
-        engine.set(g, "key", 18);             // F minor = 4A
+        engine.set(g, "file_key", 18);           // F minor = 4A
         engine.set(g, "play", 1);
         flx10.init();
         verify(midi.sysex.some(function(m) { return m[10] === 0x0b && m[11] === 0x35; }),

@@ -1368,8 +1368,26 @@ PioneerDDJFLX10.rb.state = function(deck) {
     for (var i = 0; i < 4; i++) {
         p[15 + i] = length[i];
     }
-    var key = engine.getValue(group, "key") | 0;
+    // The key of the track as it is (rekordbox shows it unchanged while the tempo fader moves;
+    // the "key" control of Mixxx follows the tempo and flipped between keys).
+    var key = engine.getValue(group, "file_key") | 0;
     p[60] = PioneerDDJFLX10.screen.KEY_BYTE[key >= 1 && key <= 24 ? key : 0];
+    // Tempo, as rekordbox sends it (read from a capture with moves of the tempo fader):
+    // b21 = BPM (whole), b22 = tenth << 4, b23 + 256 * b24 = tempo in 1/100 % (signed),
+    // b4 high nibble = tempo range (1 = 6 %, 2 = 10 %, 3 = 16 %, 4 = WIDE).
+    var bpm = Math.max(0, engine.getValue(group, "bpm"));
+    var whole = Math.min(255, Math.floor(bpm + 1e-6));
+    p[21] = whole;
+    p[22] = Math.min(9, Math.floor((bpm - whole) * 10 + 1e-6)) << 4;
+    var hundredths = Math.max(-32768, Math.min(32767, Math.round((rate - 1) * 10000)));
+    if (hundredths < 0) {
+        hundredths += 65536;
+    }
+    p[23] = hundredths & 0xFF;
+    p[24] = (hundredths >> 8) & 0xFF;
+    var range = engine.getValue(group, "rateRange");
+    var rangeCode = range >= 0.99 ? 4 : (range >= 0.15 ? 3 : (range >= 0.09 ? 2 : 1));
+    p[4] = (rangeCode << 4) | (p[4] & 0x0F);
     return p;
 };
 
