@@ -1491,12 +1491,29 @@ PioneerDDJFLX10.rb.tick = function() {
 
 // Every second: BPM (tempo fader) and the waveform again (once analysed; again at another
 // tempo, like rekordbox).
+// The waveform of the jog screens is sent again at another tempo, but only when the tempo stood
+// still for a moment: while the tempo fader is moved, an upload every second filled the USB
+// connection of the controller with screen data and its MIDI messages came late (the tempo
+// fader hung, the tempo changed with a delay).
+PioneerDDJFLX10.rb.STABLE_MS = 1500;
+PioneerDDJFLX10.rb.rateSeen = {};
+PioneerDDJFLX10.rb.rateSeenAt = {};
 PioneerDDJFLX10.rb.slowTick = function() {
     var self = PioneerDDJFLX10.rb;
     for (var deck = 1; deck <= 4; deck++) {
         if (engine.getValue("[Channel" + deck + "]", "duration") > 0) {
             self.sendBpm(deck);
-            self.upload(deck);
+            var code = Math.round(engine.getValue("[Channel" + deck + "]", "rate_ratio") * 10000);
+            if (self.rateSeen[deck] === undefined) {
+                self.rateSeen[deck] = code;
+                self.rateSeenAt[deck] = 0;
+            } else if (self.rateSeen[deck] !== code) {
+                self.rateSeen[deck] = code;
+                self.rateSeenAt[deck] = Date.now();
+            }
+            if (Date.now() - self.rateSeenAt[deck] >= self.STABLE_MS) {
+                self.upload(deck);
+            }
         }
     }
 };

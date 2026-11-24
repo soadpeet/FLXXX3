@@ -195,6 +195,30 @@ TestCase {
         compare(flx10.rb.rateCode(1), [0x10, 0x4E, 0]);   // 10000 = 0x2710
     }
 
+    // The jog screens get their waveform again at another tempo only when the tempo stood still
+    // for a moment (otherwise the USB connection of the controller was flooded while the tempo
+    // fader moved).
+    function test_waveformUploadWaitsForAStableTempo() {
+        engine.set("[Channel1]", "duration", 200);
+        engine.set("[Channel1]", "rate_ratio", 1);
+        const rb = flx10.rb;
+        rb.slowTick();                                   // first look: nothing is waiting
+        const sysex = function() {
+            return midi.sysex.filter(function(m) { return m[3] === 0x52 && m[4] === 1; }).length;
+        };
+        const first = sysex();
+        engine.set("[Channel1]", "rate_ratio", 1.05);
+        engine.clockMs += 1000;
+        rb.slowTick();                                   // the tempo changed just now
+        compare(sysex(), first);
+        engine.clockMs += 1000;
+        rb.slowTick();                                   // 1 s still: not yet
+        compare(sysex(), first);
+        engine.clockMs += 1000;
+        rb.slowTick();                                   // 2 s still: now
+        compare(sysex(), first + 1);
+    }
+
     // A fast moving tempo fader sets the tempo at most every 25 ms; the last position follows.
     function test_tempoFaderIsThrottled() {
         for (let i = 0; i < 10; ++i)
