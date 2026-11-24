@@ -247,14 +247,25 @@ PioneerDDJFLX10.init = function(id) {
     // or off in the touch window): its LED is set and the state remembered.
     engine.makeConnection(PioneerDDJFLX10._beatFxGroup, "enabled", function(value) {
         var tail = PioneerDDJFLX10._beatFxTailTimer;
+        if (tail) {
+            // The effect rings out (switched off by the key). Switched off in the touch window now:
+            // the ring out ends, the depth is back. (Otherwise the timer of the ring out would
+            // switch the effect off again a moment after it was switched on by touch, with the
+            // depth still at 0: blue, but no sound.)
+            if (value <= 0) {
+                PioneerDDJFLX10._cancelBeatFxTail(true);
+                PioneerDDJFLX10._beatFxActive = false;
+                PioneerDDJFLX10._setBeatFxLed(false);
+            }
+            return;
+        }
         if (value > 0 && !PioneerDDJFLX10._beatFxActive && !tail &&
                 Date.now() - PioneerDDJFLX10._beatFxSelectAt < 2000) {
             engine.setValue(PioneerDDJFLX10._beatFxGroup, "enabled", 0);
             return;
         }
-        var lit = value > 0 && !tail;
-        PioneerDDJFLX10._beatFxActive = lit;
-        midi.sendShortMsg(0x94, 0x46, lit ? 0x7F : 0x00);
+        PioneerDDJFLX10._beatFxActive = value > 0 && !tail;
+        PioneerDDJFLX10._setBeatFxLed(value > 0 && !tail);
     });
     // Beat FX: read the position of the selector at the start and set the effect again later.
     // After the start the app switches the Beat FX off (the effect system loads it on): the
@@ -262,10 +273,22 @@ PioneerDDJFLX10.init = function(id) {
     engine.beginTimer(16000, function() {
         var on = engine.getValue(PioneerDDJFLX10._beatFxGroup, "enabled") > 0;
         PioneerDDJFLX10._beatFxActive = on;
-        midi.sendShortMsg(0x94, 0x46, on ? 0x7F : 0x00);
+        PioneerDDJFLX10._setBeatFxLed(on, true);
     }, true);
     [3000, 8000, 14000].forEach(function(ms) {
         engine.beginTimer(ms, PioneerDDJFLX10.reapplyBeatFxPosition, true);
+    });
+    PioneerDDJFLX10._setBeatFxLed(false, true);
+    engine.makeConnection("[AndroidDJ]", "color_fx_on", function() {
+        PioneerDDJFLX10.renderColorFxLeds(false);
+    });
+    engine.makeConnection("[AndroidDJ]", "color_fx", function() {
+        PioneerDDJFLX10.renderColorFxLeds(false);
+    });
+    [1000, 4000, 9000, 16000].forEach(function(ms) {
+        engine.beginTimer(ms, function() {
+            PioneerDDJFLX10.renderColorFxLeds(true);
+        }, true);
     });
     // FLXXX3: repeats the last level every 40 ms (vu_meter changes only every 70-200 ms), so the
     // LEDs do not fall back; rekordbox sends it all the time. (Not checked whether needed.)
@@ -1975,6 +1998,21 @@ PioneerDDJFLX10._colorFxNoteToPreset = {
     5: 11   // Filter  → Filter
 };
 
+// The LEDs of the six Color FX keys (notes 0x00..0x05 on status 0x96) keep their state over a restart
+// of the app: the key of the running Color FX blinks (0x7F), the others stay lit (0x00); the state
+// is sent again a few times after the start.
+PioneerDDJFLX10._colorFxLeds = [-1, -1, -1, -1, -1, -1];
+PioneerDDJFLX10.renderColorFxLeds = function(force) {
+    var on = engine.getValue("[AndroidDJ]", "color_fx_on") > 0;
+    var selected = Math.round(engine.getValue("[AndroidDJ]", "color_fx"));
+    for (var i = 0; i < 6; i++) {
+        var value = (on && i === selected) ? 0x7F : 0x00;
+        if (force || PioneerDDJFLX10._colorFxLeds[i] !== value) {
+            PioneerDDJFLX10._colorFxLeds[i] = value;
+            midi.sendShortMsg(0x96, i, value);
+        }
+    }
+};
 PioneerDDJFLX10.soundColorFx = function(channel, control, value, status, group) {
     var channels = PioneerDDJFLX10._colorFxChannels;
     var i;
@@ -2342,7 +2380,11 @@ PioneerDDJFLX10.soundColorFx = function(channel, control, value, status, _group)
         return;
     }
     var on = ((status & 0xF0) === 0x90) && value > 0;
-    if (on) {
+    if (on && Math.round(engine.getValue("[AndroidDJ]", "color_fx")) === control &&
+            engine.getValue("[AndroidDJ]", "color_fx_on") > 0) {
+        // the same key again: off (the key does not send a Note OFF when the app sets its LED)
+        engine.setValue("[AndroidDJ]", "color_fx_on", 0);
+    } else if (on) {
         engine.setValue("[AndroidDJ]", "color_fx", control);
         engine.setValue("[AndroidDJ]", "color_fx_on", 1);
     } else if (Math.round(engine.getValue("[AndroidDJ]", "color_fx")) === control) {
@@ -2445,11 +2487,40 @@ PioneerDDJFLX10._beatFxTailMs = function(loaded) {
 
 // ON/OFF (0x94 0x46 / 0x47; one press = one change). OFF lets DELAY, ECHO, PING
 // PONG, SPIRAL and REVERB ring out: no new sound goes in (depth 0), then it stops.
+// The LED of the ON/OFF key (found out with the DDJ-FLX4 script): the value 0x7F makes it blink
+// (by itself) = effect on, 0x00 makes it stay lit = effect off. It keeps the last state over a
+// restart of the app, so the state is sent again a few times after the start.
+PioneerDDJFLX10._beatFxLedValue = -1;
+// The FLX10 answers a new LED value of the key with a press of its own (127 and 0, a few ms
+// later). That is no press of the user: ignored for a moment after the LED was set (otherwise
+// the effect would be switched back at once).
+PioneerDDJFLX10._beatFxLedAt = 0;
+PioneerDDJFLX10.BEAT_FX_LED_ECHO_MS = 150;
+PioneerDDJFLX10._setBeatFxLed = function(on, force) {
+    var value = on ? 0x7F : 0x00;
+    if (!force && PioneerDDJFLX10._beatFxLedValue === value) {
+        return;
+    }
+    PioneerDDJFLX10._beatFxLedValue = value;
+    PioneerDDJFLX10._beatFxLedAt = Date.now();
+    midi.sendShortMsg(0x94, 0x46, value);
+    midi.sendShortMsg(0x94, 0x47, value);
+};
 PioneerDDJFLX10.beatFxOnOff = function(channel, control, value, status, _group) {
-    // The ON/OFF key latches by itself: Note ON with velocity > 0 = lit = on, velocity 0 = unlit = off
-    // (one press = one message; the old "toggle on every message" lost every second press).
+    // The key latches inside the FLX10: a press sends the new state, 0x7F = ON, 0x00 = OFF
+    // (seen in the log: with the LED blinking = on, a press sends 0x00). The app sets that state
+    // with the LED; the FLX10 then answers with the same value a few ms later, which is ignored.
+    // A value that is already the state (also sent once after the start) changes nothing.
+    if (Date.now() - PioneerDDJFLX10._beatFxLedAt < PioneerDDJFLX10.BEAT_FX_LED_ECHO_MS) {
+        return;
+    }
     var group = PioneerDDJFLX10._beatFxGroup;
-    PioneerDDJFLX10._beatFxActive = ((status & 0xF0) === 0x90) && value > 0;
+    var running = engine.getValue(group, "enabled") > 0 && !PioneerDDJFLX10._beatFxTailTimer;
+    if ((value > 0) === running) {
+        return;
+    }
+    PioneerDDJFLX10._beatFxActive = !running;
+    PioneerDDJFLX10._setBeatFxLed(PioneerDDJFLX10._beatFxActive);
     engine.setValue("[EffectRack1_EffectUnit1]", "focused_effect", 1);
     if (PioneerDDJFLX10._beatFxActive) {
         PioneerDDJFLX10._cancelBeatFxTail(true);
@@ -2457,7 +2528,9 @@ PioneerDDJFLX10.beatFxOnOff = function(channel, control, value, status, _group) 
         return;
     }
     var loaded = engine.getValue(group, "loaded_effect");
-    if (engine.getValue(group, "enabled") > 0 && ((loaded >= 1 && loaded <= 4) || loaded === 6 || loaded === 11)) {
+    // ADVANCED SETTINGS > BEAT FX > RING OUT AFTER OFF (on by default): otherwise the effect stops at once.
+    if (engine.getValue("[AndroidDJ]", "beat_fx_tail") > 0 && engine.getValue(group, "enabled") > 0 &&
+            ((loaded >= 1 && loaded <= 4) || loaded === 6 || loaded === 11)) {
         PioneerDDJFLX10._cancelBeatFxTail(true);
         PioneerDDJFLX10._beatFxTailMeta = engine.getValue(group, "meta");
         engine.setValue(group, "meta", 0);

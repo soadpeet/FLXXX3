@@ -174,7 +174,14 @@ TestCase {
         flx10.beatFxPad(4, 0x21, 0x7F, 0x94, g);   // position 2: ECHO, still on
         compare(engine.getValue(g, "loaded_effect"), 2);
         compare(engine.getValue(g, "enabled"), 1);
-        flx10.beatFxOnOff(4, 0x47, 0x00, 0x94, g); // OFF: ECHO rings out
+        engine.set("[AndroidDJ]", "beat_fx_tail", 1);
+        // The FLX10 answers the new LED with a press of its own a few ms later: no change.
+        flx10.beatFxOnOff(4, 0x47, 0x7F, 0x94, g);
+        compare(engine.getValue(g, "enabled"), 1);
+        flx10._beatFxLedAt = 0;                    // a real press later sends the new state
+        flx10.beatFxOnOff(4, 0x47, 0x7F, 0x94, g); // "on" while on: no change
+        compare(engine.getValue(g, "enabled"), 1);
+        flx10.beatFxOnOff(4, 0x47, 0x00, 0x94, g); // OFF, ECHO rings out
         compare(engine.getValue(g, "meta"), 0);
         engine.runTimers();
         compare(engine.getValue(g, "enabled"), 0);

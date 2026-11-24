@@ -155,6 +155,7 @@ PlayerManager::PlayerManager(UserSettingsPointer pConfig,
         double defaultValue;
     };
     for (const JogControl& jog : {JogControl{"backspin_on", 1.0},
+                 JogControl{"beat_fx_tail", 1.0},
                  JogControl{"beat_fx_signed", 0.0},
                  JogControl{"beat_fx_selected", 0.0},
                  JogControl{"beat_fx_pos1", 11.0},

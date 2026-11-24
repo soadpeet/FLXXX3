@@ -311,7 +311,10 @@ void MidiController::receivedShortMessage(unsigned char status,
                 QStringLiteral("controller_activity"));
         static std::atomic<qint64> s_lastMs{0};
         const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
-        if (nowMs - s_lastMs.load() >= 100) {
+        // Buttons count at most every 100 ms; faders, knobs and jogs (they send hundreds of
+        // messages a second) at most every 400 ms.
+        const bool isButton = opCode == MidiOpCode::NoteOn || opCode == MidiOpCode::NoteOff;
+        if (nowMs - s_lastMs.load() >= (isButton ? 100 : 400)) {
             s_lastMs.store(nowMs);
             s_activity.set(s_activity.get() + 1.0);
         }
@@ -407,9 +410,17 @@ void MidiController::processInputMapping(const MidiInputMapping& mapping,
     const bool mapping_is_14bit = mapping.options &
             (MidiOption::FourteenBitMSB | MidiOption::FourteenBitLSB);
     if (!mapping_is_14bit && !m_fourteen_bit_queued_mappings.isEmpty()) {
+#ifndef FLXXX3
+        // FLXXX3: the DDJ-FLX10 interleaves the halves of several knobs when they move together;
+        // up to 400 warnings a second went to the log (the debug level shows them).
         qCWarning(m_logBase) << "MidiController was waiting for the MSB/LSB of a 14-bit"
                              << "message but the next message received was not mapped as 14-bit."
                              << "Ignoring the original message.";
+#else
+        qCDebug(m_logBase) << "MidiController was waiting for the MSB/LSB of a 14-bit"
+                           << "message but the next message received was not mapped as 14-bit."
+                           << "Ignoring the original message.";
+#endif
         m_fourteen_bit_queued_mappings.clear();
     }
 
