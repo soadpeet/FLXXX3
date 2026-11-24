@@ -1,5 +1,8 @@
 #pragma once
 
+#include <array>
+#include <vector>
+
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -65,7 +68,25 @@ class WaveformRendererSignalBase : public QObject, public WaveformRendererAbstra
 #ifdef FLXXX3
     // FLXXX3: fixed gain that scales the loudest point of the whole
     // track up to just below the beat ticks.
-    float trackAutoGain(const Waveform* pWaveform, int dataSize, bool threeBand = false);
+    static float trackAutoGain(const Waveform* pWaveform, int dataSize, bool threeBand = false);
+
+  public:
+    // ADVANCED SETTINGS > WAVEFORM: the layer heights (low, mid, high, inner mid; 0..255 each,
+    // before the layer sizes of the settings) of `columns` columns of a track, from
+    // `firstFrame` over `frameSpan` visual frames, the same way as in the drawing
+    // (waveformrendererfiltered.cpp). `gain` is the height factor of the track.
+    struct ExampleColumns {
+        bool valid = false;
+        bool threeBand = false;
+        float gain = 1.f;
+        std::vector<std::array<float, 4>> layers;
+    };
+    static ExampleColumns exampleColumns(const Waveform* pWaveform,
+            double firstFrame,
+            double frameSpan,
+            int columns);
+
+  protected:
 #endif
     void getGains(float* pAllGain,
             float* pLowGain,

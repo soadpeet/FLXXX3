@@ -22,6 +22,16 @@ WaveformRendererFiltered::WaveformRendererFiltered(
           m_bRgbStacked(bRgbStacked) {
     initForRectangles<RGBMaterial>(0);
     setUsePreprocess(true);
+#ifdef FLXXX3
+    const auto layerSize = [](const char* key) {
+        return std::make_unique<ControlProxy>(
+                ConfigKey(QStringLiteral("[AndroidDJ]"), QString::fromLatin1(key)));
+    };
+    m_pSizeLow = layerSize("wave_size_low");
+    m_pSizeMid = layerSize("wave_size_mid");
+    m_pSizeBrown = layerSize("wave_size_brown");
+    m_pSizeHigh = layerSize("wave_size_high");
+#endif
 }
 
 void WaveformRendererFiltered::onSetup(const QDomNode&) {
@@ -237,9 +247,19 @@ bool WaveformRendererFiltered::preprocessInner() {
                 // Layer heights measured against Rekordbox (same track and
                 // section, 2026-11-09): cream ~18 %, orange ~18 %, blue ~60 % of
                 // the column height. Cream and mid were too tall before.
-                amplitude[3][chn] = amplitude[1][chn] * 0.54f; // mid in brown
+                // Like Rekordbox all four colours (compared with a drop and a break): the part
+                // of the mid band that goes with the lows is brown, the rest is orange (in
+                // a break without lows the mid is all orange, in a drop it is brown).
+                const float mid = amplitude[1][chn] * 0.54f;
+                const float withLow = 0.55f * amplitude[0][chn];
+                amplitude[3][chn] = std::min(mid, withLow);    // brown
+                amplitude[1][chn] = std::max(0.f, mid - withLow); // orange
                 amplitude[2][chn] *= 0.45f;                    // high in cream
-                amplitude[1][chn] = 0.f;                       // the orange layer is not used
+                // Layer sizes matched to Rekordbox (set by eye with the former sliders of
+                // ADVANCED SETTINGS > WAVEFORM: orange 2.0, brown 1.7, white 2.0, blue 1.0).
+                amplitude[1][chn] *= 2.0f;
+                amplitude[3][chn] *= 1.7f;
+                amplitude[2][chn] *= 2.0f;
             }
         } else {
         // Proportions of the layers, from the outside in: blue (low, small
@@ -255,6 +275,18 @@ bool WaveformRendererFiltered::preprocessInner() {
             amplitude[3][chn] = amplitude[1][chn] * 0.7f;
             amplitude[2][chn] = std::min(amplitude[2][chn], amplitude[1][chn] * 0.4f);
         }
+        }
+        {
+            // ADVANCED SETTINGS > WAVEFORM: the size of each layer (not above the full height)
+            const float size[4] = {static_cast<float>(m_pSizeLow->get()),
+                    static_cast<float>(m_pSizeMid->get()),
+                    static_cast<float>(m_pSizeHigh->get()),
+                    static_cast<float>(m_pSizeBrown->get())};
+            for (int layer = 0; layer < 4; layer++) {
+                for (int chn = 0; chn < 2; chn++) {
+                    amplitude[layer][chn] = std::min(255.f, amplitude[layer][chn] * size[layer]);
+                }
+            }
         }
         const int order[4] = {0, 1, 3, 2};
         for (int rank = 0; rank < 4; rank++) {

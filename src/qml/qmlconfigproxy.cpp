@@ -4,6 +4,11 @@
 #include <algorithm>
 
 #include "control/controlobject.h"
+#include "control/controlproxy.h"
+#include "mixer/playerinfo.h"
+#include "track/track.h"
+#include "waveform/renderers/waveformrenderersignalbase.h"
+#include "waveform/waveform.h"
 #include "library/basetracktablemodel.h"
 #include "library/library.h"
 #include "library/library_prefs.h"
@@ -969,6 +974,45 @@ QmlConfigProxy* QmlConfigProxy::create(QQmlEngine* pQmlEngine, QJSEngine*) {
         return nullptr;
     }
     return new QmlConfigProxy(s_pUserSettings, pQmlEngine);
+}
+
+QVariantMap QmlConfigProxy::waveformExample(const QString& group, int beats, int columns) const {
+    QVariantMap result;
+    const TrackPointer pTrack = PlayerInfo::instance().getTrackInfo(group);
+    if (!pTrack) {
+        return result;
+    }
+    const ConstWaveformPointer pWaveform = pTrack->getWaveform();
+    if (pWaveform.isNull() || pWaveform->getDataSize() <= 1) {
+        return result;
+    }
+    ControlProxy playPosition(group, QStringLiteral("playposition"));
+    ControlProxy fileBpm(group, QStringLiteral("file_bpm"));
+    const double bpm = fileBpm.get() > 0 ? fileBpm.get() : 120.0;
+    const double duration = pTrack->getDuration();
+    if (duration <= 0) {
+        return result;
+    }
+    const double visualFrames = pWaveform->getDataSize() / 2.0;
+    const double firstFrame = std::max(0.0, playPosition.get()) * visualFrames;
+    const double span = (beats * 60.0 / bpm) / duration * visualFrames;
+    const auto example = WaveformRendererSignalBase::exampleColumns(
+            pWaveform.data(), firstFrame, span, columns);
+    if (!example.valid) {
+        return result;
+    }
+    QVariantList list;
+    list.reserve(static_cast<int>(example.layers.size()) * 4);
+    for (const auto& layer : example.layers) {
+        for (float v : layer) {
+            list.append(static_cast<double>(v));
+        }
+    }
+    result.insert(QStringLiteral("gain"), static_cast<double>(example.gain));
+    result.insert(QStringLiteral("threeBand"), example.threeBand);
+    result.insert(QStringLiteral("columns"), static_cast<int>(example.layers.size()));
+    result.insert(QStringLiteral("layers"), list);
+    return result;
 }
 
 } // namespace qml

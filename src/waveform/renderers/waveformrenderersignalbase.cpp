@@ -1,3 +1,4 @@
+#include <cmath>
 #include <unordered_map>
 #include <algorithm>
 #include <algorithm>
@@ -5,6 +6,7 @@
 
 #include "control/controlproxy.h"
 #include "moc_waveformrenderersignalbase.cpp"
+#include "waveform/rekordbox3band.h"
 #include "waveform/waveform.h"
 #include "waveform/waveformwidgetfactory.h"
 #include "waveformwidgetrenderer.h"
@@ -285,5 +287,67 @@ float WaveformRendererSignalBase::trackAutoGain(const Waveform* pWaveform, int d
     }
     cache[pWaveform] = Entry{dataSize, completionStep, gain};
     return gain;
+}
+#endif
+
+#ifdef FLXXX3
+WaveformRendererSignalBase::ExampleColumns WaveformRendererSignalBase::exampleColumns(
+        const Waveform* pWaveform, double firstFrame, double frameSpan, int columns) {
+    ExampleColumns result;
+    if (!pWaveform || columns < 1 || frameSpan <= 0.0) {
+        return result;
+    }
+    const int dataSize = pWaveform->getDataSize();
+    const WaveformData* data = pWaveform->data();
+    if (dataSize <= 1 || !data) {
+        return result;
+    }
+    result.threeBand = rekordbox3band::isMarked(pWaveform);
+    result.gain = trackAutoGain(pWaveform, dataSize, result.threeBand) * 0.9f;
+    const double perColumn = frameSpan / columns;
+    for (int c = 0; c < columns; ++c) {
+        const int frameStart = static_cast<int>(std::lround(firstFrame + c * perColumn));
+        const int frameStop = std::max(frameStart + 1,
+                static_cast<int>(std::lround(firstFrame + (c + 1) * perColumn)));
+        const int indexStart = std::max(frameStart * 2, 0);
+        const int indexStop = std::min(frameStop * 2, dataSize - 1);
+        uchar all = 0, low = 0, mid = 0, high = 0;
+        for (int i = indexStart; i < indexStop; ++i) {
+            all = std::max(all, data[i].filtered.all);
+            low = std::max(low, data[i].filtered.low);
+            mid = std::max(mid, data[i].filtered.mid);
+            high = std::max(high, data[i].filtered.high);
+        }
+        float lowV = low, midV = mid, highV = high;
+        if (!result.threeBand) {
+            const float height = expandPeaks(static_cast<float>(all));
+            lowV = height * lowV / 255.f;
+            midV = height * midV / 255.f;
+            highV = height * highV / 255.f;
+        }
+        // as in waveformrendererfiltered.cpp: [0] low (blue), [1] mid (orange),
+        // [2] high (white), [3] inner mid (brown)
+        std::array<float, 4> a{lowV, midV, highV, 0.f};
+        if (result.threeBand) {
+            const float mid = a[1] * 0.54f;
+            const float withLow = 0.55f * a[0];
+            a[3] = std::min(mid, withLow);
+            a[1] = std::max(0.f, mid - withLow);
+            a[2] *= 0.45f;
+            // layer sizes matched to Rekordbox (see waveformrendererfiltered.cpp)
+            a[1] *= 2.0f;
+            a[3] *= 1.7f;
+            a[2] *= 2.0f;
+        } else {
+            const float lowLevel = a[0];
+            a[1] = std::min(255.f * 0.8f, a[1] * 1.3f);
+            a[0] = std::min(255.f, a[1] + lowLevel * 0.3f);
+            a[3] = a[1] * 0.7f;
+            a[2] = std::min(a[2], a[1] * 0.4f);
+        }
+        result.layers.push_back(a);
+    }
+    result.valid = true;
+    return result;
 }
 #endif

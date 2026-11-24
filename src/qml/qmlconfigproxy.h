@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QQmlEngine>
 #include <QVariantList>
+#include <QVariantMap>
 #include <memory>
 #include <type_traits>
 
@@ -362,6 +363,11 @@ class QmlConfigProxy : public QmlConfigProxyBase {
         m_pConfig->setValue(ConfigKey(QStringLiteral("[AndroidDJ]"), key), value);
         m_pConfig->save();
     }
+    // FLXXX3: ADVANCED SETTINGS > WAVEFORM: the waveform of the track on `group` from the play
+    // position over `beats` beats, as `columns` columns of the four layer heights
+    // (low, mid, high, inner mid; 0..255), plus the height factor ("gain"). Empty without a track.
+    Q_INVOKABLE QVariantMap waveformExample(const QString& group, int beats, int columns) const;
+
   signals:
     void hotcueColorPaletteChanged();
     void trackColorPaletteChanged();

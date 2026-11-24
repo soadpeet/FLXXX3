@@ -11,6 +11,22 @@ Rectangle {
     id: root
 
     property string area: "WINDOW"
+    // Example for the waveform preview (saved in the settings).
+    property var waveExample: {
+        try {
+            const saved = Mixxx.Config.androidSetting("wave_example", "");
+            return saved === "" ? null : JSON.parse(saved);
+        } catch (e) {
+            return null;
+        }
+    }
+    function takeWaveExample() {
+        const e = Mixxx.Config.waveformExample("[Channel1]", 16, 480);
+        if (!e.columns)
+            return;
+        Mixxx.Config.setAndroidSetting("wave_example", JSON.stringify(e));
+        root.waveExample = e;
+    }
     property int selectedPreset: -1
     property string renameText: ""
     readonly property real u: Math.max(7, Math.floor(Math.min(width / 66, height / 26)))
@@ -191,6 +207,22 @@ Rectangle {
             spacing: root.u * 0.7
             width: settingsView.width
 
+            // WAVEFORM: example of the four layers with the sizes below.
+            WaveformPreview {
+                id: wavePreview
+
+                height: root.u * 9
+                visible: root.area === "WAVEFORM"
+                width: parent.width
+                example: root.waveExample
+            }
+            // The example is a piece of the track on deck 1: from the play position, 16 beats.
+            Btn {
+                text: "TAKE EXAMPLE FROM DECK 1 (PLAY POSITION, 16 BEATS)"
+                visible: root.area === "WAVEFORM"
+                width: root.u * 34
+                onClicked: root.takeWaveExample()
+            }
             // Settings of the area.
             Repeater {
                 model: AdvSettings.inArea(root.area)
