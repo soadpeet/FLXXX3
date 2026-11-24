@@ -163,6 +163,17 @@ class WaveformMark {
         m_pVisibleCO->connectValueChanged(receiver, slot, Qt::AutoConnection);
     }
 
+#ifdef FLXXX3
+    // FLXXX3: the position of a mark changes (e.g. the loop in point that is set without a
+    // loop end: no cue changes then).
+    template<typename Receiver, typename Slot>
+    void connectSamplePositionChanged(Receiver receiver, Slot slot) const {
+        if (m_pPositionCO) {
+            m_pPositionCO->connectValueChanged(receiver, slot, Qt::AutoConnection);
+        }
+    }
+#endif
+
     void setText(const QString& text) {
         if (m_text != text) {
             m_text = text;

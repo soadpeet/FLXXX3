@@ -1277,6 +1277,12 @@ void LoopingControl::trackLoaded(TrackPointer pNewTrack) {
             pFirstLoopCue = pCue;
         }
 
+#ifdef FLXXX3
+        // Like rekordbox: no loop of the track is taken over when it is loaded (the volatile
+        // "most recent loop" showed a loop marker in a track that was just loaded). Loops
+        // are called with their hot cue or memory cue.
+        pFirstLoopCue.reset();
+#endif
         bool loopValid = false;
         if (pFirstLoopCue) {
             const auto loop = pFirstLoopCue->getStartAndEndPosition();

@@ -35,6 +35,12 @@ class WaveformRenderMarkBase : public QObject, public WaveformRendererAbstract {
 
     void addMark(WaveformMarkPointer pMark) {
         m_marks.addMark(pMark);
+#ifdef FLXXX3
+        // The marks to draw are only worked out again when a cue or the visibility changes:
+        // the first loop in point (no loop end, no cue) got no marker. Now a changed position
+        // does it as well.
+        pMark->connectSamplePositionChanged(this, &WaveformRenderMarkBase::onMarkChanged);
+#endif
     }
 
   public slots:
