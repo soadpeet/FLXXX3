@@ -96,7 +96,7 @@ twitched (expected: no running time).
 showed the views (they switched), but the device had been prepared by earlier SysEx (Serato
 handshake, the replay). From a freshly plugged in FLX10 it stays on its logo — also with
 the exact replay of rekordbox's start, also with Serato's handshake before it. Something
-of rekordbox's start is still missing. Until then: Serato mode (`SCREEN_MODE = "serato"`).
+of rekordbox's start is still missing. (Solved later: the Serato mode was removed.)
 Ideas: compare the device's MIDI and HID IN answers in the capture (EP 0x82, 0x84) with
 ours; capture rekordbox once more from plugging in, with rekordbox already running.
 
