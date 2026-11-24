@@ -116,12 +116,13 @@ Rectangle {
                 }
             }
         }
-        // Loop symbol and size of the running loop.
+        // "LOOP" and size of the running loop. (Not an arrow symbol: the first text with a
+        // character the font lacks makes Android search all system fonts, ~0.4 s on the GUI thread.)
         Text {
             color: "#ff9a2e"
             font.bold: true
             font.pixelSize: Math.round(root.u * 1.1)
-            text: loopEnabled.value > 0 ? "↺ " + root.sizeText(loopSize.value) : ""
+            text: loopEnabled.value > 0 ? "LOOP " + root.sizeText(loopSize.value) : ""
 
             anchors {
                 horizontalCenter: parent.horizontalCenter

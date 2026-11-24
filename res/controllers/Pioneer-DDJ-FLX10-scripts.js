@@ -1483,8 +1483,10 @@ PioneerDDJFLX10.LoopDoubleShift = function(channel, control, value, status, grou
     }
 };
 
-// Rate range selector — Pioneer 6/10/16/20 %
-PioneerDDJFLX10._rateRanges = [0.06, 0.10, 0.16, 0.20];
+// Rate range selector — like rekordbox: 6 / 10 / 16 % and WIDE (the app takes 1.0 as WIDE).
+// A new range keeps the tempo that is playing (the fader position is adapted); the tempo
+// follows the fader again when it is moved.
+PioneerDDJFLX10._rateRanges = [0.06, 0.10, 0.16, 1.0];
 PioneerDDJFLX10.RangeSelector = function(channel, control, value, status, group) {
     if (value !== 0x7F) return;
     var current = engine.getValue(group, "rateRange");
@@ -1494,7 +1496,10 @@ PioneerDDJFLX10.RangeSelector = function(channel, control, value, status, group)
         if (d < best) { best = d; idx = i; }
     }
     idx = (idx + 1) % PioneerDDJFLX10._rateRanges.length;
-    engine.setValue(group, "rateRange", PioneerDDJFLX10._rateRanges[idx]);
+    var effective = engine.getValue(group, "rate") * current;
+    var next = PioneerDDJFLX10._rateRanges[idx];
+    engine.setValue(group, "rateRange", next);
+    engine.setValue(group, "rate", Math.max(-1, Math.min(1, effective / next)));
 };
 
 // Time display mode management — [Controls]/ShowDurationRemaining: 0=elapsed, 1=remaining, 2=both

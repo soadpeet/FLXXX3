@@ -198,7 +198,7 @@ Item {
                 align: 'top|left'
                 color: 'green'
                 control: "loop_start_position"
-                text: '↻'
+                text: 'LOOP'
                 textColor: '#FFFFFF'
             }
             Mixxx.WaveformMark {

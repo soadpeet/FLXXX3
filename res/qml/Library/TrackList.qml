@@ -1102,7 +1102,9 @@ Rectangle {
         rowHeightProvider: function (row) {
             return Mixxx.Product.ui ? Math.round(root.rowHeight * root.uiScale) : -1;
         }
-        model: root.model
+        // Not shown: no model. A hidden list that changes its size (the list closes after a track
+        // was loaded, its width goes back) laid out all its cells again: 8 s on the tablet.
+        model: (!Mixxx.Product.ui || root.visible) ? root.model : null
         pointerNavigationEnabled: false
         reuseItems: true
 
@@ -1157,6 +1159,11 @@ Rectangle {
         Keys.onUpPressed: this.selectionModel.moveSelectionVertical(-1)
         onModelChanged: this.updateColumnSize()
         onWidthChanged: {
+            // The list is not shown (a track was loaded and it closed, the width went back to
+            // the full one): no layout now - it is done when the list is shown again (see
+            // onVisibleChanged below). The layout of all cells took 8 s on the tablet.
+            if (!root.visible)
+                return;
             if (view.updateColumnSize()) {
                 // forceLayout is costly - only invoke if there was a change in the column layouts
                 view.forceLayout();

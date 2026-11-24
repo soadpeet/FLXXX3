@@ -1029,7 +1029,11 @@ PioneerDDJFLX4.cycleTempoRange = function(_channel, _control, value, _status, gr
             break;
         }
     }
+    // A new range keeps the tempo that is playing (like rekordbox); the tempo follows the
+    // fader again when it is moved.
+    const effective = engine.getValue(group, "rate") * currRange;
     engine.setValue(group, "rateRange", this.tempoRanges[idx]);
+    engine.setValue(group, "rate", Math.max(-1, Math.min(1, effective / this.tempoRanges[idx])));
 };
 
 //
