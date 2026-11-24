@@ -973,6 +973,8 @@ Rectangle {
             bottom: parent.bottom
             bottomMargin: root.cdj ? Math.round(root.cdjLowerHeight * 0.13) : 0
             left: deckColumn.right
+            // CDJ view: a little room between the DECK field and the overview (ADVANCED SETTINGS).
+            leftMargin: root.cdjGap > 0 ? AdvSettings.values.overviewGap : 0
             // CDJ view: MT and KEY lie to the right of the overview.
             right: root.cdjGap > 0 ? mtColumn.left : parent.right
         }

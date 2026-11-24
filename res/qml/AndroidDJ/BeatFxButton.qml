@@ -36,10 +36,22 @@ Rectangle {
             root.listOnly = true;
             win.open();
         }
+        root.keep();
+    }
+    // Time of the last touch or change in this window: it is not closed by the controller
+    // while the user is still setting something here.
+    property double keptAt: 0
+    function keep() {
+        root.keptAt = Date.now();
         autoCloseTimer.restart();
     }
+    function closeWindow() {
+        if (Date.now() - root.keptAt < 1500)
+            return;
+        win.close();
+    }
     function touched() {
-        autoCloseTimer.restart();
+        root.keep();
     }
 
     // Like the USB status chips: thin outline and a faint tint in the active colour and

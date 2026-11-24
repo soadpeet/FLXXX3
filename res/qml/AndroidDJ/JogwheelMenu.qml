@@ -16,9 +16,21 @@ Popup {
     // Size unit of the texts and controls.
     readonly property real u: Math.max(7, Math.floor(Math.min(root.width / 33, root.height / 16.8)))
 
+    // Time of the last touch or change in this window: it is not closed by the controller
+    // while the user is still setting something here.
+    property double keptAt: 0
+    function keep() {
+        root.keptAt = Date.now();
+        idleTimer.restart();
+    }
+    function closeWindow() {
+        if (Date.now() - root.keptAt < 1500)
+            return;
+        root.close();
+    }
     function openWindow() {
         root.open();
-        idleTimer.restart();
+        root.keep();
     }
 
     closePolicy: Popup.CloseOnPressOutside | Popup.CloseOnEscape
@@ -83,7 +95,7 @@ Popup {
                 onActivated: index => {
                     backspinLength.value = index;
                     root.save(1);
-                    idleTimer.restart();
+                    root.keep();
                 }
             }
             // VINYL SPEED ADJUST (TOUCH): STOP = a touched deck slows down in this
@@ -158,7 +170,7 @@ Popup {
                         onMoved: {
                             vinyl.proxy.value = Math.round(slider.value * 10) / 10;
                             root.save(vinyl.modelData.index);
-                            idleTimer.restart();
+                            root.keep();
                         }
                     }
                 }

@@ -419,7 +419,7 @@
             </control>
 
             <control>
-                <description>LOOP IN/4 BEAT (DECK1) - press - Set loop in; nothing inside an active loop (Android edition)</description>
+                <description>LOOP IN/4 BEAT (DECK1) - press - Set loop in; inside an active loop halve it (Android edition)</description>
                 <group>[Channel1]</group>
                 <key>PioneerDDJFLX4.loopInPressed</key>
                 <status>0x90</status>
@@ -430,7 +430,7 @@
             </control>
 
             <control>
-                <description>LOOP IN/4 BEAT (DECK2) - press - Set loop in; nothing inside an active loop (Android edition)</description>
+                <description>LOOP IN/4 BEAT (DECK2) - press - Set loop in; inside an active loop halve it (Android edition)</description>
                 <group>[Channel2]</group>
                 <key>PioneerDDJFLX4.loopInPressed</key>
                 <status>0x91</status>
@@ -441,7 +441,7 @@
             </control>
 
             <control>
-                <description>LOOP OUT (DECK1) - press - Set loop out; nothing inside an active loop (Android edition)</description>
+                <description>LOOP OUT (DECK1) - press - Set loop out; inside an active loop double it (Android edition)</description>
                 <group>[Channel1]</group>
                 <key>PioneerDDJFLX4.loopOutPressed</key>
                 <status>0x90</status>
@@ -451,7 +451,7 @@
                 </options>
             </control>
             <control>
-                <description>LOOP OUT (DECK2) - press - Set loop out; nothing inside an active loop (Android edition)</description>
+                <description>LOOP OUT (DECK2) - press - Set loop out; inside an active loop double it (Android edition)</description>
                 <group>[Channel2]</group>
                 <key>PioneerDDJFLX4.loopOutPressed</key>
                 <status>0x91</status>
@@ -546,7 +546,7 @@
             </control>
 
             <control>
-                <description>CUE/LOOP CALL LEFT (DECK1) - press - half active loop</description>
+                <description>CUE/LOOP CALL LEFT (DECK1) - press - call previous memory cue/loop</description>
                 <group>[Channel1]</group>
                 <key>PioneerDDJFLX4.cueLoopCallLeft</key>
                 <status>0x90</status>
@@ -567,7 +567,7 @@
             </control>
 
             <control>
-                <description>CUE/LOOP CALL LEFT (DECK2) - press - half active loop</description>
+                <description>CUE/LOOP CALL LEFT (DECK2) - press - call previous memory cue/loop</description>
                 <group>[Channel2]</group>
                 <key>PioneerDDJFLX4.cueLoopCallLeft</key>
                 <status>0x91</status>
@@ -588,7 +588,7 @@
             </control>
 
             <control>
-                <description>CUE/LOOP CALL LEFT (DECK1) - press - double active loop</description>
+                <description>CUE/LOOP CALL LEFT (DECK1) - press - call next memory cue/loop</description>
                 <group>[Channel1]</group>
                 <key>PioneerDDJFLX4.cueLoopCallRight</key>
                 <status>0x90</status>
@@ -609,7 +609,7 @@
             </control>
 
             <control>
-                <description>CUE/LOOP CALL LEFT (DECK2) - press - double active loop</description>
+                <description>CUE/LOOP CALL LEFT (DECK2) - press - call next memory cue/loop</description>
                 <group>[Channel2]</group>
                 <key>PioneerDDJFLX4.cueLoopCallRight</key>
                 <status>0x91</status>

@@ -29,6 +29,20 @@ Rectangle {
 
     Mixxx.ControlProxy { id: colorFx; group: "[AndroidDJ]"; key: "color_fx" }
     Mixxx.ControlProxy { id: colorFxOn; group: "[AndroidDJ]"; key: "color_fx_on" }
+    Mixxx.ControlProxy { id: colorFxQuiet; group: "[AndroidDJ]"; key: "color_fx_quiet" }
+
+    // Time of the last touch or change in this window: it is not closed by the controller
+    // while the user is still setting something here.
+    property double keptAt: 0
+    function keep() {
+        root.keptAt = Date.now();
+        autoCloseTimer.restart();
+    }
+    function closeWindow() {
+        if (Date.now() - root.keptAt < 1500)
+            return;
+        list.close();
+    }
 
     // False for the first moments after the start: restoring the saved selection
     // must not open the list.
@@ -63,10 +77,10 @@ Rectangle {
         function onValueChanged() {
             Mixxx.Config.setAndroidSetting("colorFx", String(root.selected));
             // Changed by SMART FADER (not by a tap on the list): show the list.
-            if (root.listEnabled && !list.tapped) {
+            if (root.listEnabled && !list.tapped && colorFxQuiet.value <= 0) {
                 if (!list.opened)
                     list.open();
-                autoCloseTimer.restart();
+                root.keep();
             }
         }
 
@@ -91,7 +105,7 @@ Rectangle {
                 list.close();
             } else {
                 list.open();
-                autoCloseTimer.restart();
+                root.keep();
             }
         }
     }

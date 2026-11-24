@@ -1313,7 +1313,7 @@
             <control>
                 <group>[Channel1]</group>
                 <key>PioneerDDJFLX10.beatLoopBack4</key>
-                <description>4-Beat Loop back / exit (previous 4 beats) Ch1</description>
+                <description>4-Beat Loop from the press point / exit Ch1</description>
                 <status>0x90</status>
                 <midino>0x14</midino>
                 <options>
@@ -1323,7 +1323,7 @@
             <control>
                 <group>[Channel2]</group>
                 <key>PioneerDDJFLX10.beatLoopBack4</key>
-                <description>4-Beat Loop back / exit (previous 4 beats) Ch2</description>
+                <description>4-Beat Loop from the press point / exit Ch2</description>
                 <status>0x91</status>
                 <midino>0x14</midino>
                 <options>
@@ -1333,7 +1333,7 @@
             <control>
                 <group>[Channel3]</group>
                 <key>PioneerDDJFLX10.beatLoopBack4</key>
-                <description>4-Beat Loop back / exit (previous 4 beats) Ch3</description>
+                <description>4-Beat Loop from the press point / exit Ch3</description>
                 <status>0x92</status>
                 <midino>0x14</midino>
                 <options>
@@ -1343,7 +1343,7 @@
             <control>
                 <group>[Channel4]</group>
                 <key>PioneerDDJFLX10.beatLoopBack4</key>
-                <description>4-Beat Loop back / exit (previous 4 beats) Ch4</description>
+                <description>4-Beat Loop from the press point / exit Ch4</description>
                 <status>0x93</status>
                 <midino>0x14</midino>
                 <options>

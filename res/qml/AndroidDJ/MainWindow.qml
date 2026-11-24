@@ -393,7 +393,7 @@ Item {
             return 2;
         return 1;
     }
-    // side: 0 / undefined = by the rules above (CDJ view), 1 / 2 = chosen by a long press.
+    // side: 0 / undefined = the whole screen, 1 / 2 = one half, chosen by a long press (CDJ view).
     function topButton(name, side) {
         root.advancedOpen = false;
         if (root.needsSource(name))
@@ -405,7 +405,7 @@ Item {
             return;
         }
         root.utilityOpen = false;
-        const wanted = root.cdjView ? (side ? side : root.autoBrowserSide()) : 0;
+        const wanted = root.cdjView && side ? side : 0;   // a tap: the whole screen; a long press: one half
         // The same button again closes the library, whichever side it is on (a long press chooses
         // the side and opens it again there).
         if (root.browserOpen && root.browserMode === name && !side) {
@@ -780,6 +780,20 @@ Item {
     function popupActivity(deck) {
         popupTimer.restart();
     }
+    // PLAY / PAUSE (button or controller) closes the windows of the side buttons: FILTER, Beat FX,
+    // JOGWHEEL, BRIGHTNESS.
+    function closeSideWindows() {
+        colorFxButton.closeWindow();
+        beatFxButton.closeWindow();
+        jogwheelMenu.closeWindow();
+        brightnessMenu.closeWindow();
+    }
+    Mixxx.ControlProxy { group: "[Channel1]"; key: "play"; onValueChanged: root.closeSideWindows() }
+    Mixxx.ControlProxy { group: "[Channel2]"; key: "play"; onValueChanged: root.closeSideWindows() }
+    Mixxx.ControlProxy { group: "[Channel3]"; key: "play"; onValueChanged: root.closeSideWindows() }
+    Mixxx.ControlProxy { group: "[Channel4]"; key: "play"; onValueChanged: root.closeSideWindows() }
+    // Every other action on the controller (button, fader, knob, jog) closes them, too.
+    Mixxx.ControlProxy { group: "[AndroidDJ]"; key: "controller_activity"; onValueChanged: root.closeSideWindows() }
     Timer {
         id: popupTimer
 
@@ -954,6 +968,8 @@ Item {
     // Color FX: the name of the selected one stands vertically at the left edge
     // of the upper waveform; tapping it opens the list.
     DJ.ColorFxButton {
+        id: colorFxButton
+
         height: root.sideButtonHeight
         width: Math.max(28, Math.round(root.width * 0.034))
         z: 20
@@ -1071,6 +1087,8 @@ Item {
     // Beat FX: the name of the selected one stands vertically at the right edge
     // of the upper waveform; the window with the settings lies over the button.
     DJ.BeatFxButton {
+        id: beatFxButton
+
         height: root.sideButtonHeight
         panelHeight: root.waveformHeight * 2
         panelWidth: Math.round(root.width * 0.2)

@@ -49,7 +49,14 @@ Rectangle {
             root.effectIdText === "org.mixxx.effects.flanger" ||
             root.effectIdText === "org.mixxx.effects.phaser" ||
             root.effectIdText === "org.mixxx.effects.trans" ||
-            root.effectIdText === "org.mixxx.effects.sweepfilter"
+            root.effectIdText === "org.mixxx.effects.sweepfilter" ||
+            root.effectIdText === "org.mixxx.effects.lowcutecho" ||
+            root.effectIdText === "org.mixxx.effects.enigmajet" ||
+            root.effectIdText === "org.mixxx.effects.stretch" ||
+            root.effectIdText === "org.mixxx.effects.mobiussaw" ||
+            root.effectIdText === "org.mixxx.effects.mobiustriangle" ||
+            root.effectIdText === "org.mixxx.effects.roll" ||
+            root.effectIdText === "org.mixxx.effects.sliproll"
     readonly property bool beatEffect: root.delayFamily
     readonly property int beatIndex: {
         if (!root.delayFamily)
@@ -64,7 +71,21 @@ Rectangle {
     }
     // Other effects (reverb, flanger ...): the first parameter in percent.
     readonly property int effectPercent: Math.round(fxParameter1.parameter * 100)
-    readonly property string valueText: root.beatEffect ? root.beatTexts[root.beatIndex] : String(root.effectPercent)
+    // ENIGMA JET and MOBIUS: a signed time from -64 to +64 (the BEAT keys of the DDJ-FLX10), 0 = not used
+    property double signedValue: 0
+    readonly property bool signedEffectId: root.effectIdText === "org.mixxx.effects.enigmajet" ||
+            root.effectIdText === "org.mixxx.effects.mobiussaw" || root.effectIdText === "org.mixxx.effects.mobiustriangle"
+    readonly property bool signedEffect: root.signedValue !== 0 && root.signedEffectId
+    readonly property string signedText: (root.signedValue < 0 ? "-" : "+") + (Math.abs(root.signedValue) >= 1
+            ? String(Math.abs(root.signedValue)) : "1/" + Math.round(1 / Math.abs(root.signedValue)))
+    Mixxx.ControlProxy {
+        group: "[AndroidDJ]"
+        key: "beat_fx_signed"
+
+        onValueChanged: root.signedValue = value
+    }
+    readonly property string valueText: root.signedEffect ? root.signedText
+            : (root.beatEffect ? root.beatTexts[root.beatIndex] : String(root.effectPercent))
     readonly property string valueUnit: root.beatEffect ? "BEAT" : "%"
     // LOW / MID / HI: bands the effect works on (all on by default).
     property bool bandLow: true
@@ -105,8 +126,59 @@ Rectangle {
         { name: "FLANGER", id: "org.mixxx.effects.flanger" },
         { name: "PHASER", id: "org.mixxx.effects.phaser" },
         { name: "TRANS", id: "org.mixxx.effects.trans" },
-        { name: "FILTER", id: "org.mixxx.effects.sweepfilter" }
+        { name: "FILTER", id: "org.mixxx.effects.sweepfilter" },
+        { name: "LOW CUT ECHO", id: "org.mixxx.effects.lowcutecho" },
+        { name: "ENIGMA JET", id: "org.mixxx.effects.enigmajet" },
+        { name: "STRETCH", id: "org.mixxx.effects.stretch" },
+        { name: "MOBIUS SAW", id: "org.mixxx.effects.mobiussaw" },
+        { name: "MOBIUS TRIANGLE", id: "org.mixxx.effects.mobiustriangle" },
+        { name: "ROLL", id: "org.mixxx.effects.roll" },
+        { name: "SLIP ROLL", id: "org.mixxx.effects.sliproll" }
     ]
+    // The list shows the 14 positions of ADVANCED SETTINGS > BEAT FX in their order (the same as the
+    // selector of the DDJ-FLX10 and FX SELECT of the DDJ-FLX4). The codes there: 1..17 = effectList.
+    property var positionCodes: [11, 2, 1, 4, 6, 9, 12, 7, 8, 13, 17, 16, 14, 15]
+    readonly property var listEntries: root.positionCodes.map((c, i) => ({ code: c, pos: i + 1 })).filter(e => e.code >= 1 && e.code <= 17).map(e =>
+            ({ name: root.effectList[e.code - 1].name, id: root.effectList[e.code - 1].id, pos: e.pos }))
+    // The position chosen with the selector of the controller or in the list (0 = none known).
+    property int selectedPos: 0
+    readonly property int selectedCode: root.selectedPos >= 1 ? root.positionCodes[root.selectedPos - 1] : 0
+    Mixxx.ControlProxy {
+        id: selectedProxy
+
+        group: "[AndroidDJ]"
+        key: "beat_fx_selected"
+
+        onValueChanged: {
+            root.selectedPos = Math.round(selectedProxy.value);
+        }
+    }
+    Repeater {
+        model: 14
+
+        Item {
+            id: positionItem
+
+            required property int index
+
+            function take() {
+                const codes = root.positionCodes.slice();
+                codes[positionItem.index] = Math.round(positionProxy.value);
+                root.positionCodes = codes;
+            }
+
+            Component.onCompleted: take()
+
+            Mixxx.ControlProxy {
+                id: positionProxy
+
+                group: "[AndroidDJ]"
+                key: "beat_fx_pos" + (positionItem.index + 1)
+
+                onValueChanged: positionItem.take()
+            }
+        }
+    }
     property bool listOpen: false
     // Ignores the effect change of the start-up default.
     property bool ready: false
@@ -177,6 +249,12 @@ Rectangle {
     Connections {
         function onEffectIdChanged() {
             root.switchedAt = Date.now();
+            // Another way to the effect (presets, the app): the chosen position no longer fits.
+            if (root.selectedPos > 0) {
+                const code = root.effectList.findIndex(e => e.id === root.effectSlot.effectId) + 1;
+                if (root.selectedCode !== code)
+                    selectedProxy.value = 0;
+            }
             if (root.ready) {
                 root.openList();
                 root.storedBeatIndex = 5;
@@ -310,6 +388,37 @@ Rectangle {
     Mixxx.ControlProxy { id: fxChannel1; group: "[EffectRack1_EffectUnit1]"; key: "group_[Channel1]_enable" }
     Mixxx.ControlProxy { id: fxChannel2; group: "[EffectRack1_EffectUnit1]"; key: "group_[Channel2]_enable" }
     Mixxx.ControlProxy { id: fxParameter1; group: "[EffectRack1_EffectUnit1_Effect1]"; key: "parameter1" }
+    Mixxx.ControlProxy { id: fxParameter4; group: "[EffectRack1_EffectUnit1_Effect1]"; key: "parameter4" }
+    Mixxx.ControlProxy { id: fxParameter5; group: "[EffectRack1_EffectUnit1_Effect1]"; key: "parameter5" }
+    Mixxx.ControlProxy { id: signedProxy; group: "[AndroidDJ]"; key: "beat_fx_signed" }
+    // The arrows next to the beat value: -1 = "<" (shorter / next on the ring), +1 = ">" (like the BEAT keys)
+    readonly property var signedRing: [-4, -8, -16, -32, -64, 64, 32, 16, 8, 4, 2, 1, 0.5, 0.25, 0.125, 0.0625,
+        -0.0625, -0.125, -0.25, -0.5, -1, -2]
+    function signedStart() {
+        return root.effectIdText === "org.mixxx.effects.mobiussaw" ? 4 : -4;
+    }
+    function stepBeat(direction) {
+        if (root.signedEffectId) {
+            let index = root.signedRing.indexOf(root.signedValue !== 0 ? root.signedValue : root.signedStart());
+            if (index < 0)
+                index = 0;
+            if (root.signedValue !== 0)
+                index = (index - direction + root.signedRing.length) % root.signedRing.length;
+            const value = root.signedRing[index];
+            const mag = Math.abs(value);
+            fxParameter1.parameter = Math.min(8, mag) / 8;
+            fxParameter4.parameter = (Math.max(1, mag / 8) - 1) / 7;
+            fxParameter5.parameter = value > 0 ? 1 : 0;
+            signedProxy.value = value;
+        } else if (root.beatEffect) {
+            const next = Math.max(0, Math.min(root.beatValues.length - 1, root.beatIndex + direction));
+            root.storedBeatIndex = next;
+            if (root.delayFamily)
+                fxParameter1.parameter = root.beatValues[next] / 8;
+        } else {
+            fxParameter1.parameter = Math.max(0, Math.min(10, Math.round(fxParameter1.parameter * 10) + direction)) / 10;
+        }
+    }
     Mixxx.ControlProxy { id: focusedEffectControl; group: "[EffectRack1_EffectUnit1]"; key: "focused_effect" }
     Mixxx.ControlProxy { id: zoomIn1; group: "[Channel1]"; key: "waveform_zoom_down" }
     Mixxx.ControlProxy { id: zoomOut1; group: "[Channel1]"; key: "waveform_zoom_up" }
@@ -392,9 +501,45 @@ Rectangle {
             height: Math.round(root.unit * 6.6)
             width: parent.width
 
+            // Arrows at the left and right edge: shorter / longer (like BEAT < and > of the controller).
+            Repeater {
+                model: [-1, 1]
+
+                Item {
+                    id: arrow
+
+                    required property int modelData
+
+                    // next to the beat value (the third row of the column)
+                    height: beatRow.height
+                    width: Math.round(root.unit * 2.2)
+                    x: modelData < 0 ? 0 : parent.width - width
+                    y: valueColumn.y + beatRow.y
+                    z: 2
+
+                    Text {
+                        anchors.centerIn: parent
+                        color: arrowTap.pressed ? "#1fb0f0" : "#cfcfcf"
+                        font.bold: true
+                        font.pixelSize: Math.round(root.unit * 1.6)
+                        text: arrow.modelData < 0 ? "\u25C0" : "\u25B6"
+                    }
+                    TapHandler {
+                        id: arrowTap
+
+                        onTapped: {
+                            root.stepBeat(arrow.modelData);
+                            root.activity();
+                        }
+                    }
+                }
+            }
             TapHandler {
-                // Tap: next beat value (1/8 ... 16).
-                onTapped: {
+                // Tap: next beat value (1/8 ... 16); not on the arrows.
+                onTapped: eventPoint => {
+                    const edge = Math.round(root.unit * 2.2);
+                    if (eventPoint.position.x < edge || eventPoint.position.x > parent.width - edge)
+                        return;
                     if (root.beatEffect) {
                         const next = (root.beatIndex + 1) % root.beatValues.length;
                         root.storedBeatIndex = next;
@@ -408,6 +553,8 @@ Rectangle {
             }
 
             Column {
+                id: valueColumn
+
                 anchors {
                     fill: parent
                     margins: 4
@@ -447,6 +594,8 @@ Rectangle {
                     }
                 }
                 Row {
+                    id: beatRow
+
                     anchors.horizontalCenter: parent.horizontalCenter
                     spacing: 4
 
@@ -568,16 +717,17 @@ Rectangle {
             }
 
             Repeater {
-                model: root.effectList
+                model: root.listEntries
 
                 Rectangle {
                     id: entry
 
                     required property var modelData
-                    readonly property bool current: root.effectSlot && root.effectSlot.effectId === modelData.id
+                    readonly property bool current: root.selectedPos > 0 ? modelData.pos === root.selectedPos
+                            : (modelData.id !== "" && root.effectSlot && root.effectSlot.effectId === modelData.id)
 
                     color: current ? "#1fb0f0" : "transparent"
-                    height: parent.height / root.effectList.length
+                    height: parent.height / Math.max(1, root.listEntries.length)
                     width: parent.width
 
                     Text {
@@ -593,8 +743,9 @@ Rectangle {
                     }
                     TapHandler {
                         onTapped: {
-                            if (root.effectSlot) {
+                            if (root.effectSlot && entry.modelData.id !== "") {
                                 root.effectSlot.effectId = entry.modelData.id;
+                                selectedProxy.value = entry.modelData.pos;
                             }
                             // The list closes quickly after a choice.
                             listTimer.interval = 350;

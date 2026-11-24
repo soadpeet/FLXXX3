@@ -78,6 +78,24 @@ TestCase {
         }
     }
 
+    // FX SELECT steps through the Beat FX positions of ADVANCED SETTINGS, without gaps and repeats.
+    function test_fxSelectStepsThroughPositions() {
+        const g = "[EffectRack1_EffectUnit1_Effect1]";
+        const positions = [2, 2, 1, 0, 6];
+        engine.set("[EffectRack1_EffectUnit1]", "focused_effect", 1);
+        for (let i = 0; i < 14; i++)
+            engine.set("[AndroidDJ]", "beat_fx_pos" + (i + 1), i < positions.length ? positions[i] : 0);
+        engine.set(g, "loaded_effect", 2);
+        flx4.beatFxSelectPressed(0, 0, 0x7f);
+        compare(engine.getValue(g, "loaded_effect"), 1);
+        flx4.beatFxSelectPressed(0, 0, 0x7f);
+        compare(engine.getValue(g, "loaded_effect"), 6);
+        flx4.beatFxSelectPressed(0, 0, 0x7f);   // around the end: back to ECHO
+        compare(engine.getValue(g, "loaded_effect"), 2);
+        flx4.beatFxSelectShiftPressed(0, 0, 0x7f);
+        compare(engine.getValue(g, "loaded_effect"), 6);
+    }
+
     function test_memoryCueNext() {
         const g = loadTrackWithMemoryCues();
         flx4.cueLoopCallRight(0, 0, 0x7f, 0x90, g);
@@ -121,13 +139,20 @@ TestCase {
         compare(engine.writes.length, 0);
     }
 
-    function test_loopCallScalesActiveLoop() {
+    function test_loopInOutScaleActiveLoop() {
         const g = loadTrackWithMemoryCues();
         engine.set(g, "loop_enabled", 1);
-        flx4.cueLoopCallLeft(0, 0, 0x7f, 0x90, g);
-        flx4.cueLoopCallRight(0, 0, 0x7f, 0x90, g);
+        flx4.loopInPressed(0, 0, 0x7f, 0x90, g);
+        flx4.loopOutPressed(0, 0, 0x7f, 0x90, g);
         compare(engine.written(g, "loop_scale"), [0.5, 2.0]);
-        compare(engine.written(g, "cue_point"), []);
+        compare(engine.written(g, "loop_in"), []);
+    }
+
+    function test_callInsideLoopCallsMemoryCue() {
+        const g = loadTrackWithMemoryCues();
+        engine.set(g, "loop_enabled", 1);
+        flx4.cueLoopCallRight(0, 0, 0x7f, 0x90, g);
+        compare(engine.written(g, "loop_scale"), []);
     }
 
     function test_loopCallReleaseDoesNothing() {

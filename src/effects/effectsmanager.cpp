@@ -47,6 +47,14 @@ class AndroidColorFxHelper : public QObject {
                       false,
                       false,
                       false,
+                      0.0)),
+              // 1 = the controller selects the Color FX with its own keys (DDJ-FLX10): the
+              // list of the touch interface does not open then.
+              m_pColorFxQuiet(std::make_unique<ControlObject>(
+                      ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("color_fx_quiet")),
+                      false,
+                      false,
+                      false,
                       0.0)) {
         connect(m_pColorFx.get(), &ControlObject::valueChanged, this, [pManager](double) {
             pManager->applyColorFx();
@@ -58,6 +66,7 @@ class AndroidColorFxHelper : public QObject {
 
   private:
     std::unique_ptr<ControlObject> m_pColorFx;
+    std::unique_ptr<ControlObject> m_pColorFxQuiet;
     std::unique_ptr<ControlObject> m_pColorFxOn;
 };
 } // namespace

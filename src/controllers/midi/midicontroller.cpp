@@ -1,10 +1,13 @@
 #include "controllers/midi/midicontroller.h"
 
+#include <QDateTime>
 #include <QJSValue>
 #include <algorithm>
+#include <atomic>
 
 #include "control/controlobject.h"
 #include "control/controlpotmeter.h"
+#include "control/controlproxy.h"
 #include "controllers/defs_controllers.h"
 #include "controllers/midi/midioutputhandler.h"
 #include "controllers/midi/midiutils.h"
@@ -300,6 +303,20 @@ void MidiController::receivedShortMessage(unsigned char status,
 
     MidiKey mappingKey(status, control);
     triggerActivity();
+#ifdef FLXXX3
+    {
+        // Every action on the controller counts up [AndroidDJ] controller_activity (at most
+        // every 100 ms): the touch interface closes its side windows (FILTER, JOGWHEEL ...).
+        static ControlProxy s_activity(QStringLiteral("[AndroidDJ]"),
+                QStringLiteral("controller_activity"));
+        static std::atomic<qint64> s_lastMs{0};
+        const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
+        if (nowMs - s_lastMs.load() >= 100) {
+            s_lastMs.store(nowMs);
+            s_activity.set(s_activity.get() + 1.0);
+        }
+    }
+#endif
     if (isLearning()) {
         emit messageReceived(status, control, value);
 

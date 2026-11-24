@@ -208,6 +208,11 @@ PioneerDDJFLX4.beta = PioneerDDJFLX4.alpha/32;
 // Multiplier for fast seek through track using SHIFT+JOGWHEEL
 PioneerDDJFLX4.fastSeekScale = 150;
 PioneerDDJFLX4.bendScale = 0.8;
+// ADVANCED SETTINGS > JOGWHEEL: sensitivity factors of the jog (top = scratch, side = bend).
+PioneerDDJFLX4.jogSens = function(key) {
+    const v = engine.getValue("[AndroidDJ]", key);
+    return v > 0 ? v : 1;
+};
 
 // FLXXX3: steps like the Pioneer players (+-6 %, 10 %, 16 %, WIDE = +-100 %).
 PioneerDDJFLX4.tempoRanges = [0.06, 0.10, 0.16, 1.0];
@@ -625,16 +630,48 @@ PioneerDDJFLX4.changeEffectKeepState = function(control, value) {
     PioneerDDJFLX4.applyFxState();
 };
 
+// FLXXX3: FX SELECT steps through the 14 positions of ADVANCED SETTINGS > BEAT FX (the same list as
+// the selector of the DDJ-FLX10); empty positions and the effect that is already loaded are skipped.
+PioneerDDJFLX4.fxSlot = -1;
+PioneerDDJFLX4.stepBeatFxSelect = function(direction) {
+    const group = PioneerDDJFLX4.focusedFxGroup();
+    const loaded = Math.round(engine.getValue(group, "loaded_effect"));
+    const effectOf = function(slot) {
+        return Math.round(engine.getValue("[AndroidDJ]", "beat_fx_pos" + (slot + 1)));
+    };
+    if (PioneerDDJFLX4.fxSlot < 0 || effectOf(PioneerDDJFLX4.fxSlot) !== loaded) {
+        // the effect was changed otherwise (touch): continue from its first position
+        PioneerDDJFLX4.fxSlot = -1;
+        for (let slot = 0; slot < 14; slot++) {
+            if (effectOf(slot) === loaded) {
+                PioneerDDJFLX4.fxSlot = slot;
+                break;
+            }
+        }
+    }
+    for (let n = 1; n <= 14; n++) {
+        const slot = (((PioneerDDJFLX4.fxSlot + direction * n) % 14) + 14) % 14;
+        const effect = effectOf(slot);
+        if (effect > 0 && effect <= 17 && effect !== loaded) {
+            PioneerDDJFLX4.fxSlot = slot;
+            engine.setValue("[AndroidDJ]", "beat_fx_selected", slot + 1);
+            engine.setValue(group, "loaded_effect", effect);
+            PioneerDDJFLX4.applyFxState();
+            return;
+        }
+    }
+};
+
 PioneerDDJFLX4.beatFxSelectPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
 
-    PioneerDDJFLX4.changeEffectKeepState("next_effect", value);
+    PioneerDDJFLX4.stepBeatFxSelect(1);
 };
 
 PioneerDDJFLX4.beatFxSelectShiftPressed = function(_channel, _control, value) {
     if (value === 0) { return; }
 
-    PioneerDDJFLX4.changeEffectKeepState("prev_effect", value);
+    PioneerDDJFLX4.stepBeatFxSelect(-1);
 };
 
 // FLXXX3: the BEAT < > buttons step through the effect time in beats
@@ -720,7 +757,7 @@ PioneerDDJFLX4.loopExitOrFourBeat = function(_channel, _control, value, _status,
 };
 
 // FLXXX3: LOOP IN / OUT.
-//  - Inside an active loop the buttons do nothing.
+//  - Inside an active loop IN halves it and OUT doubles it (like the DDJ-FLX10).
 //  - IN sets only a new start point.
 //  - OUT sets the end point at the current position and makes the loop.
 PioneerDDJFLX4.loopButtonForwarded = {};
@@ -730,6 +767,7 @@ PioneerDDJFLX4.loopButton = function(group, key, value) {
     if (value > 0) {
         if (engine.getValue(group, "loop_enabled") > 0) {
             PioneerDDJFLX4.loopButtonForwarded[id] = false;
+            engine.setValue(group, "loop_scale", key === "loop_in" ? 0.5 : 2.0);
             return;
         }
         PioneerDDJFLX4.loopButtonForwarded[id] = true;
@@ -896,22 +934,14 @@ PioneerDDJFLX4.cueLoopCallLeft = function(_channel, _control, value, _status, gr
     if (!value) {
         return;
     }
-    if (engine.getValue(group, "loop_enabled")) {
-        engine.setValue(group, "loop_scale", 0.5);
-    } else {
-        PioneerDDJFLX4.callMemoryCue(group, -1);
-    }
+    PioneerDDJFLX4.callMemoryCue(group, -1);
 };
 
 PioneerDDJFLX4.cueLoopCallRight = function(_channel, _control, value, _status, group) {
     if (!value) {
         return;
     }
-    if (engine.getValue(group, "loop_enabled")) {
-        engine.setValue(group, "loop_scale", 2.0);
-    } else {
-        PioneerDDJFLX4.callMemoryCue(group, 1);
-    }
+    PioneerDDJFLX4.callMemoryCue(group, 1);
 };
 
 //
@@ -1035,7 +1065,7 @@ PioneerDDJFLX4.jogTurn = function(channel, _control, value, _status, group) {
         if (jogState.samples.length > 30) { jogState.samples.shift(); }
         engine.scratchTick(deckNum, newVal);
     } else { // fallback
-        engine.setValue(group, "jog", newVal * this.bendScale);
+        engine.setValue(group, "jog", newVal * this.bendScale * PioneerDDJFLX4.jogSens("jog_bend_sens"));
     }
 };
 
@@ -1204,7 +1234,7 @@ PioneerDDJFLX4.jogTouch = function(channel, _control, value) {
         // touching the jog ends a start or stop ramp of PLAY (the deck keeps playing)
         PioneerDDJFLX4.cancelPlayRamp(channel, group);
         state.wasPlaying = engine.getValue(group, "play") > 0;
-        engine.scratchEnable(deckNum, 720, 33+1/3, this.alpha, this.beta);
+        engine.scratchEnable(deckNum, 720 / PioneerDDJFLX4.jogSens("jog_scratch_sens"), 33+1/3, this.alpha, this.beta);
     } else {
         if (engine.isScratching(deckNum) &&
                 engine.getValue("[AndroidDJ]", "backspin_on") > 0 &&

@@ -94,15 +94,69 @@ TestCase {
         compare(engine.getValue("[AndroidDJ]", "color_fx_on"), 0);
     }
 
+    // The small display of the Beat FX: name and beat as rekordbox sends them (USB capture).
+    function test_beatFxDisplay() {
+        const g = "[EffectRack1_EffectUnit1_Effect1]";
+        engine.set("[AndroidDJ]", "beat_fx_pos2", 2);
+        midi.sysex = [];
+        flx10.beatFxPad(4, 0x21, 0x7F, 0x94, g);   // position 2: ECHO
+        const names = midi.sysex.filter(function(m) { return m[10] === 0x0A; });
+        compare(names.length, 1);
+        compare(names[0].length, 54);
+        compare(names[0].slice(16, 21), [0x0A, 0x0D, 0x42, 0x74, 0x09]);
+        engine.set(g, "parameter1", 0.0);
+        midi.sysex = [];
+        flx10.sendFxBeat("1/4");
+        compare(midi.sysex[0].slice(11, 17), [0x31, 0x5E, 0x50, 0x01, 0x00, 0x00]);
+        midi.sysex = [];
+        flx10.sendFxBeat("50%");
+        compare(midi.sysex[0].slice(11, 17), [0x35, 0x60, 0x14, 0x01, 0x00, 0x00]);
+        midi.sysex = [];
+        flx10.sendFxBeat("1/16");
+        compare(midi.sysex[0].slice(11, 17), [0x31, 0x5E, 0x44, 0x31, 0x03, 0x00]);
+    }
+
+    // ENIGMA JET: signed times like rekordbox, BEAT < along the ring: -4, -8 ... -64, +64 ... +1/16, -1/16 ...
+    function test_signedBeatRing() {
+        const g = "[EffectRack1_EffectUnit1_Effect1]";
+        engine.set("[AndroidDJ]", "beat_fx_pos7", 12);
+        flx10.beatFxPad(4, 0x26, 0x7F, 0x94, g);
+        engine.runTimers();
+        compare(flx10.fxBeatText(12), "-4");
+        const seen = [];
+        for (let i = 0; i < 22; i++) {
+            flx10.beatFxLeftPressed(4, 0x4A, 0x7F);
+            seen.push(flx10.fxBeatText(12));
+        }
+        compare(seen.slice(0, 5), ["-8", "-16", "-32", "-64", "+64"]);
+        compare(seen[15], "-1/16");
+        compare(seen[21], "-4");
+        flx10.beatFxRightPressed(4, 0x4B, 0x7F);
+        compare(flx10.fxBeatText(12), "-2");
+    }
+
+    // A position taken from ADVANCED SETTINGS > BEAT FX.
+    function test_beatFxPositionFromSettings() {
+        const g = "[EffectRack1_EffectUnit1_Effect1]";
+        engine.set("[AndroidDJ]", "beat_fx_pos11", 3);   // SLIP ROLL position now PING PONG
+        flx10.beatFxPad(4, 0x2A, 0x7F, 0x94, g);
+        compare(engine.getValue(g, "loaded_effect"), 3);
+    }
+
     // The BEAT FX selector loads the Beat FX of the app; ON/OFF switches it.
     function test_beatFxSelectorAndOnOff() {
         const g = "[EffectRack1_EffectUnit1_Effect1]";
+        const defaults = [11, 2, 1, 4, 6, 9, 12, 7, 8, 13, 17, 16, 14, 15];
+        for (let i = 0; i < 14; i++)
+            engine.set("[AndroidDJ]", "beat_fx_pos" + (i + 1), defaults[i]);
         flx10.beatFxPad(4, 0x24, 0x7F, 0x94, g);   // position 5: REVERB
         compare(engine.getValue(g, "loaded_effect"), 6);
         flx10.beatFxOnOff(4, 0x47, 0x7F, 0x94, g);
         compare(engine.getValue(g, "enabled"), 1);
-        flx10.beatFxPad(4, 0x2A, 0x7F, 0x94, g);   // position 11: SLIP ROLL, not in the app
-        compare(engine.getValue(g, "enabled"), 0);
+        flx10.beatFxPad(4, 0x2A, 0x7F, 0x94, g);   // position 11: SLIP ROLL (an effect of the app, 17)
+        compare(engine.getValue(g, "loaded_effect"), 17);
+        compare(engine.getValue(g, "enabled"), 1);
+        compare(engine.getValue("[AndroidDJ]", "beat_fx_selected"), 11);
         flx10.beatFxPad(4, 0x21, 0x7F, 0x94, g);   // position 2: ECHO, still on
         compare(engine.getValue(g, "loaded_effect"), 2);
         compare(engine.getValue(g, "enabled"), 1);
@@ -153,19 +207,22 @@ TestCase {
     // (-19 dB = 65, about -15 dB = 87..94), the top LED when the deck clips.
     function test_levelLedsFollowFaderAndDb() {
         engine.set("[Channel1]", "volume", 1);
-        engine.set("[Channel1]", "vu_meter", 0.670);            // -19 dB
-        compare(Math.round(flx10.vuLevel(1) * 127), 65);
-        engine.set("[Channel1]", "vu_meter", 0.834);            // -15 dB
-        const loud = Math.round(flx10.vuLevel(1) * 127);
-        verify(loud === 87 || loud === 94, loud);
-        engine.set("[Channel1]", "vu_meter", 0.3);              // -30 dB: off
+        engine.set("[Channel1]", "vu_meter", 0.860);            // -14.4 dB: 8-9 rows like rekordbox
+        compare(Math.round(flx10.vuLevel(1) * 127), 108);
+        engine.set("[Channel1]", "vu_meter", 0.45);             // -25 dB: dim, but lit
+        const quiet = Math.round(flx10.vuLevel(1) * 127);
+        verify(quiet > 58 && quiet < 90, quiet);
+        engine.set("[Channel1]", "vu_meter", 0.03);             // about -50 dB: off
         compare(flx10.vuLevel(1), 0);
         engine.set("[Channel1]", "vu_meter", 0.834);
         engine.set("[Channel1]", "peak_indicator", 1);
         compare(flx10.vuLevel(1), 1);
         engine.set("[Channel1]", "peak_indicator", 0);
-        engine.set("[Channel1]", "volume", 0);                  // fader cut
-        compare(flx10.vuLevel(1), 0);
+        engine.set("[Channel1]", "peak_indicator", 0);
+        engine.set("[Channel1]", "vu_meter", 0.834);
+        const up = flx10.vuLevel(1);
+        engine.set("[Channel1]", "volume", 0);                  // fader cut: level stays (rekordbox)
+        compare(flx10.vuLevel(1), up);
     }
 
     // Hot cue pads: the rekordbox colors of the app go to the pad values read off the pads.
@@ -213,65 +270,11 @@ TestCase {
         verify(ticks[1] < ticks[0] && ticks[2] > ticks[0], ticks);
     }
 
-    // Jog screens over HID (Android): handshake SysEx, then xx 27 reports wrapped in
-    // F0 7D 46 48 .. F7 for the decks with a track: elapsed time, length, BPM, key.
-    function test_hidJogScreens() {
-        engine.set("[AndroidDJ]", "hid_screens", 1);
-        flx10.SCREEN_MODE = "serato";
-        const g = "[Channel1]";
-        engine.set(g, "duration", 200);
-        engine.set(g, "playposition", 0.5);   // 100 s = 1:40.000
-        engine.set(g, "rate_ratio", 1);
-        engine.set(g, "bpm", 128.5);
-        engine.set(g, "key", 22);             // A minor = 8A
-        flx10.init();
-        verify(midi.sysex.some(function(m) { return m[2] === 0x20 && m[3] === 0x7F; }),
-            "session start");
-        midi.sysex = [];
-        engine.runTimers();
-        const all = midi.sysex.filter(function(m) {
-            return m[1] === 0x7D && m[2] === 0x46 && m[3] === 0x48;
-        });
-        // track load of deck 1: xx 30 (length), 3 x xx 39, 3 x xx 35 (entries), xx 2f
-        const types = all.map(function(m) { return m[5]; });
-        compare(types.filter(function(x) { return x === 0x30; }).length, 1);
-        compare(types.filter(function(x) { return x === 0x39; }).length, 3);
-        compare(types.filter(function(x) { return x === 0x35; }).length, 3);
-        const xx35 = all.filter(function(m) { return m[5] === 0x35; })[0].slice(4);
-        compare(xx35[2] | (xx35[3] << 8), 30000);   // 200 s x 150
-        verify(midi.sysex.some(function(m) { return m[3] === 0x57 && m[4] === 1; }),
-            "waveform upload asked");
-        verify(midi.sysex.some(function(m) { return m[3] === 0x50 && m[4] === 1; }),
-            "playhead");
-        const reports = all.filter(function(m) { return m[5] === 0x27; });
-        compare(reports.length, 2);           // deck 1 with its track, deck 2 empty
-        const r = reports[0].slice(4, reports[0].length - 1);
-        const idle = reports[1].slice(4, reports[1].length - 1);
-        compare(idle[0], 0x20);
-        compare(idle[29], 0x80);              // no key: empty
-        compare(r.length, 128);
-        compare(r[0], 0x10);
-        compare(r[1], 0x27);
-        compare(r[5], 1);                     // 1 min
-        compare(r[6], 40);                    // 40 s
-        compare(r[9], 3);                     // length 3:20
-        compare(r[10], 20);
-        compare(r[13], 128);
-        compare(r[14], 0x80);                 // .5 BPM
-        compare(r[29], 0x82);                 // 8A
-        // nothing changed: no state report again (only the waveform request each second)
-        midi.sysex = [];
-        engine.runTimers();
-        verify(!midi.sysex.some(function(m) { return m[1] === 0x7D && m[3] === 0x48; }));
-        flx10.shutdown();
-    }
-
     // Jog screens in rekordbox mode: rekordbox's SysEx, start reports for 4 decks, deck state
     // xx 21 (elapsed time, length, key), BPM SysEx and the waveform upload request.
     function test_rekordboxJogScreens() {
         engine.set("[AndroidDJ]", "hid_screens", 1);
         engine.set("[AndroidDJ]", "master_deck", 1);
-        flx10.SCREEN_MODE = "rekordbox";
         flx10.rb.UPLOAD_PARTS = 7;
         const g = "[Channel1]";
         engine.set(g, "duration", 200);

@@ -21,7 +21,14 @@ Item {
         // New ones are appended: saved presets store the index in this list.
         { name: "SPIRAL", id: "org.mixxx.effects.spiral", beats: true },
         { name: "HELIX", id: "org.mixxx.effects.helix", beats: true },
-        { name: "TRANS", id: "org.mixxx.effects.trans", beats: true }
+        { name: "TRANS", id: "org.mixxx.effects.trans", beats: true },
+        { name: "LOW CUT ECHO", id: "org.mixxx.effects.lowcutecho", beats: true },
+        { name: "ENIGMA JET", id: "org.mixxx.effects.enigmajet", beats: true },
+        { name: "STRETCH", id: "org.mixxx.effects.stretch", beats: true },
+        { name: "MOBIUS SAW", id: "org.mixxx.effects.mobiussaw", beats: true },
+        { name: "MOBIUS TRIANGLE", id: "org.mixxx.effects.mobiustriangle", beats: true },
+        { name: "ROLL", id: "org.mixxx.effects.roll", beats: true },
+        { name: "SLIP ROLL", id: "org.mixxx.effects.sliproll", beats: true }
     ]
     readonly property var beatValues: [0.0625, 0.125, 0.25, 0.5, 0.75, 1, 2, 4, 8]
     readonly property var beatTexts: ["1/16", "1/8", "1/4", "1/2", "3/4", "1", "2", "4", "8"]
