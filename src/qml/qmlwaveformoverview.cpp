@@ -8,6 +8,7 @@
 #include "moc_qmlwaveformoverview.cpp"
 #include "qmlconfigproxy.h"
 #include "qmltrackproxy.h"
+#include "track/cue.h"
 #include "track/track.h"
 #include "util/math.h"
 #include "waveform/waveformwidgetfactory.h"
@@ -160,6 +161,15 @@ void QmlWaveformOverview::setMinuteMarkers(bool minuteMarkers) {
     update();
 }
 
+void QmlWaveformOverview::setShowCues(bool showCues) {
+    if (m_showCues == showCues) {
+        return;
+    }
+    m_showCues = showCues;
+    emit showCuesChanged();
+    update();
+}
+
 void QmlWaveformOverview::setAnalyzerProgress(double analyzerProgress) {
     if (m_analyzerProgress == analyzerProgress) {
         return;
@@ -297,7 +307,81 @@ void QmlWaveformOverview::paint(QPainter* pPainter) {
     if (m_minuteMarkers) {
         drawMinuteMarkers(pPainter, pTrack->getDuration());
     }
+#ifdef FLXXX3
+    if (m_showCues) {
+        drawCues(pPainter, pTrack);
+    }
+#endif
 }
+
+#ifdef FLXXX3
+// Hot cues (and saved loops) as squares in their colour at the top edge with a thin line down,
+// memory cues as small red triangles at the top edge (like the Pioneer players and the scrolling
+// waveform).
+void QmlWaveformOverview::drawCues(QPainter* pPainter, const TrackPointer& pTrack) const {
+    const double duration = pTrack->getDuration();
+    const double sampleRate = pTrack->getSampleRate();
+    if (!(duration > 0.0) || !(sampleRate > 0.0) || width() <= 0.0) {
+        return;
+    }
+    const double size = std::max(6.0, std::round(height() * 0.24));
+    pPainter->save();
+    pPainter->setRenderHint(QPainter::Antialiasing, true);
+    const QList<CuePointer> cues = pTrack->getCuePoints();
+    // memory cues first: the hot cues lie over them
+    for (int pass = 0; pass < 2; ++pass) {
+        for (const CuePointer& pCue : cues) {
+            const mixxx::CueType type = pCue->getType();
+            if (type != mixxx::CueType::HotCue && type != mixxx::CueType::Loop) {
+                continue;
+            }
+            const int index = pCue->getHotCue();
+            if (index < 0) {
+                continue;
+            }
+            const bool memory = index >= 16;
+            if ((pass == 0) != memory) {
+                continue;
+            }
+            const mixxx::audio::FramePos position = pCue->getPosition();
+            if (!position.isValid()) {
+                continue;
+            }
+            const double seconds = position.value() / sampleRate;
+            const double x = std::clamp(seconds / duration, 0.0, 1.0) * width();
+            // the symbol stays whole at the edges (a cue at the start of the track)
+            const double symbolX = std::clamp(x, size / 2.0, std::max(size / 2.0, width() - size / 2.0));
+            if (memory) {
+                QPolygonF triangle;
+                triangle << QPointF(symbolX - size / 2.0, 0.0) << QPointF(symbolX + size / 2.0, 0.0)
+                         << QPointF(symbolX, size * 0.9);
+                // black outline, like Rekordbox
+                pPainter->setPen(QPen(Qt::black, 1.0));
+                pPainter->setBrush(QColor(255, 50, 50));
+                pPainter->drawPolygon(triangle);
+            } else {
+                const QColor color = QColor::fromRgb(pCue->getColor());
+                QColor lineColor = color;
+                lineColor.setAlpha(150);
+                pPainter->setPen(QPen(lineColor, 1.0));
+                pPainter->drawLine(QPointF(x, size), QPointF(x, height()));
+                pPainter->setPen(Qt::NoPen);
+                pPainter->setBrush(color);
+                const QRectF box(symbolX - size / 2.0, 0.0, size, size);
+                pPainter->drawRect(box);
+                // the letter of the hot cue (A, B, ...) inside, always black
+                QFont font = pPainter->font();
+                font.setBold(true);
+                font.setPixelSize(std::max(5, static_cast<int>(std::round(size * 0.78))));
+                pPainter->setFont(font);
+                pPainter->setPen(Qt::black);
+                pPainter->drawText(box, Qt::AlignCenter, QString(QChar('A' + std::min(index, 25))));
+            }
+        }
+    }
+    pPainter->restore();
+}
+#endif
 
 void QmlWaveformOverview::drawRgb(QPainter* pPainter,
         Channels channels,

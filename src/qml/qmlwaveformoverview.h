@@ -32,6 +32,8 @@ class QmlWaveformOverview : public QQuickPaintedItem {
                     normalizedChanged)
     Q_PROPERTY(bool minuteMarkers READ minuteMarkers WRITE setMinuteMarkers
                     NOTIFY minuteMarkersChanged)
+    // FLXXX3: hot cues and memory cues of the track on the overview (library list).
+    Q_PROPERTY(bool showCues READ showCues WRITE setShowCues NOTIFY showCuesChanged)
     Q_PROPERTY(double analyzerProgress READ analyzerProgress WRITE setAnalyzerProgress
                     NOTIFY analyzerProgressChanged)
     Q_PROPERTY(QColor colorHigh MEMBER m_colorHigh NOTIFY colorHighChanged)
@@ -85,6 +87,10 @@ class QmlWaveformOverview : public QQuickPaintedItem {
         return m_minuteMarkers;
     }
     void setMinuteMarkers(bool minuteMarkers);
+    bool showCues() const {
+        return m_showCues;
+    }
+    void setShowCues(bool showCues);
     double analyzerProgress() const {
         return m_analyzerProgress;
     }
@@ -101,6 +107,7 @@ class QmlWaveformOverview : public QQuickPaintedItem {
     void stereoChanged();
     void normalizedChanged();
     void minuteMarkersChanged();
+    void showCuesChanged();
     void analyzerProgressChanged();
     void colorHighChanged(const QColor& color);
     void colorMidChanged(const QColor& color);
@@ -127,6 +134,7 @@ class QmlWaveformOverview : public QQuickPaintedItem {
             ConstWaveformPointer pWaveform,
             int completion) const;
     void drawMinuteMarkers(QPainter* pPainter, double duration) const;
+    void drawCues(QPainter* pPainter, const TrackPointer& pTrack) const;
     QColor getRgbPenColor(ConstWaveformPointer pWaveform, int completion) const;
     QColor getRgbPenColor(qreal low, qreal mid, qreal high) const;
     QString m_group;
@@ -144,6 +152,7 @@ class QmlWaveformOverview : public QQuickPaintedItem {
     bool m_stereo;
     bool m_normalized;
     bool m_minuteMarkers;
+    bool m_showCues = false;
     double m_analyzerProgress{-1.0};
     QColor m_colorHigh;
     QColor m_colorMid;

@@ -165,7 +165,7 @@ Item {
             splitStemTracks: root.splitStemTracks || Mixxx.Config.waveformStemSplitTracks
         }
         Mixxx.WaveformRendererBeat {
-            color: Qt.rgba(161 / 255, 161 / 255, 161 / 255, (Mixxx.Product.ui ? AdvSettings.values.beatGridAlpha : Mixxx.Config.waveformBeatGridAlpha) / 100)
+            color: Qt.rgba(225 / 255, 225 / 255, 225 / 255, (Mixxx.Product.ui ? AdvSettings.values.beatGridAlpha : Mixxx.Config.waveformBeatGridAlpha) / 100)
         }
         Mixxx.WaveformRendererMark {
             playMarkerBackground: '#D9D9D9'

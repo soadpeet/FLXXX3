@@ -1,6 +1,4 @@
 #include "waveform/renderers/allshader/waveformrenderbeat.h"
-#include "rendergraph/material/rgbmaterial.h"
-#include "rendergraph/vertexupdaters/rgbvertexupdater.h"
 
 #include <QDomNode>
 
@@ -29,7 +27,7 @@ WaveformRenderBeat::WaveformRenderBeat(WaveformWidgetRenderer* waveformWidget,
 #ifdef FLXXX3
     auto pBarNode = std::make_unique<GeometryNode>();
     m_pBarNode = pBarNode.get();
-    m_pBarNode->initForRectangles<RGBMaterial>(0);
+    m_pBarNode->initForRectangles<UniColorMaterial>(0);
     appendChildNode(std::move(pBarNode));
 #endif
 }
@@ -162,10 +160,14 @@ bool WaveformRenderBeat::preprocessInner() {
     const int reserved = (numBeatsInRange - numBarsInRange) * numVerticesPerLine * 2;
     geometry().allocate(reserved);
     m_pBarNode->geometry().allocate(numBarsInRange * numVerticesPerLine * 2);
-    RGBVertexUpdater barVertexUpdater{m_pBarNode->geometry().vertexDataAs<Geometry::RGBColoredPoint2D>()};
-    const QVector3D barColor(1.f, 122.f / 255.f, 26.f / 255.f);
-    // All ticks have the same size; every 4th beat is only drawn in orange.
+    VertexUpdater barVertexUpdater{m_pBarNode->geometry().vertexDataAs<Geometry::Point2D>()};
+    // Orange, with the opacity of the grey ticks (ADVANCED SETTINGS).
+    QColor barColor(255, 122, 26);
+    barColor.setAlphaF(m_color.alphaF());
+    // Every 4th beat (the bar) is drawn orange: 120% as high as the grey ticks, 30% wider.
     const float tickHeight = std::max(3.f, rendererBreadth * 0.05f);
+    const float barTickHeight = tickHeight * 1.2f;
+    const float barHalfWidth = 1.3f;
 #else
     const int reserved = numBeatsInRange * numVerticesPerLine * numBoxesPerBeat;
     geometry().allocate(reserved);
@@ -195,10 +197,9 @@ bool WaveformRenderBeat::preprocessInner() {
 
 #ifdef FLXXX3
         if (beatIndex++ % 4 == 0) {
-            barVertexUpdater.addRectangle({x1 - 0.5f, 0.f}, {x2 + 0.5f, tickHeight}, barColor);
-            barVertexUpdater.addRectangle({x1 - 0.5f, rendererBreadth - tickHeight},
-                    {x2 + 0.5f, rendererBreadth},
-                    barColor);
+            barVertexUpdater.addRectangle({x1 + 0.5f - barHalfWidth, 0.f}, {x1 + 0.5f + barHalfWidth, barTickHeight});
+            barVertexUpdater.addRectangle({x1 + 0.5f - barHalfWidth, rendererBreadth - barTickHeight},
+                    {x1 + 0.5f + barHalfWidth, rendererBreadth});
         } else {
             vertexUpdater.addRectangle({x1 - 0.5f, 0.f}, {x2 + 0.5f, tickHeight});
             vertexUpdater.addRectangle({x1 - 0.5f, rendererBreadth - tickHeight},
@@ -226,6 +227,10 @@ bool WaveformRenderBeat::preprocessInner() {
 
     material().setUniform(1, m_color);
     markDirtyMaterial();
+#ifdef FLXXX3
+    m_pBarNode->material().setUniform(1, barColor);
+    m_pBarNode->markDirtyMaterial();
+#endif
 
     return true;
 }

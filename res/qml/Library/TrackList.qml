@@ -904,6 +904,7 @@ Rectangle {
                             channels: Mixxx.WaveformOverview.Channels.BothChannels
                             minuteMarkers: false
                             normalized: true
+                            showCues: true
                             stereo: false
                             track: liteCell.waveReady ? view.model.getPreviewTrack(liteCell.row) : null
                         }
