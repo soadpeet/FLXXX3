@@ -435,8 +435,113 @@ PioneerDDJFLX10._updateRate = function(deck) {
         PioneerDDJFLX10._tempoResetEngaged[deck]) {
         return;
     }
-    engine.setValue("[Channel" + deck + "]", "rate",
-                    PioneerDDJFLX10._sliderRate(deck));
+    // A deck that follows the master (SYNC on) takes its tempo from the master: its tempo
+    // fader must not change the master's tempo.
+    if (engine.getValue("[Channel" + deck + "]", "sync_enabled") > 0 &&
+            Math.round(engine.getValue("[AndroidDJ]", "master_deck")) !== deck) {
+        return;
+    }
+    // The fader sends a lot of messages when it is moved fast (MSB and LSB each): the tempo is
+    // set at most every 25 ms (the last position always follows), otherwise the displays and the
+    // screen could not keep up (lag, above all in WIDE).
+    PioneerDDJFLX10._rateWanted[deck] = PioneerDDJFLX10._sliderRate(deck);
+    if (PioneerDDJFLX10._rateTimer[deck]) {
+        return;
+    }
+    PioneerDDJFLX10._applyRate(deck);
+};
+PioneerDDJFLX10._rateWanted = {1: null, 2: null, 3: null, 4: null};
+PioneerDDJFLX10._rateTimer = {1: 0, 2: 0, 3: 0, 4: 0};
+PioneerDDJFLX10._applyRate = function(deck) {
+    var wanted = PioneerDDJFLX10._rateWanted[deck];
+    if (wanted === null) {
+        return;
+    }
+    PioneerDDJFLX10._rateWanted[deck] = null;
+    engine.setValue("[Channel" + deck + "]", "rate", wanted);
+    PioneerDDJFLX10._rateTimer[deck] = engine.beginTimer(25, function() {
+        PioneerDDJFLX10._rateTimer[deck] = 0;
+        PioneerDDJFLX10._applyRate(deck);   // the position that came in meanwhile
+    }, true);
+};
+
+
+// ---- Channel faders: the curve of the UTILITY menu ([AndroidDJ] fader_curve: 0 slow start,
+// 1 linear, 2 fast start), like the DDJ-FLX4 script. 14 bit: MSB, then LSB.
+PioneerDDJFLX10._faderMsb = {1: 0, 2: 0, 3: 0, 4: 0};
+PioneerDDJFLX10._faderLsb = {1: 0, 2: 0, 3: 0, 4: 0};
+PioneerDDJFLX10._applyFader = function(deck) {
+    var x = ((PioneerDDJFLX10._faderMsb[deck] << 7) | PioneerDDJFLX10._faderLsb[deck]) / 16383;
+    var curve = Math.round(engine.getValue("[AndroidDJ]", "fader_curve"));
+    var y = x;
+    if (curve === 0) {
+        y = x * x;                    // slow start
+    } else if (curve === 2) {
+        y = Math.min(1, x * 1.6);     // fast start
+    }
+    // As a parameter (fader position): the volume control has the audio taper of a mixer fader.
+    engine.setParameter("[Channel" + deck + "]", "volume", y);
+};
+PioneerDDJFLX10.channelFaderMSB = function(channel, control, value, status, group) {
+    var deck = PioneerDDJFLX10._getDeckFromGroup(group);
+    PioneerDDJFLX10._faderMsb[deck] = value;
+    PioneerDDJFLX10._applyFader(deck);   // (not every channel sends the LSB)
+};
+PioneerDDJFLX10.channelFaderLSB = function(channel, control, value, status, group) {
+    var deck = PioneerDDJFLX10._getDeckFromGroup(group);
+    PioneerDDJFLX10._faderLsb[deck] = value;
+    PioneerDDJFLX10._applyFader(deck);
+};
+
+// ---- LOAD: INSTANT DOUBLES. Pressing LOAD twice quickly loads the track of the other deck of
+// the pair (1 + 2, 3 + 4), at the same position (and playing if it plays). A single press
+// loads the selected track (and opens the library) only after the time for a second press has
+// passed, so that the library does not open at the first press of a double press.
+PioneerDDJFLX10._loadPressedAt = {1: 0, 2: 0, 3: 0, 4: 0};
+PioneerDDJFLX10._loadTimer = {1: 0, 2: 0, 3: 0, 4: 0};
+PioneerDDJFLX10.DOUBLE_LOAD_MS = 350;
+PioneerDDJFLX10.loadPressed = function(channel, control, value, status, group) {
+    if (!value) {
+        return;   // the release: the load is a pulse of its own
+    }
+    var deck = PioneerDDJFLX10._getDeckFromGroup(group);
+    var otherDeck = deck % 2 === 1 ? deck + 1 : deck - 1;
+    if (PioneerDDJFLX10._loadTimer[deck]) {
+        // the second press: the copy of the other deck replaces the single load
+        engine.stopTimer(PioneerDDJFLX10._loadTimer[deck]);
+        PioneerDDJFLX10._loadTimer[deck] = 0;
+        if (otherDeck <= PioneerDDJFLX10.numDecks &&
+                engine.getValue("[Channel" + otherDeck + "]", "track_loaded")) {
+            engine.setValue(group, "CloneFromDeck", otherDeck);
+        } else {
+            PioneerDDJFLX10._loadPulse(group);
+        }
+        return;
+    }
+    PioneerDDJFLX10._loadTimer[deck] = engine.beginTimer(PioneerDDJFLX10.DOUBLE_LOAD_MS, function() {
+        PioneerDDJFLX10._loadTimer[deck] = 0;
+        PioneerDDJFLX10._loadPulse(group);
+    }, true);
+};
+// LOAD as a press that lasts a moment (the screen reads the control when it is told about the
+// change: 1 and 0 in the same moment would be seen as 0 only).
+PioneerDDJFLX10._loadPulse = function(group) {
+    engine.setValue(group, "LoadSelectedTrack", 1);
+    engine.beginTimer(120, function() {
+        engine.setValue(group, "LoadSelectedTrack", 0);
+    }, true);
+};
+
+// ---- SHIFT + BEAT SYNC (note 0x5C) makes the deck the MASTER (tempo reference), like rekordbox.
+// BEAT SYNC alone is the sync of the deck. The MASTER deck cannot follow itself.
+PioneerDDJFLX10.syncPressed = function(channel, control, value, status, group) {
+    if (value > 0) {
+        var deck = PioneerDDJFLX10._getDeckFromGroup(group);
+        engine.setValue("[AndroidDJ]", "master_deck", deck);
+        if (engine.getValue(group, "sync_enabled") > 0) {
+            engine.setValue(group, "sync_enabled", 0);
+        }
+    }
 };
 
 // ─── TEMPO RESET button (note 0x41) — hold at 0% ─────────────────────────────
@@ -570,6 +675,14 @@ PioneerDDJFLX10.wheelTurn = function(channel, control, value, status, group) {
     if (PioneerDDJFLX10._loopAdjustMode[deckNumber]) {
         PioneerDDJFLX10._nudgeLoop(group, deckNumber, newValue);
     } else {
+        if (engine.isScratching(deckNumber)) {
+            // the last turns (time, ticks) for the speed of the BACK SPIN
+            var st = PioneerDDJFLX10._jog[deckNumber];
+            st.vel = st.vel * 0.6 + newValue * 0.4;
+            st.time = Date.now();
+            st.samples.push([st.time, newValue]);
+            if (st.samples.length > 30) { st.samples.shift(); }
+        }
         PioneerDDJFLX10._jogMove(deckNumber, group, newValue);
     }
 };
@@ -620,15 +733,178 @@ PioneerDDJFLX10.LedVuMeterCH2 = function() { PioneerDDJFLX10.updateVu(2); };
 PioneerDDJFLX10.LedVuMeterCH3 = function() { PioneerDDJFLX10.updateVu(3); };
 PioneerDDJFLX10.LedVuMeterCH4 = function() { PioneerDDJFLX10.updateVu(4); };
 
+// ---- JOGWHEEL settings (menu JOGWHEEL, like the DDJ-FLX4 script) -------------------------
+// BACK SPIN: turning the jog fast backwards and letting go spins the track back, then it plays
+// on. VINYL SPEED ADJUST: the start and stop time of PLAY (see playButton).
+PioneerDDJFLX10._jog = {};
+[1, 2, 3, 4].forEach(function(deck) {
+    PioneerDDJFLX10._jog[deck] = {vel: 0, time: 0, ramp: 0, wasPlaying: false,
+        backspinning: false, coasting: false, speed: 0, samples: [], playRamp: ""};
+});
+
+PioneerDDJFLX10._stopJogRamp = function(deck) {
+    var state = PioneerDDJFLX10._jog[deck];
+    if (state.ramp) {
+        engine.stopTimer(state.ramp);
+        state.ramp = 0;
+    }
+};
+
+// Moves the speed of the deck (scratch2) from one rate to another in `seconds`.
+PioneerDDJFLX10._rampJogSpeed = function(deck, group, fromRate, toRate, seconds, onDone) {
+    var state = PioneerDDJFLX10._jog[deck];
+    PioneerDDJFLX10._stopJogRamp(deck);
+    var start = Date.now();
+    state.ramp = engine.beginTimer(20, function() {
+        var progress = seconds <= 0 ? 1 : Math.min(1, (Date.now() - start) / (seconds * 1000));
+        state.speed = fromRate + (toRate - fromRate) * progress;
+        engine.setValue(group, "scratch2", state.speed);
+        if (progress >= 1) {
+            PioneerDDJFLX10._stopJogRamp(deck);
+            if (onDone) { onDone(); }
+        }
+    });
+};
+
+// BACK SPIN: the platters of the DDJ-FLX10 turn on after they are let go (mechanical, with
+// weight), so the back spin needs no simulation: after letting go while turning back fast the
+// deck keeps following the wheel (scratch) until it has stopped, then it plays on at its
+// normal speed. (BACK SPIN LENGTH / SENSITIVITY of the menu are for the DDJ-FLX4.)
+PioneerDDJFLX10.BACKSPIN_MIN_TIMES = 1.5;     // faster than this (times the normal speed, backwards)
+PioneerDDJFLX10.BACKSPIN_END_MS = 200;        // the wheel is still when no turn came for this long
+PioneerDDJFLX10._endCoasting = function(deck) {
+    var state = PioneerDDJFLX10._jog[deck];
+    PioneerDDJFLX10._stopJogRamp(deck);
+    state.coasting = false;
+    if (engine.isScratching(deck)) {
+        engine.scratchDisable(deck, false);
+    }
+};
+PioneerDDJFLX10._startCoasting = function(deck) {
+    var state = PioneerDDJFLX10._jog[deck];
+    state.coasting = true;
+    PioneerDDJFLX10._stopJogRamp(deck);
+    state.ramp = engine.beginTimer(50, function() {
+        // ends when the wheel stands still or turns forward again (the track then plays on)
+        var forward = state.samples.length > 0 &&
+                state.samples[state.samples.length - 1][1] > 0;
+        if (Date.now() - state.time > PioneerDDJFLX10.BACKSPIN_END_MS || forward) {
+            PioneerDDJFLX10._endCoasting(deck);
+        }
+    });
+};
+
+// Speed of the jog in the 100 ms before the last tick, in times of the normal speed of the
+// wheel (a record at 33 1/3 rpm); negative = backwards.
+PioneerDDJFLX10._jogSpeedTimes = function(deck) {
+    var samples = PioneerDDJFLX10._jog[deck].samples;
+    if (samples.length === 0) { return 0; }
+    var last = samples[samples.length - 1][0];
+    var ticks = 0;
+    for (var i = 0; i < samples.length; i++) {
+        if (last - samples[i][0] <= 100) { ticks += samples[i][1]; }
+    }
+    var normalPerSecond = SCRATCH_INTERVALS_PER_REV / PioneerDDJFLX10._jogSens("jog_scratch_sens") * (100 / 3 / 60);
+    return ticks * 10 / normalPerSecond;
+};
+
+PioneerDDJFLX10._cancelPlayRamp = function(deck, group) {
+    var state = PioneerDDJFLX10._jog[deck];
+    if (state.playRamp === "") { return; }
+    PioneerDDJFLX10._stopJogRamp(deck);
+    state.playRamp = "";
+    engine.setValue(group, "scratch2_enable", 0);
+};
+
+// VINYL SPEED ADJUST: the time that the deck needs to start up when PLAY starts it (START) and
+// to slow down to a standstill when PLAY pauses it (STOP), like a turntable; 0 seconds = off.
+PioneerDDJFLX10.playButton = function(channel, control, value, status, group) {
+    if (value === 0) { return; } // only the press
+    var deck = PioneerDDJFLX10._getDeckFromGroup(group);
+    var state = PioneerDDJFLX10._jog[deck];
+    var stopSeconds = engine.getValue("[AndroidDJ]", "vinyl_stop_sec");
+    var startSeconds = engine.getValue("[AndroidDJ]", "vinyl_start_sec");
+    var tempo = engine.getValue(group, "rate_ratio");
+    if (state.playRamp === "stop") {
+        // pressed again while it slows down: it speeds up again from the speed it has now
+        var nowSpeed = state.speed;
+        var upSeconds = startSeconds * (tempo > 0 ? Math.max(0, 1 - nowSpeed / tempo) : 1);
+        state.playRamp = "start";
+        PioneerDDJFLX10._rampJogSpeed(deck, group, nowSpeed, tempo, upSeconds, function() {
+            state.playRamp = "";
+            engine.setValue(group, "scratch2_enable", 0);
+        });
+        return;
+    }
+    if (state.playRamp === "start") {
+        // pressed again while it starts up: it slows down again from the speed it has now
+        var curSpeed = state.speed;
+        var downSeconds = stopSeconds * (tempo > 0 ? Math.max(0, curSpeed / tempo) : 1);
+        state.playRamp = "stop";
+        PioneerDDJFLX10._rampJogSpeed(deck, group, curSpeed, 0, downSeconds, function() {
+            state.playRamp = "";
+            engine.setValue(group, "play", 0);
+            engine.setValue(group, "scratch2_enable", 0);
+        });
+        return;
+    }
+    var rate = engine.getValue(group, "rate_ratio");
+    if (engine.getValue(group, "play") > 0) {
+        if (stopSeconds > 0 && !engine.isScratching(deck)) {
+            state.playRamp = "stop";
+            state.speed = rate;
+            engine.setValue(group, "scratch2_enable", 1);
+            engine.setValue(group, "scratch2", rate);
+            PioneerDDJFLX10._rampJogSpeed(deck, group, rate, 0, stopSeconds, function() {
+                state.playRamp = "";
+                engine.setValue(group, "play", 0);
+                engine.setValue(group, "scratch2_enable", 0);
+            });
+        } else {
+            engine.setValue(group, "play", 0);
+        }
+    } else if (startSeconds > 0 && !engine.isScratching(deck)) {
+        state.playRamp = "start";
+        state.speed = 0;
+        engine.setValue(group, "scratch2_enable", 1);
+        engine.setValue(group, "scratch2", 0);
+        engine.setValue(group, "play", 1);
+        PioneerDDJFLX10._rampJogSpeed(deck, group, 0, rate, startSeconds, function() {
+            state.playRamp = "";
+            engine.setValue(group, "scratch2_enable", 0);
+        });
+    } else {
+        engine.setValue(group, "play", 1);
+    }
+};
+
 PioneerDDJFLX10.wheelTouch = function(channel, control, value, status, group) {
     var deckNumber = PioneerDDJFLX10._getDeckFromGroup(group);
     // While adjusting a loop boundary, don't scratch — keep the loop playing.
     if (PioneerDDJFLX10._loopAdjustMode[deckNumber]) {
         return;
     }
+    var state = PioneerDDJFLX10._jog[deckNumber];
     if (value === 0x7F) {
+        state.vel = 0;
+        state.samples = [];
+        if (state.coasting) {
+            // touching the wheel during a back spin: take over
+            PioneerDDJFLX10._endCoasting(deckNumber);
+        }
+        // touching the jog ends a start or stop ramp of PLAY (the deck keeps playing)
+        PioneerDDJFLX10._cancelPlayRamp(deckNumber, group);
+        state.wasPlaying = engine.getValue(group, "play") > 0;
         engine.scratchEnable(deckNumber, SCRATCH_INTERVALS_PER_REV / PioneerDDJFLX10._jogSens("jog_scratch_sens"), 33+1/3, JOG_ALPHA, JOG_ALPHA / 32);
     } else {
+        if (engine.isScratching(deckNumber) &&
+                engine.getValue("[AndroidDJ]", "backspin_on") > 0 &&
+                state.wasPlaying &&
+                PioneerDDJFLX10._jogSpeedTimes(deckNumber) < -PioneerDDJFLX10.BACKSPIN_MIN_TIMES &&
+                Date.now() - state.time < 120) {
+            PioneerDDJFLX10._startCoasting(deckNumber);
+            return;
+        }
         engine.scratchDisable(deckNumber, false);
     }
 };
@@ -1123,7 +1399,8 @@ PioneerDDJFLX10.rb.sendBpm = function(deck) {
 
 PioneerDDJFLX10.rb.rateCode = function(deck) {
     var rate = engine.getValue("[Channel" + deck + "]", "rate_ratio");
-    var v = Math.max(1, Math.min(0x1FFFFF, Math.round((rate > 0 ? rate : 1) * 10000)));
+    // WIDE (+-100 %): the fader end gives the tempo 0 (rate_ratio 0): shown as 0, not as 100 %.
+    var v = Math.max(0, Math.min(0x1FFFFF, Math.round((rate >= 0 ? rate : 1) * 10000)));
     return [v & 0x7F, (v >> 7) & 0x7F, (v >> 14) & 0x7F];
 };
 
@@ -1484,8 +1761,7 @@ PioneerDDJFLX10.LoopDoubleShift = function(channel, control, value, status, grou
 };
 
 // Rate range selector — like rekordbox: 6 / 10 / 16 % and WIDE (the app takes 1.0 as WIDE).
-// A new range keeps the tempo that is playing (the fader position is adapted); the tempo
-// follows the fader again when it is moved.
+// The tempo changes at once with the range (the position of the fader x the new range).
 PioneerDDJFLX10._rateRanges = [0.06, 0.10, 0.16, 1.0];
 PioneerDDJFLX10.RangeSelector = function(channel, control, value, status, group) {
     if (value !== 0x7F) return;
@@ -1496,10 +1772,15 @@ PioneerDDJFLX10.RangeSelector = function(channel, control, value, status, group)
         if (d < best) { best = d; idx = i; }
     }
     idx = (idx + 1) % PioneerDDJFLX10._rateRanges.length;
-    var effective = engine.getValue(group, "rate") * current;
-    var next = PioneerDDJFLX10._rateRanges[idx];
-    engine.setValue(group, "rateRange", next);
-    engine.setValue(group, "rate", Math.max(-1, Math.min(1, effective / next)));
+    engine.setValue(group, "rateRange", PioneerDDJFLX10._rateRanges[idx]);
+    // The app keeps the playing tempo when the range changes: the tempo follows the position of
+    // the fader at once (fader position x new range), not only when the fader is moved.
+    var rangeDeck = PioneerDDJFLX10._getDeckFromGroup(group);
+    if (PioneerDDJFLX10._rateTimer[rangeDeck]) {
+        engine.stopTimer(PioneerDDJFLX10._rateTimer[rangeDeck]);
+        PioneerDDJFLX10._rateTimer[rangeDeck] = 0;
+    }
+    PioneerDDJFLX10._updateRate(rangeDeck);
 };
 
 // Time display mode management — [Controls]/ShowDurationRemaining: 0=elapsed, 1=remaining, 2=both

@@ -131,10 +131,7 @@ Rectangle {
                 break;
             }
         }
-        // The range changes, the tempo that is playing stays (like rekordbox).
-        const effective = rateControl.value * rateRangeControl.value;
         rateRangeControl.value = tempoRanges[next];
-        rateControl.value = Math.max(-1, Math.min(1, effective / tempoRanges[next]));
     }
 
     signal timeModeToggled
@@ -203,7 +200,6 @@ Rectangle {
     Mixxx.ControlProxy { id: playPositionControl; group: root.group; key: "playposition" }
     Mixxx.ControlProxy { id: durationControl; group: root.group; key: "duration" }
     Mixxx.ControlProxy { id: rateRangeControl; group: root.group; key: "rateRange" }
-    Mixxx.ControlProxy { id: rateControl; group: root.group; key: "rate" }
     Mixxx.ControlProxy { id: fixHalve; group: root.group; key: "beats_set_halve" }
     Mixxx.ControlProxy { id: fixTwoThirds; group: root.group; key: "beats_set_twothirds" }
     Mixxx.ControlProxy { id: fixThreeHalves; group: root.group; key: "beats_set_threehalves" }
@@ -818,7 +814,7 @@ Rectangle {
                 color: root.isMaster ? "#ff9a2e" : "#ffffff"
                 font.bold: true
                 font.pixelSize: Math.round(Math.min(bpmBox.height * (root.cdj ? 0.62 : 0.46), root.cdj ? bpmBox.width / 3.05 : 1000))
-                text: root.loaded && bpmControl.value > 0 ? bpmControl.value.toFixed(1) : ""
+                text: root.loaded && (bpmControl.value > 0 || rateRatioControl.value <= 0) ? bpmControl.value.toFixed(1) : ""
             }
             MouseArea {
                 enabled: root.loaded

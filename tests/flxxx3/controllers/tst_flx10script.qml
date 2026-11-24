@@ -187,6 +187,157 @@ TestCase {
         compare(engine.getValue(g, "enabled"), 0);
     }
 
+    // WIDE: at the end of the tempo fader the tempo is 0 (not shown as 100 %).
+    function test_tempoZeroIsShownAsZero() {
+        engine.set("[Channel1]", "rate_ratio", 0);
+        compare(flx10.rb.rateCode(1), [0, 0, 0]);
+        engine.set("[Channel1]", "rate_ratio", 1);
+        compare(flx10.rb.rateCode(1), [0x10, 0x4E, 0]);   // 10000 = 0x2710
+    }
+
+    // A fast moving tempo fader sets the tempo at most every 25 ms; the last position follows.
+    function test_tempoFaderIsThrottled() {
+        for (let i = 0; i < 10; ++i)
+            flx10.rate_msb(0, 0x00, 0x10 + i, 0xB0, "[Channel1]");
+        compare(engine.written("[Channel1]", "rate").length, 1);
+        engine.runTimers();
+        compare(engine.written("[Channel1]", "rate").length, 2);
+        engine.runTimers();
+        compare(engine.written("[Channel1]", "rate").length, 2);
+    }
+
+    // A new tempo range: the tempo follows the position of the fader at once.
+    function test_rangeChangeFollowsTheFader() {
+        flx10.rate_msb(0, 0x00, 0x20, 0xB0, "[Channel1]");     // fader somewhere
+        const before = engine.written("[Channel1]", "rate").length;
+        flx10.RangeSelector(0, 0x60, 0x7f, 0x90, "[Channel1]");
+        compare(engine.written("[Channel1]", "rateRange").length, 1);
+        compare(engine.written("[Channel1]", "rate").length, before + 1);
+    }
+
+    // LOAD twice quickly = copy of the other deck (like the DDJ-FLX4). A single press loads
+    // only after the time for a second press (the library does not open at the first press).
+    function test_loadInstantDouble() {
+        engine.set("[Channel2]", "track_loaded", 1);
+        flx10.loadPressed(6, 0x46, 0x7f, 0x96, "[Channel1]");
+        flx10.loadPressed(6, 0x46, 0, 0x96, "[Channel1]");
+        compare(engine.written("[Channel1]", "LoadSelectedTrack"), []);   // not at once
+        engine.clockMs += 200;
+        flx10.loadPressed(6, 0x46, 0x7f, 0x96, "[Channel1]");
+        engine.runTimers();
+        compare(engine.written("[Channel1]", "LoadSelectedTrack"), []);
+        compare(engine.written("[Channel1]", "CloneFromDeck"), [2]);
+    }
+
+    function test_loadSingle() {
+        flx10.loadPressed(6, 0x46, 0x7f, 0x96, "[Channel1]");
+        flx10.loadPressed(6, 0x46, 0, 0x96, "[Channel1]");
+        compare(engine.written("[Channel1]", "LoadSelectedTrack"), []);
+        engine.runTimers();                                                // no second press
+        compare(engine.written("[Channel1]", "LoadSelectedTrack"), [1]);
+        engine.runTimers();                                                // ... the press ends
+        compare(engine.written("[Channel1]", "LoadSelectedTrack"), [1, 0]);
+    }
+
+    // SHIFT + BEAT SYNC = MASTER (the MASTER does not follow itself).
+    function test_shiftBeatSyncMakesMaster() {
+        engine.set("[Channel2]", "sync_enabled", 1);
+        flx10.syncPressed(1, 0x5C, 0x7f, 0x91, "[Channel2]");
+        compare(engine.getValue("[AndroidDJ]", "master_deck"), 2);
+        compare(engine.getValue("[Channel2]", "sync_enabled"), 0);
+        flx10.syncPressed(1, 0x5C, 0, 0x91, "[Channel2]");          // release: no change
+        compare(engine.getValue("[AndroidDJ]", "master_deck"), 2);
+    }
+
+    // A deck that follows the master does not change the tempo with its fader.
+    function test_syncDeckTempoFaderDoesNothing() {
+        engine.set("[AndroidDJ]", "master_deck", 2);
+        engine.set("[Channel1]", "sync_enabled", 1);
+        flx10.rate_msb(0, 0x00, 0, 0xB0, "[Channel1]");
+        compare(engine.written("[Channel1]", "rate"), []);
+        engine.set("[Channel1]", "sync_enabled", 0);
+        flx10.rate_msb(0, 0x00, 0, 0xB0, "[Channel1]");
+        compare(engine.written("[Channel1]", "rate").length, 1);
+    }
+
+    // The fader curve of the UTILITY menu (0 slow start, 1 linear, 2 fast start).
+    function test_channelFaderCurve() {
+        engine.set("[AndroidDJ]", "fader_curve", 0);
+        flx10.channelFaderMSB(0, 0x13, 64, 0xB0, "[Channel1]");
+        flx10.channelFaderLSB(0, 0x33, 0, 0xB0, "[Channel1]");
+        verify(Math.abs(engine.getValue("[Channel1]", "volume") - 0.25) < 0.01);
+        engine.set("[AndroidDJ]", "fader_curve", 1);
+        flx10.channelFaderLSB(0, 0x33, 0, 0xB0, "[Channel1]");
+        verify(Math.abs(engine.getValue("[Channel1]", "volume") - 0.5) < 0.01);
+        engine.set("[AndroidDJ]", "fader_curve", 2);
+        flx10.channelFaderLSB(0, 0x33, 0, 0xB0, "[Channel1]");
+        verify(Math.abs(engine.getValue("[Channel1]", "volume") - 0.8) < 0.01);
+    }
+
+    // VINYL SPEED ADJUST: PLAY starts / stops with a ramp when the time is set.
+    function test_playButtonVinylStop() {
+        engine.set("[Channel1]", "play", 1);
+        engine.set("[Channel1]", "rate_ratio", 1);
+        engine.set("[AndroidDJ]", "vinyl_stop_sec", 1);
+        flx10.playButton(0, 0x0B, 0x7f, 0x90, "[Channel1]");
+        compare(engine.getValue("[Channel1]", "play"), 1);          // still playing, slowing down
+        compare(engine.getValue("[Channel1]", "scratch2_enable"), 1);
+        engine.clockMs += 1100;
+        engine.runTimers();
+        compare(engine.getValue("[Channel1]", "play"), 0);
+        compare(engine.getValue("[Channel1]", "scratch2_enable"), 0);
+    }
+
+    // PLAY pressed again while the deck slows down: it speeds up again from the speed it has
+    // (not at full speed at once).
+    function test_playButtonReversesRamp() {
+        engine.set("[Channel1]", "play", 1);
+        engine.set("[Channel1]", "rate_ratio", 1);
+        engine.set("[AndroidDJ]", "vinyl_stop_sec", 2);
+        engine.set("[AndroidDJ]", "vinyl_start_sec", 2);
+        flx10.playButton(0, 0x0B, 0x7f, 0x90, "[Channel1]");
+        engine.clockMs += 1000;
+        engine.runTimers();
+        const half = engine.getValue("[Channel1]", "scratch2");
+        verify(half > 0.3 && half < 0.7, "speed halfway: " + half);
+        flx10.playButton(0, 0x0B, 0x7f, 0x90, "[Channel1]");     // again: up again
+        engine.clockMs += 100;
+        engine.runTimers();
+        const up = engine.getValue("[Channel1]", "scratch2");
+        verify(up > half - 0.1 && up < 0.8, "speeding up from " + half + ": " + up);
+        compare(engine.getValue("[Channel1]", "play"), 1);
+    }
+
+    // BACK SPIN: after letting go while turning back fast the deck follows the wheel until it
+    // stands still, then it plays on.
+    function test_backspinFollowsTheWheel() {
+        engine.set("[Channel1]", "play", 1);
+        engine.set("[AndroidDJ]", "backspin_on", 1);
+        flx10.wheelTouch(0, 0x36, 0x7f, 0x90, "[Channel1]");
+        for (let i = 0; i < 10; ++i) {
+            engine.clockMs += 10;
+            flx10.wheelTurn(0, 0x21, 64 - 60, 0xB0, "[Channel1]");
+        }
+        flx10.wheelTouch(0, 0x36, 0, 0x90, "[Channel1]");
+        verify(engine.isScratching(1), "still following the wheel");
+        engine.clockMs += 50;
+        flx10.wheelTurn(0, 0x21, 64 - 60, 0xB0, "[Channel1]");
+        engine.runTimers();
+        verify(engine.isScratching(1), "the wheel still turns");
+        engine.clockMs += 400;
+        engine.runTimers();
+        verify(!engine.isScratching(1), "the wheel stands still: plays on");
+    }
+
+    function test_playButtonWithoutRampPlaysAtOnce() {
+        flx10.playButton(0, 0x0B, 0x7f, 0x90, "[Channel1]");
+        compare(engine.getValue("[Channel1]", "play"), 1);
+        flx10.playButton(0, 0x0B, 0, 0x90, "[Channel1]");           // release does nothing
+        compare(engine.getValue("[Channel1]", "play"), 1);
+        flx10.playButton(0, 0x0B, 0x7f, 0x90, "[Channel1]");
+        compare(engine.getValue("[Channel1]", "play"), 0);
+    }
+
     // Headphones like rekordbox: MASTER CUE off = only the cued channels, whatever the
     // MIXING knob says; MASTER CUE on = the knob mixes CUE and master.
     function test_masterCueGatesMasterInHeadphones() {

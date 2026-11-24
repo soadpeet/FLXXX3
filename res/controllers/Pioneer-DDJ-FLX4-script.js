@@ -1029,11 +1029,12 @@ PioneerDDJFLX4.cycleTempoRange = function(_channel, _control, value, _status, gr
             break;
         }
     }
-    // A new range keeps the tempo that is playing (like rekordbox); the tempo follows the
-    // fader again when it is moved.
-    const effective = engine.getValue(group, "rate") * currRange;
     engine.setValue(group, "rateRange", this.tempoRanges[idx]);
-    engine.setValue(group, "rate", Math.max(-1, Math.min(1, effective / this.tempoRanges[idx])));
+    // The app keeps the playing tempo when the range changes: the tempo follows the position of
+    // the fader at once (fader position x new range), not only when the fader is moved.
+    if (PioneerDDJFLX4.tempoSliderFull[group] !== undefined) {
+        PioneerDDJFLX4.applyTempoSlider(group, PioneerDDJFLX4.tempoSliderFull[group]);
+    }
 };
 
 //
@@ -1083,8 +1084,8 @@ PioneerDDJFLX4.jogSearch = function(_channel, _control, value, _status, group) {
 // BACK SPIN: turning the jog fast backwards and letting go spins the track back, then it
 // plays on. (VINYL SPEED ADJUST, the start and stop time of PLAY, is at PioneerDDJFLX4.playButton.)
 PioneerDDJFLX4.jogState = [
-    {vel: 0, time: 0, braking: false, ramp: 0, watch: 0, wasPlaying: false, backspinning: false, samples: [], playRamp: ""},
-    {vel: 0, time: 0, braking: false, ramp: 0, watch: 0, wasPlaying: false, backspinning: false, samples: [], playRamp: ""}
+    {vel: 0, time: 0, braking: false, ramp: 0, watch: 0, wasPlaying: false, backspinning: false, speed: 0, samples: [], playRamp: ""},
+    {vel: 0, time: 0, braking: false, ramp: 0, watch: 0, wasPlaying: false, backspinning: false, speed: 0, samples: [], playRamp: ""}
 ];
 
 PioneerDDJFLX4.stopJogRamp = function(channel) {
@@ -1102,7 +1103,8 @@ PioneerDDJFLX4.rampJogSpeed = function(channel, group, fromRate, toRate, seconds
     const start = Date.now();
     state.ramp = engine.beginTimer(20, function() {
         const progress = seconds <= 0 ? 1 : Math.min(1, (Date.now() - start) / (seconds * 1000));
-        engine.setValue(group, "scratch2", fromRate + (toRate - fromRate) * progress);
+        state.speed = fromRate + (toRate - fromRate) * progress;
+        engine.setValue(group, "scratch2", state.speed);
         if (progress >= 1) {
             PioneerDDJFLX4.stopJogRamp(channel);
             if (onDone) { onDone(); }
@@ -1179,21 +1181,35 @@ PioneerDDJFLX4.playButton = function(channel, _control, value, _status, group) {
     const state = PioneerDDJFLX4.jogState[channel];
     const stopSeconds = engine.getValue("[AndroidDJ]", "vinyl_stop_sec");
     const startSeconds = engine.getValue("[AndroidDJ]", "vinyl_start_sec");
+    const tempo = engine.getValue(group, "rate_ratio");
     if (state.playRamp === "stop") {
-        // pressed again while it slows down: it plays on at full speed
-        PioneerDDJFLX4.cancelPlayRamp(channel, group);
+        // pressed again while it slows down: it speeds up again from the speed it has now
+        const nowSpeed = state.speed;
+        const upSeconds = startSeconds * (tempo > 0 ? Math.max(0, 1 - nowSpeed / tempo) : 1);
+        state.playRamp = "start";
+        PioneerDDJFLX4.rampJogSpeed(channel, group, nowSpeed, tempo, upSeconds, function() {
+            state.playRamp = "";
+            engine.setValue(group, "scratch2_enable", 0);
+        });
         return;
     }
     if (state.playRamp === "start") {
-        // pressed again while it starts up: pause at once
-        PioneerDDJFLX4.cancelPlayRamp(channel, group);
-        engine.setValue(group, "play", 0);
+        // pressed again while it starts up: it slows down again from the speed it has now
+        const curSpeed = state.speed;
+        const downSeconds = stopSeconds * (tempo > 0 ? Math.max(0, curSpeed / tempo) : 1);
+        state.playRamp = "stop";
+        PioneerDDJFLX4.rampJogSpeed(channel, group, curSpeed, 0, downSeconds, function() {
+            state.playRamp = "";
+            engine.setValue(group, "play", 0);
+            engine.setValue(group, "scratch2_enable", 0);
+        });
         return;
     }
     const rate = engine.getValue(group, "rate_ratio");
     if (engine.getValue(group, "play") > 0) {
         if (stopSeconds > 0 && !engine.isScratching(deckNum)) {
             state.playRamp = "stop";
+            state.speed = rate;
             engine.setValue(group, "scratch2_enable", 1);
             engine.setValue(group, "scratch2", rate);
             PioneerDDJFLX4.rampJogSpeed(channel, group, rate, 0, stopSeconds, function() {
@@ -1206,6 +1222,7 @@ PioneerDDJFLX4.playButton = function(channel, _control, value, _status, group) {
         }
     } else if (startSeconds > 0 && !engine.isScratching(deckNum)) {
         state.playRamp = "start";
+        state.speed = 0;
         engine.setValue(group, "scratch2_enable", 1);
         engine.setValue(group, "scratch2", 0);
         engine.setValue(group, "play", 1);
@@ -1283,6 +1300,13 @@ PioneerDDJFLX4.tempoSliderMSB = function(channel, control, value, status, group)
 
 PioneerDDJFLX4.tempoSliderLSB = function(channel, control, value, status, group) {
     const fullValue = (PioneerDDJFLX4.highResMSB[group].tempoSlider << 7) + value;
+    PioneerDDJFLX4.tempoSliderFull[group] = fullValue;
+    PioneerDDJFLX4.applyTempoSlider(group, fullValue);
+};
+
+// Last position of each tempo fader (14 bit), to follow it when the tempo range changes.
+PioneerDDJFLX4.tempoSliderFull = {};
+PioneerDDJFLX4.applyTempoSlider = function(group, fullValue) {
 
     // FLXXX3: a deck that follows the master (SYNC on) takes its tempo
     // from the master. Its tempo fader must not change the master's tempo.

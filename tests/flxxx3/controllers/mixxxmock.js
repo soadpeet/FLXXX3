@@ -11,6 +11,7 @@ function createEngine() {
     const engine = {
         values: values,
         writes: [],
+        scratching: {},
         timers: [],
         connections: [],
         nextTimerId: 1,
@@ -62,11 +63,15 @@ function createEngine() {
         trigger: function() {},
         softTakeover: function() {},
         softTakeoverIgnoreNextValue: function() {},
-        isScratching: function() {
-            return false;
+        isScratching: function(deck) {
+            return engine.scratching[deck] === true;
         },
-        scratchEnable: function() {},
-        scratchDisable: function() {},
+        scratchEnable: function(deck) {
+            engine.scratching[deck] = true;
+        },
+        scratchDisable: function(deck) {
+            engine.scratching[deck] = false;
+        },
         scratchTick: function() {},
         brake: function() {},
         spinback: function() {},

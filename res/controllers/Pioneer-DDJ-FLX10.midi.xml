@@ -831,46 +831,6 @@
                 </options>
             </control>
             <control>
-                <group>[Channel1]</group>
-                <key>play</key>
-                <description>Starts or pauses playback (play)</description>
-                <status>0x90</status>
-                <midino>0x0B</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel2]</group>
-                <key>play</key>
-                <description>Starts or pauses playback (play)</description>
-                <status>0x91</status>
-                <midino>0x0B</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel3]</group>
-                <key>play</key>
-                <description>PLAY/PAUSE CH3</description>
-                <status>0x92</status>
-                <midino>0x0B</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel4]</group>
-                <key>play</key>
-                <description>PLAY/PAUSE CH4</description>
-                <status>0x93</status>
-                <midino>0x0B</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[EqualizerRack1_[Channel1]_Effect1]</group>
                 <key>parameter2</key>
                 <description>EQ MEDIUM KNOB MSB CH1</description>
@@ -1265,46 +1225,6 @@
                 <key>start_stop</key>
                 <description>Start stop Sampler 3</description>
                 <status>0x9B</status>
-                <midino>0x13</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel1]</group>
-                <key>volume</key>
-                <description>Volume Fader CH1</description>
-                <status>0xB0</status>
-                <midino>0x13</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel2]</group>
-                <key>volume</key>
-                <description>Volume Fader CH2</description>
-                <status>0xB1</status>
-                <midino>0x13</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel3]</group>
-                <key>volume</key>
-                <description>Volume Fader CH3</description>
-                <status>0xB2</status>
-                <midino>0x13</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel4]</group>
-                <key>volume</key>
-                <description>Volume Fader CH4</description>
-                <status>0xB3</status>
                 <midino>0x13</midino>
                 <options>
                     <normal/>
@@ -2492,26 +2412,6 @@
                 </options>
             </control>
             <control>
-                <group>[Channel1]</group>
-                <key>volume</key>
-                <description>CHANNELFADER - slider</description>
-                <status>0xB0</status>
-                <midino>0x33</midino>
-                <options>
-                    <fourteen-bit-lsb/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel2]</group>
-                <key>volume</key>
-                <description>CHANNELFADER - slider</description>
-                <status>0xB1</status>
-                <midino>0x33</midino>
-                <options>
-                    <fourteen-bit-lsb/>
-                </options>
-            </control>
-            <control>
                 <group>[Sampler5]</group>
                 <key>cue_gotoandplay</key>
                 <description>Play Sampler 5 (pad)</description>
@@ -2619,6 +2519,246 @@
                 <midino>0x35</midino>
                 <options>
                     <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.playButton</key>
+                <description>PLAY/PAUSE CH1 (VINYL SPEED ADJUST)</description>
+                <status>0x90</status>
+                <midino>0x0B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>sync_enabled</key>
+                <description>BEAT SYNC CH1</description>
+                <status>0x90</status>
+                <midino>0x58</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.syncPressed</key>
+                <description>SHIFT + BEAT SYNC CH1: MASTER (like rekordbox)</description>
+                <status>0x90</status>
+                <midino>0x5C</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.loadPressed</key>
+                <description>LOAD TRACK CH1 (twice = copy of the other deck)</description>
+                <status>0x96</status>
+                <midino>0x46</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.channelFaderMSB</key>
+                <description>CHANNELFADER MSB CH1</description>
+                <status>0xB0</status>
+                <midino>0x13</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.channelFaderLSB</key>
+                <description>CHANNELFADER LSB CH1</description>
+                <status>0xB0</status>
+                <midino>0x33</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.playButton</key>
+                <description>PLAY/PAUSE CH2 (VINYL SPEED ADJUST)</description>
+                <status>0x91</status>
+                <midino>0x0B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>sync_enabled</key>
+                <description>BEAT SYNC CH2</description>
+                <status>0x91</status>
+                <midino>0x58</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.syncPressed</key>
+                <description>SHIFT + BEAT SYNC CH2: MASTER (like rekordbox)</description>
+                <status>0x91</status>
+                <midino>0x5C</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.loadPressed</key>
+                <description>LOAD TRACK CH2 (twice = copy of the other deck)</description>
+                <status>0x96</status>
+                <midino>0x47</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.channelFaderMSB</key>
+                <description>CHANNELFADER MSB CH2</description>
+                <status>0xB1</status>
+                <midino>0x13</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.channelFaderLSB</key>
+                <description>CHANNELFADER LSB CH2</description>
+                <status>0xB1</status>
+                <midino>0x33</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.playButton</key>
+                <description>PLAY/PAUSE CH3 (VINYL SPEED ADJUST)</description>
+                <status>0x92</status>
+                <midino>0x0B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>sync_enabled</key>
+                <description>BEAT SYNC CH3</description>
+                <status>0x92</status>
+                <midino>0x58</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.syncPressed</key>
+                <description>SHIFT + BEAT SYNC CH3: MASTER (like rekordbox)</description>
+                <status>0x92</status>
+                <midino>0x5C</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.loadPressed</key>
+                <description>LOAD TRACK CH3 (twice = copy of the other deck)</description>
+                <status>0x96</status>
+                <midino>0x48</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.channelFaderMSB</key>
+                <description>CHANNELFADER MSB CH3</description>
+                <status>0xB2</status>
+                <midino>0x13</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.channelFaderLSB</key>
+                <description>CHANNELFADER LSB CH3</description>
+                <status>0xB2</status>
+                <midino>0x33</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.playButton</key>
+                <description>PLAY/PAUSE CH4 (VINYL SPEED ADJUST)</description>
+                <status>0x93</status>
+                <midino>0x0B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>sync_enabled</key>
+                <description>BEAT SYNC CH4</description>
+                <status>0x93</status>
+                <midino>0x58</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.syncPressed</key>
+                <description>SHIFT + BEAT SYNC CH4: MASTER (like rekordbox)</description>
+                <status>0x93</status>
+                <midino>0x5C</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.loadPressed</key>
+                <description>LOAD TRACK CH4 (twice = copy of the other deck)</description>
+                <status>0x96</status>
+                <midino>0x49</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.channelFaderMSB</key>
+                <description>CHANNELFADER MSB CH4</description>
+                <status>0xB3</status>
+                <midino>0x13</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.channelFaderLSB</key>
+                <description>CHANNELFADER LSB CH4</description>
+                <status>0xB3</status>
+                <midino>0x33</midino>
+                <options>
+                    <script-binding/>
                 </options>
             </control>
             <control>
@@ -3278,16 +3418,6 @@
                 </options>
             </control>
             <control>
-                <group>[Channel1]</group>
-                <key>LoadSelectedTrack</key>
-                <description>LOAD TRACK CH1</description>
-                <status>0x96</status>
-                <midino>0x46</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Microphone]</group>
                 <key>show_microphone</key>
                 <description>Show_microphone</description>
@@ -3338,16 +3468,6 @@
                 </options>
             </control>
             <control>
-                <group>[Channel2]</group>
-                <key>LoadSelectedTrack</key>
-                <description>LOAD TRACK CH2</description>
-                <status>0x96</status>
-                <midino>0x47</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Recording]</group>
                 <key>toggle_recording</key>
                 <description>Toggle_recording</description>
@@ -3373,26 +3493,6 @@
                 <description>Headphone EffectRack1 EffectUnit4</description>
                 <status>0x9D</status>
                 <midino>0x47</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel3]</group>
-                <key>LoadSelectedTrack</key>
-                <description>LOAD TRACK CH3</description>
-                <status>0x96</status>
-                <midino>0x48</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel4]</group>
-                <key>LoadSelectedTrack</key>
-                <description>LOAD TRACK CH4</description>
-                <status>0x96</status>
-                <midino>0x49</midino>
                 <options>
                     <normal/>
                 </options>
@@ -3643,46 +3743,6 @@
                 <description>PFL/HEADPHONE CH4</description>
                 <status>0x93</status>
                 <midino>0x54</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel1]</group>
-                <key>sync_enabled</key>
-                <description>Synchro canal 1.</description>
-                <status>0x90</status>
-                <midino>0x58</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel2]</group>
-                <key>sync_enabled</key>
-                <description>Synchro canal 2.</description>
-                <status>0x91</status>
-                <midino>0x58</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel3]</group>
-                <key>sync_enabled</key>
-                <description>Synchro canal 3</description>
-                <status>0x92</status>
-                <midino>0x58</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel4]</group>
-                <key>sync_enabled</key>
-                <description>Synchro canal 4</description>
-                <status>0x93</status>
-                <midino>0x58</midino>
                 <options>
                     <normal/>
                 </options>
