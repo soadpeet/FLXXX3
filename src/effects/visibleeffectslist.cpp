@@ -85,6 +85,13 @@ void VisibleEffectsList::readEffectsXml(
                 QStringLiteral("org.mixxx.effects.phaser"),
                 QStringLiteral("org.mixxx.effects.trans"),
                 QStringLiteral("org.mixxx.effects.sweepfilter"),
+                QStringLiteral("org.mixxx.effects.lowcutecho"),
+                QStringLiteral("org.mixxx.effects.enigmajet"),
+                QStringLiteral("org.mixxx.effects.stretch"),
+                QStringLiteral("org.mixxx.effects.mobiussaw"),
+                QStringLiteral("org.mixxx.effects.mobiustriangle"),
+                QStringLiteral("org.mixxx.effects.roll"),
+                QStringLiteral("org.mixxx.effects.sliproll"),
         };
         QList<EffectManifestPointer> fixedList;
         for (const QString& id : wanted) {

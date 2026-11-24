@@ -62,6 +62,13 @@ BuiltInBackend::BuiltInBackend() {
     registerEffect<SweepFilterEffect>();
     registerEffect<SpiralEffect>();
     registerEffect<HelixEffect>();
+    registerEffect<LowCutEchoEffect>();
+    registerEffect<EnigmaJetEffect>();
+    registerEffect<StretchEffect>();
+    registerEffect<MobiusSawEffect>();
+    registerEffect<MobiusTriangleEffect>();
+    registerEffect<RollEffect>();
+    registerEffect<SlipRollEffect>();
     registerEffect<SpaceColorEffect>();
     registerEffect<DubEchoColorEffect>();
     registerEffect<CrushColorEffect>();
