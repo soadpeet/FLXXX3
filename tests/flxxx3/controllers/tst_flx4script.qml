@@ -161,6 +161,58 @@ TestCase {
         compare(engine.writes.length, 0);
     }
 
+    // BACK SPIN (the FLX4 wheel has no weight): after letting go while turning back fast the
+    // scratch of the app goes on with turns that slow down smoothly until the deck stands still;
+    // then the scratch ends and the deck plays on. (Ending the scratch at the release ended the
+    // spin after about a second by itself.)
+    function test_backspinSlowsDownAndEnds() {
+        const g = "[Channel1]";
+        engine.set("[AndroidDJ]", "backspin_length", 1);
+        engine.set("[AndroidDJ]", "backspin_sens", 1);
+        engine.set("[AndroidDJ]", "backspin_min_rate", 2);
+        engine.set("[AndroidDJ]", "backspin_max_rate", 12);
+        engine.set(g, "play", 1);
+        flx4.jogTouch(0, 0x36, 0x7f, 0x90, g);
+        for (let i = 0; i < 12; ++i) {
+            engine.clockMs += 10;
+            flx4.jogTurn(0, 0x21, 64 - 40, 0xB0, g);
+        }
+        flx4.jogTouch(0, 0x36, 0, 0x90, g);
+        verify(engine.isScratching(1), "the scratch goes on after the release");
+        engine.scratchTicks = [];
+        const step = function(ms) {
+            for (let t = 0; t < ms; t += 20) {
+                engine.clockMs += 20;
+                engine.runTimers();
+            }
+            return engine.scratchTicks[engine.scratchTicks.length - 1][1];
+        };
+        const first = step(100);
+        verify(first < 0, "backwards: " + first);
+        const later = step(800);
+        verify(later < 0 && later > first, "slows down: " + first + " -> " + later);
+        for (let i = 0; i < 40 && engine.isScratching(1); ++i) {
+            engine.clockMs += 500;
+            engine.runTimers();
+        }
+        verify(!engine.isScratching(1), "stands still: the scratch ends");
+    }
+
+    // A slower turn gives no back spin: the scratch ends at the release as before.
+    function test_slowTurnGivesNoBackspin() {
+        const g = "[Channel1]";
+        engine.set(g, "play", 1);
+        flx4.jogTouch(0, 0x36, 0x7f, 0x90, g);
+        for (let i = 0; i < 12; ++i) {
+            engine.clockMs += 10;
+            flx4.jogTurn(0, 0x21, 64 - 1, 0xB0, g);
+        }
+        flx4.jogTouch(0, 0x36, 0, 0x90, g);
+        engine.runTimers();
+        verify(!engine.isScratching(1) || engine.written(g, "scratch2_enable").length === 0);
+        compare(engine.scratchTicks.length, 12);   // only the ticks of the wheel itself
+    }
+
     function test_loadSingle() {
         flx4.loadPressed(0, 0x46, 0x7f, 0x96, "[Channel1]");
         flx4.loadPressed(0, 0x46, 0, 0x96, "[Channel1]");

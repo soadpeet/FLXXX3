@@ -12,6 +12,7 @@ function createEngine() {
         values: values,
         writes: [],
         scratching: {},
+        scratchTicks: [],
         timers: [],
         connections: [],
         nextTimerId: 1,
@@ -72,7 +73,9 @@ function createEngine() {
         scratchDisable: function(deck) {
             engine.scratching[deck] = false;
         },
-        scratchTick: function() {},
+        scratchTick: function(deck, ticks) {
+            engine.scratchTicks.push([deck, ticks]);
+        },
         brake: function() {},
         spinback: function() {},
         beginTimer: function(ms, callback, oneShot) {

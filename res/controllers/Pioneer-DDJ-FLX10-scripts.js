@@ -178,7 +178,8 @@ PioneerDDJFLX10._OUTPUT_LEDS = [
     {key: "keylock",        note: 0x4A},
     {key: "pfl",            note: 0x54},
     {key: "reverse",        note: 0x15},
-    {key: "sync_enabled",   note: 0x58}
+    {key: "sync_enabled",   note: 0x58},
+    {key: "slip_enabled",   note: 0x40}
 ];
 PioneerDDJFLX10._refreshOutputLeds = function() {
     for (var deck = 1; deck <= PioneerDDJFLX10.numDecks; deck++) {
@@ -369,6 +370,20 @@ PioneerDDJFLX10.init = function(id) {
 
     // Hot-cue pad RGB LEDs (color-matched to Mixxx hot-cue colors, blink on loops)
     PioneerDDJFLX10._initHotcueLeds();
+    for (var sd = 1; sd <= PioneerDDJFLX10.numDecks; sd++) {
+        (function(group) {
+            engine.makeConnection(group, "loop_enabled", function(value) {
+                if (value <= 0) {
+                    PioneerDDJFLX10._slipRejoin(group);
+                }
+            });
+        })("[Channel" + sd + "]");
+    }
+    PioneerDDJFLX10._lightModePads();
+    PioneerDDJFLX10._showPadMode(0, 0);
+    PioneerDDJFLX10._showPadMode(1, 0);
+    PioneerDDJFLX10._showPadMode(2, 0);
+    PioneerDDJFLX10._showPadMode(3, 0);
 
     // Loop in/out button LEDs (blink while setting/adjusting, solid when active)
     PioneerDDJFLX10._initLoopLeds();
@@ -534,6 +549,40 @@ PioneerDDJFLX10._loadPulse = function(group) {
 
 // ---- SHIFT + BEAT SYNC (note 0x5C) makes the deck the MASTER (tempo reference), like rekordbox.
 // BEAT SYNC alone is the sync of the deck. The MASTER deck cannot follow itself.
+// FLXXX3: SLIP like rekordbox. The engine of Mixxx only jumps to the slip position when slip
+// mode is switched OFF; rekordbox keeps slip on and jumps by itself when you let go of the jog
+// or leave a loop. So after those moments slip is switched off (the engine jumps) and a moment
+// later on again.
+PioneerDDJFLX10._slipRejoin = function(group) {
+    if (engine.getValue(group, "slip_enabled") <= 0) {
+        return;
+    }
+    engine.setValue(group, "slip_enabled", 0);
+    engine.beginTimer(40, function() {
+        engine.setValue(group, "slip_enabled", 1);
+    }, true);
+};
+
+// FLXXX3: BEAT SYNC and SLIP toggle (like rekordbox, the button stays lit). Before they were
+// plain controls: the button set the control while pressed and cleared it on release, so a
+// short tap did nothing. A deck cannot follow itself: the MASTER deck ignores BEAT SYNC.
+PioneerDDJFLX10.syncToggle = function(channel, control, value, status, group) {
+    if (value !== 0x7F) {
+        return;
+    }
+    var deck = PioneerDDJFLX10._getDeckFromGroup(group);
+    if (engine.getValue("[AndroidDJ]", "master_deck") === deck) {
+        return;
+    }
+    engine.setValue(group, "sync_enabled", engine.getValue(group, "sync_enabled") > 0 ? 0 : 1);
+};
+PioneerDDJFLX10.slipToggle = function(channel, control, value, status, group) {
+    if (value !== 0x7F) {
+        return;
+    }
+    engine.setValue(group, "slip_enabled", engine.getValue(group, "slip_enabled") > 0 ? 0 : 1);
+};
+
 PioneerDDJFLX10.syncPressed = function(channel, control, value, status, group) {
     if (value > 0) {
         var deck = PioneerDDJFLX10._getDeckFromGroup(group);
@@ -898,7 +947,6 @@ PioneerDDJFLX10.wheelTouch = function(channel, control, value, status, group) {
         engine.scratchEnable(deckNumber, SCRATCH_INTERVALS_PER_REV / PioneerDDJFLX10._jogSens("jog_scratch_sens"), 33+1/3, JOG_ALPHA, JOG_ALPHA / 32);
     } else {
         if (engine.isScratching(deckNumber) &&
-                engine.getValue("[AndroidDJ]", "backspin_on") > 0 &&
                 state.wasPlaying &&
                 PioneerDDJFLX10._jogSpeedTimes(deckNumber) < -PioneerDDJFLX10.BACKSPIN_MIN_TIMES &&
                 Date.now() - state.time < 120) {
@@ -906,6 +954,7 @@ PioneerDDJFLX10.wheelTouch = function(channel, control, value, status, group) {
             return;
         }
         engine.scratchDisable(deckNumber, false);
+        PioneerDDJFLX10._slipRejoin(group);
     }
 };
 
@@ -1616,6 +1665,39 @@ PioneerDDJFLX10.queryPositions = function() {
 // FLXXX3: which SHIFT is held (deck 1: status 0x90, deck 2: 0x91), also for the app
 // ([AndroidDJ] shift_deck: 0 = none, 1 / 2 = that deck), like the DDJ-FLX4 script.
 PioneerDDJFLX10.shiftDown = {};
+// FLXXX3: pads of BEAT JUMP (notes 0x20..0x27) and BEAT LOOP (0x60..0x67) are lit all the time
+// (the device only shows the pads of the selected mode). All other pad modes stay dark.
+PioneerDDJFLX10._lightModePads = function() {
+    for (var deck = 1; deck <= PioneerDDJFLX10.numDecks; deck++) {
+        var status = PioneerDDJFLX10._HOTCUE_STATUS[deck];
+        for (var pad = 0; pad < 8; pad++) {
+            midi.sendShortMsg(status, 0x20 + pad, 21);   // BEAT JUMP: green
+            midi.sendShortMsg(status, 0x60 + pad, 37);   // BEAT LOOP: orange
+        }
+    }
+};
+
+// FLXXX3: PAD MODE buttons (HOT CUE/KEYBOARD 0x1B, PAD FX1/2 0x1E, BEAT JUMP/LOOP 0x20,
+// SAMPLER/KEY SHIFT 0x22, with SHIFT 0x69 KEYBOARD, 0x6B PAD FX2, 0x6D BEAT LOOP, 0x6F KEY SHIFT; one status per deck 0x90..0x93). The device only reports the press,
+// the app has to light the button.
+PioneerDDJFLX10.PAD_MODE_NOTES = [0x1B, 0x1E, 0x20, 0x22, 0x69, 0x6B, 0x6D, 0x6F];
+PioneerDDJFLX10.padMode = [0, 0, 0, 0];
+PioneerDDJFLX10._showPadMode = function(deckIndex, mode) {
+    PioneerDDJFLX10.padMode[deckIndex] = mode;
+    for (var i = 0; i < PioneerDDJFLX10.PAD_MODE_NOTES.length; i++) {
+        midi.sendShortMsg(0x90 + deckIndex, PioneerDDJFLX10.PAD_MODE_NOTES[i], i === mode ? 0x7F : 0x00);
+    }
+};
+PioneerDDJFLX10.padModeButton = function(channel, control, value, status, group) {
+    if (value !== 0x7F) {
+        return;
+    }
+    var mode = PioneerDDJFLX10.PAD_MODE_NOTES.indexOf(control);
+    if (mode >= 0) {
+        PioneerDDJFLX10._showPadMode(status & 0x0F, mode);
+    }
+};
+
 PioneerDDJFLX10.shiftHandler = function(channel, control, value, status, group) {
     PioneerDDJFLX10.shiftDown[(status & 0x0F) + 1] = value === 0x7F;
     PioneerDDJFLX10.shiftActive = PioneerDDJFLX10.shiftDown[1] || PioneerDDJFLX10.shiftDown[2] || false;

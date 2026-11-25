@@ -2,6 +2,8 @@
 
 #include <QPainterPath>
 
+#include <algorithm>
+
 #include "engine/engine.h"
 #include "moc_waveformrendermark.cpp"
 #include "rendergraph/context.h"
@@ -227,6 +229,14 @@ allshader::WaveformRenderMark::WaveformRenderMark(
         m_pPlayPosNode->initForRectangles<TextureMaterial>(1);
         appendChildNode(std::move(pNode));
     }
+#ifdef FLXXX3
+    if (!m_isSlipRenderer) {
+        auto pNode = std::make_unique<GeometryNode>();
+        m_pSlipPosNode = pNode.get();
+        m_pSlipPosNode->initForRectangles<RGBAMaterial>(1);
+        appendChildNode(std::move(pNode));
+    }
+#endif
 #ifndef __SCENEGRAPH__
     auto* pWaveformWidgetFactory = WaveformWidgetFactory::instance();
     connect(pWaveformWidgetFactory,
@@ -553,6 +563,32 @@ void allshader::WaveformRenderMark::update() {
         m_pPlayPosNode->markDirtyGeometry();
         m_lastPlayMarkerPos = playMarkerPos;
     }
+
+#ifdef FLXXX3
+    // SLIP marker: a line where the track would be now if slip mode had not been interrupted
+    // (scratching, loop, reverse). The play marker shows where the music plays now.
+    if (m_pSlipPosNode) {
+        float x1 = 0.f;
+        float x2 = 0.f;
+        float y2 = 0.f;
+        if (slipActive) {
+            const double slipSample = m_waveformRenderer->getTruePosSample(
+                    ::WaveformRendererAbstract::Slip);
+            const float x = roundToPixel(static_cast<float>(
+                    m_waveformRenderer->transformSamplePositionInRendererWorld(
+                            slipSample, ::WaveformRendererAbstract::Play)));
+            const float width = std::max(3.f, std::round(3.f * devicePixelRatio));
+            x1 = x - width / 2.f;
+            x2 = x + width / 2.f;
+            y2 = static_cast<float>(m_waveformRenderer->getBreadth());
+        }
+        RGBAVertexUpdater slipUpdater{
+                m_pSlipPosNode->geometry().vertexDataAs<Geometry::RGBAColoredPoint2D>()};
+        slipUpdater.addRectangle({x1, 0.f}, {x2, y2}, {1.f, 0.2f, 0.45f, 0.95f});
+        m_pSlipPosNode->markDirtyGeometry();
+        m_pSlipPosNode->markDirtyMaterial();
+    }
+#endif
 
     if (hasWaveform && (m_untilMarkShowBeats || m_untilMarkShowTime)) {
         updateUntilMark(playPosition, nextMarkPosition);

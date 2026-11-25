@@ -1112,16 +1112,22 @@ PioneerDDJFLX4.rampJogSpeed = function(channel, group, fromRate, toRate, seconds
     });
 };
 
-// BACK SPIN, simulated here (the wheel of the FLX4 has no motor: it only turns as long as
-// the hand moves it, so the slowing down must come from the software). The deck runs backwards
-// at the start rate and slows down, passes the standstill and speeds up to its normal speed
-// again, in the time of BACK SPIN LENGTH (SHORT / NORMAL / LONG). It uses the same ramp as
-// VINYL SPEED ADJUST, which always ends by itself (time based).
-PioneerDDJFLX4.endBackspin = function(channel, group) {
+// BACK SPIN, simulated here (the wheel of the FLX4 has no motor and no weight: it only turns as
+// long as the hand moves it, so the running out must come from the software). Like the heavy
+// wheel of the DDJ-FLX10 (which keeps turning after it is let go): the deck goes on backwards
+// at the speed it was turned with, slows down smoothly (exponential, like friction) until it
+// stands still, then it plays on at its normal speed. BACK SPIN LENGTH (SHORT / NORMAL / LONG)
+// is how long that takes, SENSITIVITY and the limits set the start speed.
+PioneerDDJFLX4.endBackspin = function(channel, group, smooth) {
     const state = PioneerDDJFLX4.jogState[channel];
     PioneerDDJFLX4.stopJogRamp(channel);
     state.backspinning = false;
-    engine.setValue(group, "scratch2_enable", 0);
+    // The back spin is fed through the scratch of the app (see startBackspin): it ends with
+    // that. At the end of the spin the deck speeds up to its normal speed again smoothly,
+    // when the wheel is touched again the scratch goes on at once.
+    if (engine.isScratching(channel + 1)) {
+        engine.scratchDisable(channel + 1, smooth === true);
+    }
 };
 
 // Speed of the jog in the 100 ms before the last tick, in times of the normal speed of the
@@ -1149,20 +1155,34 @@ PioneerDDJFLX4.startBackspin = function(channel, group, speedTimes) {
     const minRate = engine.getValue("[AndroidDJ]", "backspin_min_rate");
     const maxRate = Math.max(minRate, engine.getValue("[AndroidDJ]", "backspin_max_rate"));
     const rate = Math.max(minRate, Math.min(maxRate, measured * sens));
-    // SHORT: up to 1 s, NORMAL: up to 4 s, LONG: up to 8 s (the hardest turn).
-    const seconds = [0.5, 2.0, 4.0][length] * Math.max(0.5, Math.min(2, measured / 6));
-    const startRate = -rate;
+    // SHORT / NORMAL / LONG: the time until it stands still (about 3 time constants), longer
+    // for a harder turn (between half and double).
+    const seconds = [0.6, 1.5, 3.0][length] * Math.max(0.5, Math.min(2, measured / 6));
+    const tau = seconds / 3;
     engine.setValue("[AndroidDJ]", "backspin_last_speed", measured);
     engine.setValue("[AndroidDJ]", "backspin_last_rate", rate);
-    const target = engine.getValue(group, "rate_ratio");
-    engine.scratchDisable(deckNum, false);
-    engine.setValue(group, "scratch2_enable", 1);
-    engine.setValue(group, "scratch2", startRate);
+    // The scratch of the app goes on (the wheel is let go, but its scratch is not ended: that
+    // ended the spin after about a second by itself) and gets the turns that the wheel would
+    // still make: backwards at the speed it had, slowing down like friction.
+    const ticksPerSecond = 720 / PioneerDDJFLX4.jogSens("jog_scratch_sens") * (100 / 3 / 60);
     state.backspinning = true;
-    PioneerDDJFLX4.rampJogSpeed(channel, group, startRate, target, seconds, function() {
-        PioneerDDJFLX4.endBackspin(channel, group);
+    PioneerDDJFLX4.stopJogRamp(channel);
+    const start = Date.now();
+    let last = start;
+    state.ramp = engine.beginTimer(20, function() {
+        const now = Date.now();
+        const speed = -rate * Math.exp(-(now - start) / 1000 / tau);
+        engine.scratchTick(deckNum, speed * ticksPerSecond * (now - last) / 1000);
+        last = now;
+        if (-speed < PioneerDDJFLX4.backspinStopSpeed) {
+            PioneerDDJFLX4.endBackspin(channel, group, true);
+        }
     });
 };
+// A back spin comes when the wheel is let go while it turns back faster than this (times the
+// normal speed of a record); the spin stands still below the stop speed.
+PioneerDDJFLX4.backspinMinTimes = 2;
+PioneerDDJFLX4.backspinStopSpeed = 0.1; // stands still below this (times the normal speed)
 
 // VINYL SPEED ADJUST: the time that the deck needs to start up when PLAY starts it (START) and
 // to slow down to a standstill when PLAY pauses it (STOP), like a turntable; 0 seconds = off
@@ -1258,9 +1278,9 @@ PioneerDDJFLX4.jogTouch = function(channel, _control, value) {
         engine.scratchEnable(deckNum, 720 / PioneerDDJFLX4.jogSens("jog_scratch_sens"), 33+1/3, this.alpha, this.beta);
     } else {
         if (engine.isScratching(deckNum) &&
-                engine.getValue("[AndroidDJ]", "backspin_on") > 0 &&
                 state.wasPlaying &&
-                state.vel < -6 && Date.now() - state.time < 120) {
+                PioneerDDJFLX4.jogSpeedTimes(channel) < -PioneerDDJFLX4.backspinMinTimes &&
+                Date.now() - state.time < 120) {
             PioneerDDJFLX4.startBackspin(channel, group, PioneerDDJFLX4.jogSpeedTimes(channel));
             return;
         }

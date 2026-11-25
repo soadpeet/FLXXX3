@@ -75,13 +75,13 @@ Item {
         // Both factors: 1 = as before, more = more movement per turn. The scratch factor applies at the next touch of the platter.
         { key: "jog_scratch_sens", area: "JOGWHEEL", label: "JOG SENSITIVITY: TOP (SCRATCH, PLATTER TOUCHED)", kind: "number", min: 0.2, max: 4, step: 0.1, fine: 0.01, decimals: 2, unit: "x", def: 1, control: true },
         { key: "jog_bend_sens", area: "JOGWHEEL", label: "JOG SENSITIVITY: SIDE (PITCH BEND)", kind: "number", min: 0.2, max: 4, step: 0.1, fine: 0.01, decimals: 2, unit: "x", def: 1, control: true },
-        { key: "backspin_length", area: "JOGWHEEL", label: "BACK SPIN LENGTH", kind: "choice", choices: [{ t: "SHORT", v: 0 }, { t: "NORMAL", v: 1 }, { t: "LONG", v: 2 }], def: 1, control: true },
+        { key: "backspin_length", area: "JOGWHEEL", label: "BACK SPIN LENGTH (DDJ-FLX4; THE DDJ-FLX10 FOLLOWS ITS PLATTER)", kind: "choice", choices: [{ t: "SHORT", v: 0 }, { t: "NORMAL", v: 1 }, { t: "LONG", v: 2 }], def: 1, control: true },
         { key: "vinyl_stop_sec", area: "JOGWHEEL", label: "VINYL SPEED ADJUST - STOP TIME (PLAY -> PAUSE, 0 = OFF)", kind: "number", min: 0, max: 5, step: 0.1, fine: 0.01, decimals: 2, unit: "s", def: 0, control: true },
         { key: "vinyl_start_sec", area: "JOGWHEEL", label: "VINYL SPEED ADJUST - START TIME (PAUSE -> PLAY, 0 = OFF)", kind: "number", min: 0, max: 5, step: 0.1, fine: 0.01, decimals: 2, unit: "s", def: 0, control: true },
         // BACK SPIN depends on how hard the jog was turned (speeds in times of the normal speed of the wheel)
-        { key: "backspin_sens", area: "JOGWHEEL", label: "BACK SPIN SENSITIVITY (START SPEED PER TURN SPEED)", kind: "number", min: 0.1, max: 3, step: 0.1, fine: 0.01, decimals: 2, unit: "x", def: 1, control: true },
-        { key: "backspin_min_rate", area: "JOGWHEEL", label: "BACK SPIN: SLOWEST START SPEED", kind: "number", min: 0.5, max: 10, step: 0.5, fine: 0.1, decimals: 1, unit: "x", def: 2, control: true },
-        { key: "backspin_max_rate", area: "JOGWHEEL", label: "BACK SPIN: FASTEST START SPEED", kind: "number", min: 2, max: 30, step: 1, fine: 0.5, decimals: 1, unit: "x", def: 12, control: true }
+        { key: "backspin_sens", area: "JOGWHEEL", label: "BACK SPIN SENSITIVITY (DDJ-FLX4: START SPEED PER TURN SPEED)", kind: "number", min: 0.1, max: 3, step: 0.1, fine: 0.01, decimals: 2, unit: "x", def: 1, control: true },
+        { key: "backspin_min_rate", area: "JOGWHEEL", label: "BACK SPIN (DDJ-FLX4): SLOWEST START SPEED", kind: "number", min: 0.5, max: 10, step: 0.5, fine: 0.1, decimals: 1, unit: "x", def: 2, control: true },
+        { key: "backspin_max_rate", area: "JOGWHEEL", label: "BACK SPIN (DDJ-FLX4): FASTEST START SPEED", kind: "number", min: 2, max: 30, step: 1, fine: 0.5, decimals: 1, unit: "x", def: 12, control: true }
     ]
 
     // Current value of every key.

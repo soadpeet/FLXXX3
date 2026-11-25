@@ -7,9 +7,9 @@ import QtQuick.Controls 2.12
 // covers the button). VINYL SPEED ADJUST (TOUCH) for both decks together:
 // STOP is the time that a touched deck needs to slow down to a stop, START the
 // time that it needs to speed up again when it is released (a slider, 0 - 5 s;
-// 0 seconds = off). BACK SPIN LENGTH: how long the track spins back (BACK SPIN itself is
-// switched on or off in the UTILITY menu). The settings are saved and used by
-// the FLX4 script. The window closes itself a moment after the last touch.
+// 0 seconds = off). (BACK SPIN is switched on or off in the UTILITY menu; its length,
+// sensitivity and limits are in ADVANCED SETTINGS > JOGWHEEL.) The settings are saved and used by
+// the FLX4 and FLX10 scripts. The window closes itself a moment after the last touch.
 Popup {
     id: root
 
@@ -46,13 +46,12 @@ Popup {
     }
 
     Mixxx.ControlProxy { id: backspinOn; group: "[AndroidDJ]"; key: "backspin_on" }
-    Mixxx.ControlProxy { id: backspinLength; group: "[AndroidDJ]"; key: "backspin_length" }
     Mixxx.ControlProxy { id: vinylStop; group: "[AndroidDJ]"; key: "vinyl_stop_sec" }
     Mixxx.ControlProxy { id: vinylStart; group: "[AndroidDJ]"; key: "vinyl_start_sec" }
 
     // Saved settings.
-    readonly property var proxies: [backspinOn, backspinLength, vinylStop, vinylStart]
-    readonly property var keys: ["backspin_on", "backspin_length", "vinyl_stop_sec", "vinyl_start_sec"]
+    readonly property var proxies: [backspinOn, vinylStop, vinylStart]
+    readonly property var keys: ["backspin_on", "vinyl_stop_sec", "vinyl_start_sec"]
     function save(index) {
         Mixxx.Config.setAndroidSetting("jog_" + root.keys[index], String(root.proxies[index].value));
     }
@@ -77,33 +76,23 @@ Popup {
             onActiveChanged: idleTimer.restart()
         }
 
+        // The two settings in the middle of the window, large (there is room for it).
         Column {
             anchors {
-                fill: parent
-                margins: root.u * 0.7
+                left: parent.left
+                leftMargin: root.u * 0.9
+                right: parent.right
+                rightMargin: root.u * 0.9
+                verticalCenter: parent.verticalCenter
             }
-            spacing: root.u * 0.35
+            spacing: root.u * 1.2
 
-            FieldLabel { font.pixelSize: root.u * 0.95; text: "BACK SPIN LENGTH" }
-            Segmented {
-                currentIndex: Math.round(backspinLength.value)
-                fontSize: root.u * 1.0
-                height: root.u * 2.3
-                labels: ["SHORT", "NORMAL", "LONG"]
-                width: parent.width
-
-                onActivated: index => {
-                    backspinLength.value = index;
-                    root.save(1);
-                    root.keep();
-                }
-            }
             // VINYL SPEED ADJUST (TOUCH): STOP = a touched deck slows down in this
             // time, START = it speeds up again in this time (0 seconds = off).
             Repeater {
                 model: [
-                    { label: "VINYL SPEED ADJUST  -  STOP TIME (PLAY \u2192 PAUSE)", index: 2 },
-                    { label: "VINYL SPEED ADJUST  -  START TIME (PAUSE \u2192 PLAY)", index: 3 }
+                    { label: "VINYL SPEED ADJUST  -  STOP TIME (PLAY \u2192 PAUSE)", index: 1 },
+                    { label: "VINYL SPEED ADJUST  -  START TIME (PAUSE \u2192 PLAY)", index: 2 }
                 ]
 
                 Item {
@@ -112,11 +101,11 @@ Popup {
                     required property var modelData
                     readonly property var proxy: root.proxies[modelData.index]
 
-                    height: root.u * 4.6
+                    height: root.u * 7.4
                     width: parent.width
 
                     FieldLabel {
-                        font.pixelSize: root.u * 0.95
+                        font.pixelSize: root.u * 1.25
                         text: vinyl.modelData.label
                     }
                     // The value: OFF or the seconds.
@@ -124,7 +113,7 @@ Popup {
                         anchors.right: parent.right
                         color: vinyl.proxy.value > 0 ? "#1fb0f0" : "#8a8a8a"
                         font.bold: true
-                        font.pixelSize: root.u * 1.1
+                        font.pixelSize: root.u * 1.5
                         text: vinyl.proxy.value > 0 ? vinyl.proxy.value.toFixed(1) + " sec" : "OFF"
                     }
                     Slider {
@@ -136,7 +125,7 @@ Popup {
                             right: parent.right
                         }
                         from: 0
-                        height: root.u * 3.2
+                        height: root.u * 5
                         snapMode: Slider.SnapAlways
                         stepSize: 0.1
                         to: 5
@@ -144,7 +133,7 @@ Popup {
 
                         background: Rectangle {
                             color: "#2a2a2a"
-                            height: root.u * 1.0
+                            height: root.u * 1.6
                             radius: height / 2
                             width: slider.availableWidth
                             x: slider.leftPadding
@@ -160,9 +149,9 @@ Popup {
                         handle: Rectangle {
                             border.color: "#ffffff"
                             color: slider.pressed ? "#1fb0f0" : "#e0e0e0"
-                            height: root.u * 3.2
+                            height: root.u * 5
                             radius: width / 2
-                            width: root.u * 3.2
+                            width: root.u * 5
                             x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
                             y: slider.topPadding + slider.availableHeight / 2 - height / 2
                         }

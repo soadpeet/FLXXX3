@@ -97,6 +97,10 @@ class allshader::WaveformRenderMark : public ::WaveformRenderMarkBase,
     rendergraph::Node* m_pMarkNodesParent{};
 
     rendergraph::GeometryNode* m_pPlayPosNode;
+#ifdef FLXXX3
+    // Marker line at the SLIP position (only while slip mode is running and differs).
+    rendergraph::GeometryNode* m_pSlipPosNode{};
+#endif
     float m_playPosHeight;
     float m_playPosDevicePixelRatio;
 

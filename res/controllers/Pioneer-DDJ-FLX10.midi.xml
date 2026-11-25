@@ -1011,46 +1011,6 @@
                 </options>
             </control>
             <control>
-                <group>[EffectRack1_EffectUnit1]</group>
-                <key>group_[Channel1]_enable</key>
-                <description>Group_[channel1]Enable</description>
-                <status>0x97</status>
-                <midino>0x10</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit1]</group>
-                <key>group_[Channel2]_enable</key>
-                <description>Group_[channel2]Enable</description>
-                <status>0x99</status>
-                <midino>0x10</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit1]</group>
-                <key>group_[Channel3]_enable</key>
-                <description>Group_[channel3]Enable</description>
-                <status>0x9B</status>
-                <midino>0x10</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit1]</group>
-                <key>group_[Channel4]_enable</key>
-                <description>Group_[channel4]Enable</description>
-                <status>0x9D</status>
-                <midino>0x10</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Channel1]</group>
                 <key>PioneerDDJFLX10.loopOutOrDouble</key>
                 <description>Loop Out / Double Ch1</description>
@@ -1101,46 +1061,6 @@
                 </options>
             </control>
             <control>
-                <group>[EffectRack1_EffectUnit2]</group>
-                <key>group_[Channel1]_enable</key>
-                <description>Group_[channel1]Enable</description>
-                <status>0x97</status>
-                <midino>0x11</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit2]</group>
-                <key>group_[Channel2]_enable</key>
-                <description>Group_[channel2]Enable</description>
-                <status>0x99</status>
-                <midino>0x11</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit2]</group>
-                <key>group_[Channel3]_enable</key>
-                <description>Group_[channel3]Enable</description>
-                <status>0x9B</status>
-                <midino>0x11</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit2]</group>
-                <key>group_[Channel4]_enable</key>
-                <description>Group_[channel4]Enable</description>
-                <status>0x9D</status>
-                <midino>0x11</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[EffectRack1_EffectUnit1]</group>
                 <key>PioneerDDJFLX10.beatFxChannelSelect</key>
                 <description>BeatFX channel select CH3 (note 0x12)</description>
@@ -1151,46 +1071,6 @@
                 </options>
             </control>
             <control>
-                <group>[EffectRack1_EffectUnit3]</group>
-                <key>group_[Channel1]_enable</key>
-                <description>Group_[channel1]Enable</description>
-                <status>0x97</status>
-                <midino>0x12</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit3]</group>
-                <key>group_[Channel2]_enable</key>
-                <description>Group_[channel2]Enable</description>
-                <status>0x99</status>
-                <midino>0x12</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit3]</group>
-                <key>group_[Channel3]_enable</key>
-                <description>Group_[channel3]Enable</description>
-                <status>0x9B</status>
-                <midino>0x12</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit3]</group>
-                <key>group_[Channel4]_enable</key>
-                <description>Group_[channel4]Enable</description>
-                <status>0x9D</status>
-                <midino>0x12</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[EffectRack1_EffectUnit1]</group>
                 <key>PioneerDDJFLX10.beatFxChannelSelect</key>
                 <description>BeatFX channel select CH4 (note 0x13)</description>
@@ -1198,36 +1078,6 @@
                 <midino>0x13</midino>
                 <options>
                     <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler3]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler 3</description>
-                <status>0x97</status>
-                <midino>0x13</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler7]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler 7</description>
-                <status>0x99</status>
-                <midino>0x13</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler3]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler 3</description>
-                <status>0x9B</status>
-                <midino>0x13</midino>
-                <options>
-                    <normal/>
                 </options>
             </control>
             <control>
@@ -1278,46 +1128,6 @@
                 <midino>0x14</midino>
                 <options>
                     <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit1]</group>
-                <key>group_[Master]_enable</key>
-                <description>Group_[master]Enable</description>
-                <status>0x97</status>
-                <midino>0x14</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit2]</group>
-                <key>group_[Master]_enable</key>
-                <description>Group_[master]Enable</description>
-                <status>0x99</status>
-                <midino>0x14</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit3]</group>
-                <key>group_[Master]_enable</key>
-                <description>Group_[master]Enable</description>
-                <status>0x9B</status>
-                <midino>0x14</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit4]</group>
-                <key>group_[Master]_enable</key>
-                <description>Group_[master]Enable</description>
-                <status>0x9D</status>
-                <midino>0x14</midino>
-                <options>
-                    <normal/>
                 </options>
             </control>
             <control>
@@ -1372,132 +1182,12 @@
             </control>
             <control>
                 <group>[EffectRack1_EffectUnit1]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Toggles headphone pre-listen</description>
-                <status>0x97</status>
-                <midino>0x15</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit2]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Toggles headphone pre-listen</description>
-                <status>0x99</status>
-                <midino>0x15</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit3]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Toggles headphone pre-listen</description>
-                <status>0x9B</status>
-                <midino>0x15</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit4]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Toggles headphone pre-listen</description>
-                <status>0x9D</status>
-                <midino>0x15</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit1]</group>
                 <key>PioneerDDJFLX10.beatFxChannelSelect</key>
                 <description>BeatFX channel select SP/no-op (note 0x16)</description>
                 <status>0x94</status>
                 <midino>0x16</midino>
                 <options>
                     <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[QuickEffectRack1_[Channel1]_Effect1]</group>
-                <key>enabled</key>
-                <description>Enabled QuickEffect Rack1 Channel1 Effect1</description>
-                <status>0x97</status>
-                <midino>0x16</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[QuickEffectRack1_[Channel2]_Effect1]</group>
-                <key>enabled</key>
-                <description>Enabled QuickEffect Rack1 Channel2 Effect1</description>
-                <status>0x99</status>
-                <midino>0x16</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[QuickEffectRack1_[Channel3]_Effect1]</group>
-                <key>enabled</key>
-                <description>Enabled QuickEffect Rack1 Channel3 Effect1</description>
-                <status>0x9B</status>
-                <midino>0x16</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[QuickEffectRack1_[Channel4]_Effect1]</group>
-                <key>enabled</key>
-                <description>Enabled QuickEffect Rack1 Channel4 Effect1</description>
-                <status>0x9D</status>
-                <midino>0x16</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_4effectunits</key>
-                <description>Show 4 effect units</description>
-                <status>0x97</status>
-                <midino>0x17</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_4effectunits</key>
-                <description>Show 4 effect units</description>
-                <status>0x99</status>
-                <midino>0x17</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_4effectunits</key>
-                <description>Show 4 effect units</description>
-                <status>0x9B</status>
-                <midino>0x17</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_4effectunits</key>
-                <description>Show 4 effect units</description>
-                <status>0x9D</status>
-                <midino>0x17</midino>
-                <options>
-                    <normal/>
                 </options>
             </control>
             <!-- Sound Color FX knob CH1 — 14-bit, MSB=CC0x17 + LSB=CC0x37 on 0xB6 -->
@@ -1672,36 +1362,6 @@
                 </options>
             </control>
             <control>
-                <group>[Skin]</group>
-                <key>show_effectrack</key>
-                <description>Toggles or adjusts an effect (show effect rack)</description>
-                <status>0x91</status>
-                <midino>0x1E</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_4effectunits</key>
-                <description>Toggles or adjusts an effect (show 4 effect units)</description>
-                <status>0x92</status>
-                <midino>0x1E</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_4effectunits</key>
-                <description>Toggles or adjusts an effect (show 4 effect units)</description>
-                <status>0x93</status>
-                <midino>0x1E</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Master]</group>
                 <key>crossfader</key>
                 <description>Crossfader</description>
@@ -1849,46 +1509,6 @@
                 <midino>0x1F</midino>
                 <options>
                     <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_samplers</key>
-                <description>Show samplers</description>
-                <status>0x90</status>
-                <midino>0x22</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_samplers</key>
-                <description>Show samplers</description>
-                <status>0x91</status>
-                <midino>0x22</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_samplers</key>
-                <description>Show samplers</description>
-                <status>0x92</status>
-                <midino>0x22</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_samplers</key>
-                <description>Show samplers</description>
-                <status>0x93</status>
-                <midino>0x22</midino>
-                <options>
-                    <normal/>
                 </options>
             </control>
             <control>
@@ -2292,156 +1912,6 @@
                 </options>
             </control>
             <control>
-                <group>[Sampler1]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x97</status>
-                <midino>0x30</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler5]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x99</status>
-                <midino>0x30</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler1]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x9B</status>
-                <midino>0x30</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler2]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x97</status>
-                <midino>0x31</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler6]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x99</status>
-                <midino>0x31</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler2]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x9B</status>
-                <midino>0x31</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler3]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x97</status>
-                <midino>0x32</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler7]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x99</status>
-                <midino>0x32</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler3]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x9B</status>
-                <midino>0x32</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler4]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x97</status>
-                <midino>0x33</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler8]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x99</status>
-                <midino>0x33</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler4]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point</description>
-                <status>0x9B</status>
-                <midino>0x33</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler5]</group>
-                <key>cue_gotoandplay</key>
-                <description>Play Sampler 5 (pad)</description>
-                <status>0x97</status>
-                <midino>0x34</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler5]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler 5</description>
-                <status>0x99</status>
-                <midino>0x34</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler1]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler 1</description>
-                <status>0x9B</status>
-                <midino>0x34</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Channel1]</group>
                 <key>quantize</key>
                 <description>Quantize CH1</description>
@@ -2482,46 +1952,6 @@
                 </options>
             </control>
             <control>
-                <group>[Sampler6]</group>
-                <key>cue_gotoandplay</key>
-                <description>Play Sampler 6 (pad)</description>
-                <status>0x97</status>
-                <midino>0x35</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler7]</group>
-                <key>cue_gotoandplay</key>
-                <description>Play Sampler 7 (pad)</description>
-                <status>0x97</status>
-                <midino>0x36</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler6]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler 6</description>
-                <status>0x99</status>
-                <midino>0x35</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler2]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler 2</description>
-                <status>0x9B</status>
-                <midino>0x35</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Channel1]</group>
                 <key>PioneerDDJFLX10.playButton</key>
                 <description>PLAY/PAUSE CH1 (VINYL SPEED ADJUST)</description>
@@ -2533,12 +1963,12 @@
             </control>
             <control>
                 <group>[Channel1]</group>
-                <key>sync_enabled</key>
+                <key>PioneerDDJFLX10.syncToggle</key>
                 <description>BEAT SYNC CH1</description>
                 <status>0x90</status>
                 <midino>0x58</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
@@ -2593,12 +2023,12 @@
             </control>
             <control>
                 <group>[Channel2]</group>
-                <key>sync_enabled</key>
+                <key>PioneerDDJFLX10.syncToggle</key>
                 <description>BEAT SYNC CH2</description>
                 <status>0x91</status>
                 <midino>0x58</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
@@ -2653,12 +2083,12 @@
             </control>
             <control>
                 <group>[Channel3]</group>
-                <key>sync_enabled</key>
+                <key>PioneerDDJFLX10.syncToggle</key>
                 <description>BEAT SYNC CH3</description>
                 <status>0x92</status>
                 <midino>0x58</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
@@ -2713,12 +2143,12 @@
             </control>
             <control>
                 <group>[Channel4]</group>
-                <key>sync_enabled</key>
+                <key>PioneerDDJFLX10.syncToggle</key>
                 <description>BEAT SYNC CH4</description>
                 <status>0x93</status>
                 <midino>0x58</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
@@ -2802,46 +2232,6 @@
                 </options>
             </control>
             <control>
-                <group>[Sampler8]</group>
-                <key>cue_gotoandplay</key>
-                <description>Play Sampler 8 (pad)</description>
-                <status>0x97</status>
-                <midino>0x37</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler8]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler 8</description>
-                <status>0x99</status>
-                <midino>0x37</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler4]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler 4</description>
-                <status>0x9B</status>
-                <midino>0x37</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler1]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point and play</description>
-                <status>0x97</status>
-                <midino>0x38</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Channel2]</group>
                 <key>PioneerDDJFLX10.soundColorFxKnobLSB</key>
                 <description>Sound Color FX knob LSB CH2</description>
@@ -2849,16 +2239,6 @@
                 <midino>0x38</midino>
                 <options>
                     <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler2]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point Sampler2</description>
-                <status>0x97</status>
-                <midino>0x39</midino>
-                <options>
-                    <normal/>
                 </options>
             </control>
             <control>
@@ -2872,16 +2252,6 @@
                 </options>
             </control>
             <control>
-                <group>[Sampler3]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point Sampler3</description>
-                <status>0x97</status>
-                <midino>0x3A</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Channel4]</group>
                 <key>PioneerDDJFLX10.soundColorFxKnobLSB</key>
                 <description>Sound Color FX knob LSB CH4</description>
@@ -2889,36 +2259,6 @@
                 <midino>0x3A</midino>
                 <options>
                     <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler4]</group>
-                <key>cue_gotoandplay</key>
-                <description>Jumps to cue point Sampler4</description>
-                <status>0x97</status>
-                <midino>0x3B</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler1]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler1</description>
-                <status>0x97</status>
-                <midino>0x3C</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler2]</group>
-                <key>start_stop</key>
-                <description>Start stop Sampler2</description>
-                <status>0x97</status>
-                <midino>0x3D</midino>
-                <options>
-                    <normal/>
                 </options>
             </control>
             <control>
@@ -3058,56 +2398,6 @@
                 </options>
             </control>
             <control>
-                <group>[Sampler3]</group>
-                <key>start_stop</key>
-                <description>Start_stop Sampler3</description>
-                <status>0x97</status>
-                <midino>0x3E</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel1]</group>
-                <key>PioneerDDJFLX10.TimeTypeChange</key>
-                <description>Cycle time display CH1 (Shift+HotCue)</description>
-                <status>0x90</status>
-                <midino>0x69</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel2]</group>
-                <key>PioneerDDJFLX10.TimeTypeChange</key>
-                <description>Cycle time display CH2 (Shift+HotCue)</description>
-                <status>0x91</status>
-                <midino>0x69</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel3]</group>
-                <key>PioneerDDJFLX10.TimeTypeChange</key>
-                <description>Cycle time display CH3 (Shift+HotCue)</description>
-                <status>0x92</status>
-                <midino>0x69</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel4]</group>
-                <key>PioneerDDJFLX10.TimeTypeChange</key>
-                <description>Cycle time display CH4 (Shift+HotCue)</description>
-                <status>0x93</status>
-                <midino>0x69</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
                 <group>[Channel1]</group>
                 <key>PioneerDDJFLX10.shiftHandler</key>
                 <description>Shift CH1 (press/release)</description>
@@ -3148,16 +2438,6 @@
                 </options>
             </control>
             <control>
-                <group>[Sampler4]</group>
-                <key>start_stop</key>
-                <description>Start_stop Sampler4</description>
-                <status>0x97</status>
-                <midino>0x3F</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Master]</group>
                 <key>crossfader</key>
                 <description>Crossfader</description>
@@ -3169,72 +2449,42 @@
             </control>
             <control>
                 <group>[Channel1]</group>
-                <key>slip_enabled</key>
+                <key>PioneerDDJFLX10.slipToggle</key>
                 <description>Slip CH!</description>
                 <status>0x90</status>
                 <midino>0x40</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
                 <group>[Channel2]</group>
-                <key>slip_enabled</key>
+                <key>PioneerDDJFLX10.slipToggle</key>
                 <description>Slip CH!</description>
                 <status>0x91</status>
                 <midino>0x40</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
                 <group>[Channel3]</group>
-                <key>slip_enabled</key>
+                <key>PioneerDDJFLX10.slipToggle</key>
                 <description>Slip CH!</description>
                 <status>0x92</status>
                 <midino>0x40</midino>
                 <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
                 <group>[Channel4]</group>
-                <key>slip_enabled</key>
+                <key>PioneerDDJFLX10.slipToggle</key>
                 <description>Slip CH!</description>
                 <status>0x93</status>
                 <midino>0x40</midino>
                 <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Master]</group>
-                <key>maximize_library</key>
-                <description>Maximize_library</description>
-                <status>0x97</status>
-                <midino>0x40</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Master]</group>
-                <key>headSplit</key>
-                <description>Head Split</description>
-                <status>0x99</status>
-                <midino>0x40</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Master]</group>
-                <key>headSplit</key>
-                <description>Head Split</description>
-                <status>0x9D</status>
-                <midino>0x40</midino>
-                <options>
-                    <normal/>
+                    <script-binding/>
                 </options>
             </control>
             <control>
@@ -3288,96 +2538,6 @@
                 </options>
             </control>
             <control>
-                <group>[Skin]</group>
-                <key>show_waveforms</key>
-                <description>Show_waveforms</description>
-                <status>0x97</status>
-                <midino>0x41</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Skin]</group>
-                <key>show_4decks</key>
-                <description>Show 4 decks</description>
-                <status>0x97</status>
-                <midino>0x42</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Master]</group>
-                <key>show_mixer</key>
-                <description>Show mixer</description>
-                <status>0x97</status>
-                <midino>0x43</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1]</group>
-                <key>show</key>
-                <description>Shov Effect Rack</description>
-                <status>0x97</status>
-                <midino>0x44</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit1]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Headphone EffectRack1 EffectUnit1</description>
-                <status>0x99</status>
-                <midino>0x44</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit1]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Headphone EffectRack1 EffectUnit1</description>
-                <status>0x9D</status>
-                <midino>0x44</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Samplers]</group>
-                <key>show_samplers</key>
-                <description>Show_samplers</description>
-                <status>0x97</status>
-                <midino>0x45</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit2]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Headphone EffectRack1 EffectUnit4</description>
-                <status>0x99</status>
-                <midino>0x45</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit2]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Headphone EffectRack1 EffectUnit2</description>
-                <status>0x9D</status>
-                <midino>0x45</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Channel1]</group>
                 <key>PioneerDDJFLX10.rate_reset</key>
                 <description>Tempo Reset CH1</description>
@@ -3418,36 +2578,6 @@
                 </options>
             </control>
             <control>
-                <group>[Microphone]</group>
-                <key>show_microphone</key>
-                <description>Show_microphone</description>
-                <status>0x97</status>
-                <midino>0x46</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit3]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Headphone EffectRack1 EffectUnit3</description>
-                <status>0x99</status>
-                <midino>0x46</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit3]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Headphone EffectRack1 EffectUnit3</description>
-                <status>0x9D</status>
-                <midino>0x46</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[EffectRack1_EffectUnit1_Effect1]</group>
                 <key>PioneerDDJFLX10.beatFxOnOff</key>
                 <description>BeatFX ON/OFF toggle</description>
@@ -3465,36 +2595,6 @@
                 <midino>0x47</midino>
                 <options>
                     <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Recording]</group>
-                <key>toggle_recording</key>
-                <description>Toggle_recording</description>
-                <status>0x97</status>
-                <midino>0x47</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit4]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Headphone EffectRack1 EffectUnit4</description>
-                <status>0x99</status>
-                <midino>0x47</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit4]</group>
-                <key>group_[Headphone]_enable</key>
-                <description>Headphone EffectRack1 EffectUnit4</description>
-                <status>0x9D</status>
-                <midino>0x47</midino>
-                <options>
-                    <normal/>
                 </options>
             </control>
             <control>
@@ -3585,126 +2685,6 @@
                 <midino>0x4D</midino>
                 <options>
                     <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit1_Effect1]</group>
-                <key>enabled</key>
-                <description>FX1-Effect1.</description>
-                <status>0x97</status>
-                <midino>0x50</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit2_Effect1]</group>
-                <key>enabled</key>
-                <description>FX2-Effect1</description>
-                <status>0x99</status>
-                <midino>0x50</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit3_Effect1]</group>
-                <key>enabled</key>
-                <description>FX3-Effect1</description>
-                <status>0x9B</status>
-                <midino>0x50</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit4_Effect1]</group>
-                <key>enabled</key>
-                <description>FX4-Effect1</description>
-                <status>0x9D</status>
-                <midino>0x50</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit1_Effect2]</group>
-                <key>enabled</key>
-                <description>FX1-Effect2</description>
-                <status>0x97</status>
-                <midino>0x51</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit2_Effect2]</group>
-                <key>enabled</key>
-                <description>FX2-Effect2</description>
-                <status>0x99</status>
-                <midino>0x51</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit3_Effect2]</group>
-                <key>enabled</key>
-                <description>FX3-Effect2</description>
-                <status>0x9B</status>
-                <midino>0x51</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit4_Effect2]</group>
-                <key>enabled</key>
-                <description>FX4-Effect2</description>
-                <status>0x9D</status>
-                <midino>0x51</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit1_Effect3]</group>
-                <key>enabled</key>
-                <description>FX1-Effect3</description>
-                <status>0x97</status>
-                <midino>0x52</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit2_Effect3]</group>
-                <key>enabled</key>
-                <description>FX2-Effect3</description>
-                <status>0x99</status>
-                <midino>0x52</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit3_Effect3]</group>
-                <key>enabled</key>
-                <description>FX3-Effect3</description>
-                <status>0x9B</status>
-                <midino>0x52</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[EffectRack1_EffectUnit4_Effect3]</group>
-                <key>enabled</key>
-                <description>FX4-Effect3</description>
-                <status>0x9D</status>
-                <midino>0x52</midino>
-                <options>
-                    <normal/>
                 </options>
             </control>
             <control>
@@ -4052,26 +3032,6 @@
                 </options>
             </control>
             <control>
-                <group>[Sampler1]</group>
-                <key>beatsync</key>
-                <description>Syncs tempo with other decks Sampler1</description>
-                <status>0x97</status>
-                <midino>0x70</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler5]</group>
-                <key>beatsync</key>
-                <description>Beat Synch Sampler 5</description>
-                <status>0x99</status>
-                <midino>0x70</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
                 <group>[Channel1]</group>
                 <key>PioneerDDJFLX10.searchButton</key>
                 <description>Forward CH1</description>
@@ -4109,146 +3069,6 @@
                 <midino>0x71</midino>
                 <options>
                     <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler2]</group>
-                <key>beatsync</key>
-                <description>Syncs tempo with other decks Sampler2</description>
-                <status>0x97</status>
-                <midino>0x71</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler6]</group>
-                <key>beatsync</key>
-                <description>Beat Synch Sampler 6</description>
-                <status>0x99</status>
-                <midino>0x71</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler3]</group>
-                <key>beatsync</key>
-                <description>Syncs tempo with other decks Sampler3</description>
-                <status>0x97</status>
-                <midino>0x72</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler7]</group>
-                <key>beatsync</key>
-                <description>Beat Synch Sampler 7</description>
-                <status>0x99</status>
-                <midino>0x72</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler4]</group>
-                <key>beatsync</key>
-                <description>Beat Synch Sampler 4</description>
-                <status>0x97</status>
-                <midino>0x73</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler8]</group>
-                <key>beatsync</key>
-                <description>Beat Synch Sampler 8</description>
-                <status>0x99</status>
-                <midino>0x73</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler1]</group>
-                <key>pfl</key>
-                <description>Pre Fader Listening Sampler 1</description>
-                <status>0x97</status>
-                <midino>0x74</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler5]</group>
-                <key>pfl</key>
-                <description>Pre Fader Listening Sampler 5</description>
-                <status>0x99</status>
-                <midino>0x74</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler2]</group>
-                <key>pfl</key>
-                <description>Pre Fader Listening Sampler 2</description>
-                <status>0x97</status>
-                <midino>0x75</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler6]</group>
-                <key>pfl</key>
-                <description>Pre Fader Listening Sampler 6</description>
-                <status>0x99</status>
-                <midino>0x75</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler3]</group>
-                <key>pfl</key>
-                <description>Pre Fader Listening Sampler 3</description>
-                <status>0x97</status>
-                <midino>0x76</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler7]</group>
-                <key>pfl</key>
-                <description>Pre Fader Listening Sampler 7</description>
-                <status>0x99</status>
-                <midino>0x76</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler4]</group>
-                <key>pfl</key>
-                <description>Pre Fader Listening Sampler 4</description>
-                <status>0x97</status>
-                <midino>0x77</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Sampler8]</group>
-                <key>pfl</key>
-                <description>Pre Fader Listening Sampler 8</description>
-                <status>0x99</status>
-                <midino>0x77</midino>
-                <options>
-                    <normal/>
                 </options>
             </control>
             <control>
@@ -4847,7 +3667,967 @@
                     <script-binding/>
                 </options>
             </control>
-        </controls>
+                    <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x1B deck 1: lights the LED (FLXXX3)</description>
+                <status>0x90</status>
+                <midino>0x1B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x1E deck 1: lights the LED (FLXXX3)</description>
+                <status>0x90</status>
+                <midino>0x1E</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x20 deck 1: lights the LED (FLXXX3)</description>
+                <status>0x90</status>
+                <midino>0x20</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x22 deck 1: lights the LED (FLXXX3)</description>
+                <status>0x90</status>
+                <midino>0x22</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x1B deck 2: lights the LED (FLXXX3)</description>
+                <status>0x91</status>
+                <midino>0x1B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x1E deck 2: lights the LED (FLXXX3)</description>
+                <status>0x91</status>
+                <midino>0x1E</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x20 deck 2: lights the LED (FLXXX3)</description>
+                <status>0x91</status>
+                <midino>0x20</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x22 deck 2: lights the LED (FLXXX3)</description>
+                <status>0x91</status>
+                <midino>0x22</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x1B deck 3: lights the LED (FLXXX3)</description>
+                <status>0x92</status>
+                <midino>0x1B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x1E deck 3: lights the LED (FLXXX3)</description>
+                <status>0x92</status>
+                <midino>0x1E</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x20 deck 3: lights the LED (FLXXX3)</description>
+                <status>0x92</status>
+                <midino>0x20</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x22 deck 3: lights the LED (FLXXX3)</description>
+                <status>0x92</status>
+                <midino>0x22</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x1B deck 4: lights the LED (FLXXX3)</description>
+                <status>0x93</status>
+                <midino>0x1B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x1E deck 4: lights the LED (FLXXX3)</description>
+                <status>0x93</status>
+                <midino>0x1E</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x20 deck 4: lights the LED (FLXXX3)</description>
+                <status>0x93</status>
+                <midino>0x20</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>Pad mode button 0x22 deck 4: lights the LED (FLXXX3)</description>
+                <status>0x93</status>
+                <midino>0x22</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x69 deck 1: lights the LED (FLXXX3)</description>
+                <status>0x90</status>
+                <midino>0x69</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6B deck 1: lights the LED (FLXXX3)</description>
+                <status>0x90</status>
+                <midino>0x6B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6D deck 1: lights the LED (FLXXX3)</description>
+                <status>0x90</status>
+                <midino>0x6D</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6F deck 1: lights the LED (FLXXX3)</description>
+                <status>0x90</status>
+                <midino>0x6F</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x69 deck 2: lights the LED (FLXXX3)</description>
+                <status>0x91</status>
+                <midino>0x69</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6B deck 2: lights the LED (FLXXX3)</description>
+                <status>0x91</status>
+                <midino>0x6B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6D deck 2: lights the LED (FLXXX3)</description>
+                <status>0x91</status>
+                <midino>0x6D</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6F deck 2: lights the LED (FLXXX3)</description>
+                <status>0x91</status>
+                <midino>0x6F</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x69 deck 3: lights the LED (FLXXX3)</description>
+                <status>0x92</status>
+                <midino>0x69</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6B deck 3: lights the LED (FLXXX3)</description>
+                <status>0x92</status>
+                <midino>0x6B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6D deck 3: lights the LED (FLXXX3)</description>
+                <status>0x92</status>
+                <midino>0x6D</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6F deck 3: lights the LED (FLXXX3)</description>
+                <status>0x92</status>
+                <midino>0x6F</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x69 deck 4: lights the LED (FLXXX3)</description>
+                <status>0x93</status>
+                <midino>0x69</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6B deck 4: lights the LED (FLXXX3)</description>
+                <status>0x93</status>
+                <midino>0x6B</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6D deck 4: lights the LED (FLXXX3)</description>
+                <status>0x93</status>
+                <midino>0x6D</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.padModeButton</key>
+                <description>SHIFT pad mode button 0x6F deck 4: lights the LED (FLXXX3)</description>
+                <status>0x93</status>
+                <midino>0x6F</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatloop_0.25_toggle</key>
+                <description>BEAT LOOP pad 1: 0.25 beat loop (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x60</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatjump_1_backward</key>
+                <description>BEAT JUMP pad 1: 1 beats backward (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x20</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatloop_0.5_toggle</key>
+                <description>BEAT LOOP pad 2: 0.5 beat loop (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x61</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatjump_1_forward</key>
+                <description>BEAT JUMP pad 2: 1 beats forward (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x21</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatloop_1_toggle</key>
+                <description>BEAT LOOP pad 3: 1 beat loop (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x62</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatjump_2_backward</key>
+                <description>BEAT JUMP pad 3: 2 beats backward (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x22</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatloop_2_toggle</key>
+                <description>BEAT LOOP pad 4: 2 beat loop (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x63</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatjump_2_forward</key>
+                <description>BEAT JUMP pad 4: 2 beats forward (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x23</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatloop_4_toggle</key>
+                <description>BEAT LOOP pad 5: 4 beat loop (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x64</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatjump_4_backward</key>
+                <description>BEAT JUMP pad 5: 4 beats backward (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x24</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatloop_8_toggle</key>
+                <description>BEAT LOOP pad 6: 8 beat loop (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x65</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatjump_4_forward</key>
+                <description>BEAT JUMP pad 6: 4 beats forward (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x25</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatloop_16_toggle</key>
+                <description>BEAT LOOP pad 7: 16 beat loop (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x66</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatjump_8_backward</key>
+                <description>BEAT JUMP pad 7: 8 beats backward (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x26</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatloop_32_toggle</key>
+                <description>BEAT LOOP pad 8: 32 beat loop (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x67</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>beatjump_8_forward</key>
+                <description>BEAT JUMP pad 8: 8 beats forward (like rekordbox)</description>
+                <status>0x97</status>
+                <midino>0x27</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatloop_0.25_toggle</key>
+                <description>BEAT LOOP pad 1: 0.25 beat loop (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x60</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatjump_1_backward</key>
+                <description>BEAT JUMP pad 1: 1 beats backward (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x20</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatloop_0.5_toggle</key>
+                <description>BEAT LOOP pad 2: 0.5 beat loop (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x61</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatjump_1_forward</key>
+                <description>BEAT JUMP pad 2: 1 beats forward (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x21</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatloop_1_toggle</key>
+                <description>BEAT LOOP pad 3: 1 beat loop (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x62</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatjump_2_backward</key>
+                <description>BEAT JUMP pad 3: 2 beats backward (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x22</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatloop_2_toggle</key>
+                <description>BEAT LOOP pad 4: 2 beat loop (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x63</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatjump_2_forward</key>
+                <description>BEAT JUMP pad 4: 2 beats forward (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x23</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatloop_4_toggle</key>
+                <description>BEAT LOOP pad 5: 4 beat loop (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x64</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatjump_4_backward</key>
+                <description>BEAT JUMP pad 5: 4 beats backward (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x24</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatloop_8_toggle</key>
+                <description>BEAT LOOP pad 6: 8 beat loop (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x65</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatjump_4_forward</key>
+                <description>BEAT JUMP pad 6: 4 beats forward (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x25</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatloop_16_toggle</key>
+                <description>BEAT LOOP pad 7: 16 beat loop (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x66</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatjump_8_backward</key>
+                <description>BEAT JUMP pad 7: 8 beats backward (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x26</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatloop_32_toggle</key>
+                <description>BEAT LOOP pad 8: 32 beat loop (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x67</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>beatjump_8_forward</key>
+                <description>BEAT JUMP pad 8: 8 beats forward (like rekordbox)</description>
+                <status>0x99</status>
+                <midino>0x27</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatloop_0.25_toggle</key>
+                <description>BEAT LOOP pad 1: 0.25 beat loop (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x60</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatjump_1_backward</key>
+                <description>BEAT JUMP pad 1: 1 beats backward (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x20</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatloop_0.5_toggle</key>
+                <description>BEAT LOOP pad 2: 0.5 beat loop (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x61</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatjump_1_forward</key>
+                <description>BEAT JUMP pad 2: 1 beats forward (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x21</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatloop_1_toggle</key>
+                <description>BEAT LOOP pad 3: 1 beat loop (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x62</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatjump_2_backward</key>
+                <description>BEAT JUMP pad 3: 2 beats backward (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x22</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatloop_2_toggle</key>
+                <description>BEAT LOOP pad 4: 2 beat loop (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x63</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatjump_2_forward</key>
+                <description>BEAT JUMP pad 4: 2 beats forward (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x23</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatloop_4_toggle</key>
+                <description>BEAT LOOP pad 5: 4 beat loop (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x64</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatjump_4_backward</key>
+                <description>BEAT JUMP pad 5: 4 beats backward (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x24</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatloop_8_toggle</key>
+                <description>BEAT LOOP pad 6: 8 beat loop (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x65</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatjump_4_forward</key>
+                <description>BEAT JUMP pad 6: 4 beats forward (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x25</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatloop_16_toggle</key>
+                <description>BEAT LOOP pad 7: 16 beat loop (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x66</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatjump_8_backward</key>
+                <description>BEAT JUMP pad 7: 8 beats backward (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x26</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatloop_32_toggle</key>
+                <description>BEAT LOOP pad 8: 32 beat loop (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x67</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>beatjump_8_forward</key>
+                <description>BEAT JUMP pad 8: 8 beats forward (like rekordbox)</description>
+                <status>0x9B</status>
+                <midino>0x27</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatloop_0.25_toggle</key>
+                <description>BEAT LOOP pad 1: 0.25 beat loop (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x60</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatjump_1_backward</key>
+                <description>BEAT JUMP pad 1: 1 beats backward (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x20</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatloop_0.5_toggle</key>
+                <description>BEAT LOOP pad 2: 0.5 beat loop (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x61</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatjump_1_forward</key>
+                <description>BEAT JUMP pad 2: 1 beats forward (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x21</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatloop_1_toggle</key>
+                <description>BEAT LOOP pad 3: 1 beat loop (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x62</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatjump_2_backward</key>
+                <description>BEAT JUMP pad 3: 2 beats backward (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x22</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatloop_2_toggle</key>
+                <description>BEAT LOOP pad 4: 2 beat loop (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x63</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatjump_2_forward</key>
+                <description>BEAT JUMP pad 4: 2 beats forward (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x23</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatloop_4_toggle</key>
+                <description>BEAT LOOP pad 5: 4 beat loop (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x64</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatjump_4_backward</key>
+                <description>BEAT JUMP pad 5: 4 beats backward (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x24</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatloop_8_toggle</key>
+                <description>BEAT LOOP pad 6: 8 beat loop (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x65</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatjump_4_forward</key>
+                <description>BEAT JUMP pad 6: 4 beats forward (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x25</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatloop_16_toggle</key>
+                <description>BEAT LOOP pad 7: 16 beat loop (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x66</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatjump_8_backward</key>
+                <description>BEAT JUMP pad 7: 8 beats backward (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x26</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatloop_32_toggle</key>
+                <description>BEAT LOOP pad 8: 32 beat loop (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x67</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>beatjump_8_forward</key>
+                <description>BEAT JUMP pad 8: 8 beats forward (like rekordbox)</description>
+                <status>0x9D</status>
+                <midino>0x27</midino>
+                <options>
+                    <normal/>
+                </options>
+            </control>
+</controls>
         <outputs>
             <output>
                 <group>[Channel1]</group>
@@ -5073,6 +4853,38 @@
                 <minimum>0.5</minimum>
             </output>
             <!-- Key Sync LED CH4 driven by keySyncToggle (see CH1 note above). -->
-        </outputs>
+                    <output>
+                <group>[Channel1]</group>
+                <key>slip_enabled</key>
+                <description>Slip LED CH1</description>
+                <status>0x90</status>
+                <midino>0x40</midino>
+                <minimum>0.5</minimum>
+            </output>
+            <output>
+                <group>[Channel2]</group>
+                <key>slip_enabled</key>
+                <description>Slip LED CH2</description>
+                <status>0x91</status>
+                <midino>0x40</midino>
+                <minimum>0.5</minimum>
+            </output>
+            <output>
+                <group>[Channel3]</group>
+                <key>slip_enabled</key>
+                <description>Slip LED CH3</description>
+                <status>0x92</status>
+                <midino>0x40</midino>
+                <minimum>0.5</minimum>
+            </output>
+            <output>
+                <group>[Channel4]</group>
+                <key>slip_enabled</key>
+                <description>Slip LED CH4</description>
+                <status>0x93</status>
+                <midino>0x40</midino>
+                <minimum>0.5</minimum>
+            </output>
+</outputs>
     </controller>
 </MixxxControllerPreset>

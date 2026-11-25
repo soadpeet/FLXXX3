@@ -360,7 +360,7 @@ TestCase {
     // stands still, then it plays on.
     function test_backspinFollowsTheWheel() {
         engine.set("[Channel1]", "play", 1);
-        engine.set("[AndroidDJ]", "backspin_on", 1);
+        engine.set("[AndroidDJ]", "backspin_on", 0);   // no on/off: a back spin always comes
         flx10.wheelTouch(0, 0x36, 0x7f, 0x90, "[Channel1]");
         for (let i = 0; i < 10; ++i) {
             engine.clockMs += 10;

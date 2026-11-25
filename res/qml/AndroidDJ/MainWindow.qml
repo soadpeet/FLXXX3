@@ -17,6 +17,26 @@ Item {
     id: root
 
     required property ApplicationWindow applicationWindow
+    // Warm-up of the font for the special characters of the UI (the triangles of the intro and
+    // outro marks, the stars, the arrows). The first text with a character that the font does
+    // not have makes Android look through all system fonts: 0.4 s to 2.5 s on the GUI thread,
+    // visible as a hang (the first loop, the first library list). Done here once at the start,
+    // for the normal and the bold font.
+    Text {
+        visible: false
+        text: "\u25e2\u25e3\u2605\u2606\u2191\u2212\u00b1\u2193"
+        Component.onCompleted: {
+            const t0 = Date.now();
+            font.pixelSize = 18;
+            console.log("FLXXX3 glyph warm-up (normal)", Date.now() - t0, "ms", contentWidth);
+        }
+    }
+    Text {
+        visible: false
+        font.bold: true
+        text: "\u25e2\u25e3\u2605\u2606\u2191\u2212\u00b1\u2193"
+        Component.onCompleted: font.pixelSize = 18
+    }
     // main.qml reads this property; there is no menu bar on Android.
     readonly property var menuBar: null
     property bool browserOpen: false
