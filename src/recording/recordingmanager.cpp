@@ -1,5 +1,8 @@
 #include "recording/recordingmanager.h"
 
+#include <QStorageInfo>
+#include <QtConcurrent>
+
 #include <QDateTime>
 #include <QDir>
 #include <QMessageBox>
@@ -293,6 +296,33 @@ void RecordingManager::slotBytesRecorded(int bytes) {
         return;
     }
 
+#ifdef FLXXX3
+    // FLXXX3: QStorageInfo can block for a while (Windows); this runs in the GUI thread and
+    // made the picture and the sound stutter once in a while. The free space is asked in a
+    // worker thread, the result is handled here again.
+    m_dfCounter = 1024 * 1024;
+    const QString recordingDir = m_recordingDir;
+    (void)QtConcurrent::run([this, recordingDir]() {
+        QStorageInfo storage(recordingDir);
+        const qint64 dfree = storage.isValid() ? storage.bytesAvailable() : -1;
+        QMetaObject::invokeMethod(
+                this,
+                [this, dfree]() {
+                    if (dfree == -1) {
+                        qDebug() << "can't determine free space";
+                        return;
+                    }
+                    if (dfree > MIN_DISK_FREE) {
+                        m_dfSilence = false;
+                    } else if (m_dfSilence != true) {
+                        m_dfSilence = true;
+                        warnFreespace();
+                    }
+                },
+                Qt::QueuedConnection);
+    });
+    return;
+#else
     qint64 dfree = getFreeSpace();
     // reset counter
     m_dfCounter = 1024 * 1024;
@@ -309,6 +339,7 @@ void RecordingManager::slotBytesRecorded(int bytes) {
         // FIXME(poelzi) temporary display a error message. Replace this with Message Infrastructure when ready
         warnFreespace();
     }
+#endif
 }
 
 void RecordingManager::warnFreespace() {
