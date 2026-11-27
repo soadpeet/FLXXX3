@@ -31,6 +31,10 @@ QString removableVolumeRelativePath(const QString& filePath);
 /// the system were opened, where the stick is ejected (Android).
 int ejectRemovableVolume(const QString& id);
 
+/// Android: the monitor the app starts on next time (1 = device screen, 2 and up = other
+/// screens). Elsewhere: nothing.
+void setStartMonitor(int index);
+
 /// Root of the device's own storage, where own music folders live (the folder picker starts
 /// here), and its name on the SOURCE screen.
 QString internalStoragePath();

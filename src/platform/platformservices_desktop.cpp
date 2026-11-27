@@ -76,6 +76,10 @@ QStringList removableVolumeIds() {
     return ids;
 }
 
+void setStartMonitor(int index) {
+    Q_UNUSED(index);
+}
+
 int ejectRemovableVolume(const QString& id) {
 #ifdef Q_OS_WIN
     // id "E:" -> the volume \\.\E: : lock (fails while files are open), dismount, allow

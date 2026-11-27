@@ -213,6 +213,13 @@ int ejectRemovableVolume(const QString& id) {
     return 2;
 }
 
+void setStartMonitor(int index) {
+    QJniObject::callStaticMethod<void>("de/biggo/flxxx3/MainActivity",
+            "setStartMonitor",
+            "(I)V",
+            static_cast<jint>(index));
+}
+
 void shareLogFiles(const QString& logFilePath) {
     const QDir folder = QFileInfo(logFilePath).absoluteDir();
     QStringList paths;

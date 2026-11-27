@@ -171,6 +171,10 @@ int QmlDeviceStatusProxy::ejectStick(int slot) {
     return platform::ejectRemovableVolume(m_slotIds[slot - 1]);
 }
 
+void QmlDeviceStatusProxy::setStartMonitor(int index) {
+    platform::setStartMonitor(index);
+}
+
 void QmlDeviceStatusProxy::shareLog() {
     Logging::flushLogFile();
     const QString path = Logging::logFilePath();

@@ -28,16 +28,26 @@
         android:allowBackup="true"
         android:extractNativeLibs="true"
         android:fullBackupOnly="false">
+        <!-- The icon starts this one: it puts the app on the monitor chosen in ADVANCED SETTINGS >
+             START (before anything of the app runs) and starts MainActivity there. -->
+        <activity
+            android:name="de.biggo.flxxx3.LauncherActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name="de.biggo.flxxx3.MainActivity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
             android:launchMode="singleTop"
             android:screenOrientation="sensorLandscape"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
             <!-- DDJ-FLX4 / DDJ-FLX10 plugged in: the permission for the USB audio driver can be kept ("always"). -->
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
@@ -45,6 +55,11 @@
             <meta-data
                 android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
                 android:resource="@xml/usb_device_filter" />
+
+          <!-- Samsung DeX: open maximized and not as a small window (ignored elsewhere). -->
+          <meta-data
+                android:name="com.samsung.android.dex.launchwindowtype"
+                android:value="maximized" />
 
           <meta-data
                 android:name="android.app.lib_name"

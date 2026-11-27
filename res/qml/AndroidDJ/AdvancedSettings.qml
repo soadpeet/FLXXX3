@@ -29,7 +29,7 @@ Rectangle {
     }
     property int selectedPreset: -1
     property string renameText: ""
-    readonly property real u: Math.max(7, Math.floor(Math.min(width / 66, height / 26)))
+    readonly property real u: Math.max(7, Math.floor(Math.min(width / 66, height / 33)))
 
     signal closeRequested
 
@@ -149,30 +149,42 @@ Rectangle {
         }
     }
 
-    // ---- areas (left) ----
-    Column {
-        id: areaColumn
+    // ---- areas (left; scrolls when the screen is low) ----
+    Flickable {
+        id: areaView
 
-        spacing: root.u * 0.4
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+        contentHeight: areaColumn.height
+        flickableDirection: Flickable.VerticalFlick
         width: root.u * 13
 
         anchors {
+            bottom: presetBar.top
+            bottomMargin: root.u * 0.6
             left: parent.left
             leftMargin: root.u
             top: parent.top
             topMargin: root.u * 3.2
         }
 
-        Repeater {
-            model: AdvSettings.areas
+        Column {
+            id: areaColumn
 
-            Btn {
-                required property string modelData
+            spacing: root.u * 0.4
+            width: areaView.width
 
-                active: root.area === modelData
-                text: modelData
-                width: areaColumn.width
-                onClicked: root.area = modelData
+            Repeater {
+                model: AdvSettings.areas
+
+                Btn {
+                    required property string modelData
+
+                    active: root.area === modelData
+                    text: modelData
+                    width: areaColumn.width
+                    onClicked: root.area = modelData
+                }
             }
         }
     }
@@ -184,19 +196,21 @@ Rectangle {
         clip: true
         contentHeight: settingsColumn.height
         boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.VerticalFlick
+        pressDelay: 0
 
         anchors {
             bottom: presetBar.top
             bottomMargin: root.u * 0.6
-            left: areaColumn.right
+            left: areaView.right
             leftMargin: root.u
             right: parent.right
             rightMargin: root.u
-            top: areaColumn.top
+            top: areaView.top
         }
 
         ScrollBar.vertical: ScrollBar {
-            policy: ScrollBar.AsNeeded
+            policy: ScrollBar.AlwaysOn
         }
 
         Column {

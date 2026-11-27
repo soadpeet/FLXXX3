@@ -94,6 +94,8 @@ class QmlDeviceStatusProxy : public QObject {
     // SOURCE > EJECT: ejects the stick of slot 1 or 2. Result: 0 = safe to unplug, 1 = failed
     // (files in use), 2 = the system storage settings were opened (Android).
     Q_INVOKABLE int ejectStick(int slot);
+    // START > SCREEN on Android: the monitor the app starts on next time.
+    Q_INVOKABLE void setStartMonitor(int index);
 
   signals:
     void changed();

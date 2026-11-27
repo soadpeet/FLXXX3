@@ -506,6 +506,19 @@ Rectangle {
                         }
                     }
                 }
+                // AUTO GAIN: every track is measured once (loudness) and played at about the same
+                // loudness. The value is kept with the advanced settings.
+                Item { height: root.u * 0.9; width: 1 }
+                DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "AUTO GAIN" }
+                DJ.Segmented {
+                    fontSize: root.u * 0.95
+                    height: root.u * 2.5
+                    currentIndex: AdvSettings.values.autoGain === 0 ? 0 : 1
+                    labels: ["OFF", "ON"]
+                    width: root.u * 12
+
+                    onActivated: index => AdvSettings.set("autoGain", index === 1 ? 1 : 0)
+                }
             }
             // Recording of the set (the master output): WAV or MP3, in Music/FLXXX3.
             Column {
@@ -607,22 +620,6 @@ Rectangle {
                         }
                     }
                 }
-            }
-        }
-        Column {
-            spacing: 3
-
-            // AUTO GAIN: every track is measured once (loudness) and played at about the same
-            // loudness. The value is kept with the advanced settings.
-            DJ.FieldLabel { font.pixelSize: root.u * 0.85; text: "AUTO GAIN" }
-            DJ.Segmented {
-                fontSize: root.u * 0.95
-                height: root.u * 2.5
-                currentIndex: AdvSettings.values.autoGain === 0 ? 0 : 1
-                labels: ["OFF", "ON"]
-                width: root.u * 12
-
-                onActivated: index => AdvSettings.set("autoGain", index === 1 ? 1 : 0)
             }
         }
     }

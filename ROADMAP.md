@@ -7,6 +7,12 @@ Zugehörige Dokumente: `PROJECT_ASSESSMENT.md` (Ist-Stand), `LICENSE_AUDIT.md` (
 
 ---
 
+## Stand 2026-11-27
+
+**v0.1.3 ist veröffentlicht** (Android-APK mit Release-Schlüssel, Windows-Installer, Prüfsummen; gebaut vom Release-Workflow). Neu seit v0.1.2: DDJ-FLX10 (Mapping wie rekordbox: Pad-Modi, BEAT LOOP/JUMP, SYNC/SLIP, SHIFT-Funktionen, stufenloses Einstellen der Loop-Grenzen mit dem Jog über die HID-Position, stehende Waveform), Jog-Displays, vier Decks, Beat FX 17 Effekte, gespielte Titel markiert, Stick auswerfen, Aufnahmeordner, aufgeräumte ADVANCED SETTINGS, USB-Berechtigungs-Backoff.
+
+Nächste Schritte: MIDI-Eingang auf Android bei Dauerfehler neu öffnen (Fix im Code, Test steht aus); am Gerät prüfen: Played-Punkt, EJECT, SHIFT+PLAY / 4 BEAT / QUANTIZE, BEAT SYNC lang; FLX10: SHIFT+SLIP, TEMPO RANGE, MASTER TEMPO, KEY SYNC und SEARCH-Tasten wie rekordbox (Funktion nachsehen); Beat-FX-Bänder; Stick-Ziehen-Test; Memory Loops mit echten Daten; Adreno-Abstürze (Logs per SHARE LOG); Windows-Code-Signatur; Markenprüfung; WIP-Commits aufteilen und nach `android-midi` mergen.
+
 ## Fortschritt (Stand 2026-11-20)
 
 | Phase | Stand | Erledigt | Offen |

@@ -1,4 +1,10 @@
 #include <QApplication>
+#if defined(Q_OS_WIN) && defined(FLXXX3)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 #include <QDir>
 #include <QPixmapCache>
 #include <QString>
@@ -265,6 +271,24 @@ int main(int argc, char * argv[]) {
 #endif
 
     adjustScaleFactor(&args);
+
+#if defined(Q_OS_WIN) && defined(FLXXX3)
+    // FLXXX3 runs only once per user: a second start brings the window of the first one to the
+    // front and ends (two instances would fight over the controller, the audio device and the
+    // database).
+    {
+        const HANDLE singleInstance = CreateMutexW(nullptr, FALSE, L"Local\\FLXXX3-single-instance");
+        if (singleInstance && GetLastError() == ERROR_ALREADY_EXISTS) {
+            if (HWND existing = FindWindowW(nullptr, L"FLXXX3")) {
+                if (IsIconic(existing)) {
+                    ShowWindow(existing, SW_RESTORE);
+                }
+                SetForegroundWindow(existing);
+            }
+            return 0;
+        }
+    }
+#endif
 
     MixxxApplication app(argc, argv);
 

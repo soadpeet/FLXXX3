@@ -34,6 +34,8 @@ ApplicationWindow {
         // drawing, laid the Android window out again, which crashed the app now and then in the
         // system graphics (libgui / RenderThread), mostly at the first start after an installation.
         if (isMobile && Mixxx.Product.ui) {
+            // ADVANCED SETTINGS > START > SCREEN: kept for the next start (LauncherActivity).
+            Mixxx.DeviceStatus.setStartMonitor(parseInt(Mixxx.Config.androidSetting("adv_start_screen", "2")) || 2);
             return;
         }
         // FLXXX3 on the desktop: on the monitor chosen in ADVANCED SETTINGS > START (default

@@ -77,6 +77,15 @@ public class MainActivity extends QtActivityBase {
         });
     }
 
+    // ADVANCED SETTINGS > START > SCREEN: the monitor the app starts on, kept for the next
+    // start (LauncherActivity reads it).
+    public static void setStartMonitor(int index) {
+        final MainActivity activity = sInstance;
+        if (activity != null) {
+            LauncherActivity.saveMonitor(activity, index);
+        }
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

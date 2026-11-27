@@ -196,9 +196,27 @@ bool AndroidMidiController::poll() {
         const ssize_t numMessages = AMidiOutputPort_receive(
                 m_pReadPort, &opcode, buffer, sizeof(buffer), &numBytes, &timestampNs);
         if (numMessages < 0) {
-            qCWarning(m_logInput) << "AMidiOutputPort_receive error:" << numMessages;
+            // A broken read port reports the same error on every poll
+            // (thousands per second). Warn rarely and reopen the port.
+            ++m_receiveErrors;
+            if (m_receiveErrors == 1 || m_receiveErrors % 2000 == 0) {
+                qCWarning(m_logInput) << "AMidiOutputPort_receive error:" << numMessages
+                                      << "count" << m_receiveErrors;
+            }
+            if (m_receiveErrors == 20 || m_receiveErrors % 2000 == 0) {
+                AMidiOutputPort_close(m_pReadPort);
+                m_pReadPort = nullptr;
+                if (m_pDevice &&
+                        AMidiOutputPort_open(m_pDevice, 0, &m_pReadPort) != AMEDIA_OK) {
+                    m_pReadPort = nullptr;
+                    qCWarning(m_logInput) << "AMidiOutputPort reopen failed";
+                } else {
+                    qCWarning(m_logInput) << "AMidiOutputPort reopened";
+                }
+            }
             return received;
         }
+        m_receiveErrors = 0;
         if (numMessages == 0) {
             break;
         }

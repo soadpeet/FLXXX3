@@ -213,12 +213,7 @@ PioneerDDJFLX10._refreshOutputLeds = function() {
             PioneerDDJFLX10._renderMasterEqKillLed(mi);
         }
     }
-    // Sampler pad LEDs (once — Sampler1-8).
-    if (PioneerDDJFLX10._renderSamplerLed) {
-        for (var sn = 1; sn <= 8; sn++) {
-            PioneerDDJFLX10._renderSamplerLed(sn);
-        }
-    }
+    // FLXXX3 has no samplers (the sampler pad mode has no function): no sampler LEDs.
 };
 
 // Initialization
@@ -404,7 +399,7 @@ PioneerDDJFLX10.init = function(id) {
     PioneerDDJFLX10._initMasterEqKillLeds();
 
     // Sampler pad LEDs (lit when a sampler is loaded, blink while playing)
-    PioneerDDJFLX10._initSamplerLeds();
+    // (no sampler LEDs: FLXXX3 has no samplers; polling them flooded the log)
 
     // Re-push LED state once the controller is ready to receive — the FLX10
     // misses Mixxx's initial output burst at launch (see _refreshOutputLeds).

@@ -85,6 +85,7 @@ class AndroidMidiController : public MidiController {
     QJniObject m_midiDevice;
     AMidiDevice* m_pDevice = nullptr;
     AMidiOutputPort* m_pReadPort = nullptr;  // device -> Mixxx
+    int m_receiveErrors = 0;
     AMidiInputPort* m_pWritePort = nullptr;  // Mixxx -> device
     AndroidMidiParser m_parser;
     // Drops the bogus trim values of the DDJ-FLX4 (see the input loop).
