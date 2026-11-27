@@ -853,6 +853,22 @@ Rectangle {
                 liteCell.showWave();
             }
 
+            // Played tracks: a small dot at the left edge (a drawn shape, no special character).
+            Rectangle {
+                readonly property bool played: liteCell.isTitle && AdvSettings.playedRevision >= 0 && view.model && AdvSettings.isPlayed(view.model.getUrl(liteCell.row))
+
+                anchors {
+                    left: parent.left
+                    leftMargin: 2
+                    verticalCenter: parent.verticalCenter
+                }
+                color: "#35c759"
+                height: width
+                radius: width / 2
+                visible: played
+                width: Math.max(5, Math.round(7 * root.uiScale))
+            }
+
             // The track number (left), the waveform of the track follows.
             Rectangle {
                 anchors {

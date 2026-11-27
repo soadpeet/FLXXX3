@@ -59,6 +59,65 @@ Rectangle {
             root.openRequested(root.kindOf(root.selected), root.slotTitle(root.selected));
     }
 
+    // EJECT: the stick of the selected slot. Tracks of it that are loaded onto a stopped deck are
+    // unloaded first; while a deck plays one, nothing happens (message).
+    property string ejectMessage: ""
+    function showEjectMessage(text) {
+        root.ejectMessage = text;
+        ejectMessageTimer.restart();
+    }
+    function ejectSelected() {
+        if (root.selected === 2)
+            return;
+        const slot = root.selected + 1;
+        const details = Mixxx.DeviceStatus.stickInfo(slot);
+        if (!details.present)
+            return;
+        const marker = String(details.id).toLowerCase();
+        const unload = [];
+        for (let deck = 1; deck <= 4; ++deck) {
+            const group = "[Channel" + deck + "]";
+            const player = Mixxx.PlayerManager.getPlayer(group);
+            const track = player ? player.currentTrack : null;
+            if (!track)
+                continue;
+            let url = String(track.trackLocationUrl);
+            try {
+                url = decodeURIComponent(url);
+            } catch (e) {
+            }
+            if (url.toLowerCase().indexOf(marker) < 0)
+                continue;
+            const playing = Qt.createQmlObject('import Mixxx 1.0 as Mixxx; Mixxx.ControlProxy { group: "' + group + '"; key: "play" }', root);
+            const isPlaying = playing.value > 0;
+            playing.destroy();
+            if (isPlaying) {
+                root.showEjectMessage("STOP DECK " + deck + " FIRST");
+                return;
+            }
+            unload.push(group);
+        }
+        unload.forEach(group => {
+            const eject = Qt.createQmlObject('import Mixxx 1.0 as Mixxx; Mixxx.ControlProxy { group: "' + group + '"; key: "eject" }', root);
+            eject.value = 1;
+            eject.value = 0;
+            eject.destroy();
+        });
+        const result = Mixxx.DeviceStatus.ejectStick(slot);
+        if (result === 0)
+            root.showEjectMessage("SAFE TO UNPLUG");
+        else if (result === 2)
+            root.showEjectMessage("EJECT THE STICK IN THE SYSTEM SETTINGS");
+        else
+            root.showEjectMessage("CANNOT EJECT: FILES IN USE");
+    }
+    Timer {
+        id: ejectMessageTimer
+
+        interval: 6000
+        onTriggered: root.ejectMessage = ""
+    }
+
     function kindOf(slot) {
         return slot === 2 ? "TABLET" : "USB" + (slot + 1);
     }
@@ -469,6 +528,19 @@ Rectangle {
                 }
             }
         }
+        Text {
+            color: "#ffb040"
+            font.bold: true
+            font.pixelSize: 18
+            text: root.ejectMessage
+            visible: root.ejectMessage !== ""
+
+            anchors {
+                bottom: parent.bottom
+                bottomMargin: 84
+                horizontalCenter: parent.horizontalCenter
+            }
+        }
         // Buttons at the bottom of the INFO panel.
         Row {
             spacing: 12
@@ -499,6 +571,27 @@ Rectangle {
                     id: addTap
 
                     onTapped: root.openPicker()
+                }
+            }
+            Rectangle {
+                border.color: "#8a5a1a"
+                border.width: 2
+                color: ejectTap.pressed ? "#3a2a10" : "#141414"
+                height: 56
+                visible: root.selected !== 2
+                width: infoPanel.buttonWidth
+
+                Text {
+                    anchors.centerIn: parent
+                    color: "#ffb040"
+                    font.bold: true
+                    font.pixelSize: Math.min(20, Math.floor(infoPanel.buttonWidth / 8))
+                    text: "EJECT"
+                }
+                TapHandler {
+                    id: ejectTap
+
+                    onTapped: root.ejectSelected()
                 }
             }
             Rectangle {

@@ -78,6 +78,8 @@ Rectangle {
     Mixxx.ControlProxy { id: recordToggle; group: "[Recording]"; key: "toggle_recording" }
     readonly property bool recording: recordStatus.value > 0
     property string recordFormat: Mixxx.Config.androidSetting("recordFormat", "WAV")
+    // Folder of the recordings: empty = the default (Music/FLXXX3).
+    property string recordDir: Mixxx.Config.androidSetting("recordDir", "")
     Mixxx.ControlProxy { id: brightnessProxy; group: "[AndroidDJ]"; key: "brightness" }
 
     // Opens ADVANCED SETTINGS: bottom right, below the (shorter) right column, so that it never
@@ -549,6 +551,62 @@ Rectangle {
                         }
                     }
                 }
+                Text {
+                    color: "#cfcfcf"
+                    elide: Text.ElideMiddle
+                    font.pixelSize: root.u * 0.75
+                    text: root.recordDir !== "" ? root.recordDir : "Music/FLXXX3 (DEFAULT)"
+                    width: root.u * 12
+                }
+                Row {
+                    spacing: root.u * 0.4
+
+                    Rectangle {
+                        border.color: "#cfcfcf"
+                        color: folderTap.pressed ? "#3a3a3a" : "#2a2a2a"
+                        height: root.u * 2.8
+                        opacity: root.recording ? 0.5 : 1
+                        width: root.u * 5.6
+
+                        Text {
+                            anchors.centerIn: parent
+                            color: "#ffffff"
+                            font.bold: true
+                            font.pixelSize: root.u * 0.8
+                            text: "FOLDER"
+                        }
+                        TapHandler {
+                            id: folderTap
+
+                            // The folder can only change while nothing is recorded.
+                            enabled: !root.recording
+                            onTapped: recordFolderPicker.openAt(root.recordDir)
+                        }
+                    }
+                    Rectangle {
+                        border.color: "#8a8a8a"
+                        color: defaultTap.pressed ? "#3a3a3a" : "#202020"
+                        height: root.u * 2.8
+                        visible: root.recordDir !== ""
+                        width: root.u * 5.6
+
+                        Text {
+                            anchors.centerIn: parent
+                            color: "#ffffff"
+                            font.pixelSize: root.u * 0.8
+                            text: "DEFAULT"
+                        }
+                        TapHandler {
+                            id: defaultTap
+
+                            enabled: !root.recording
+                            onTapped: {
+                                root.recordDir = "";
+                                Mixxx.Config.setAndroidSetting("recordDir", "");
+                            }
+                        }
+                    }
+                }
             }
         }
         Column {
@@ -566,6 +624,16 @@ Rectangle {
 
                 onActivated: index => AdvSettings.set("autoGain", index === 1 ? 1 : 0)
             }
+        }
+    }
+    FolderPicker {
+        id: recordFolderPicker
+
+        title: "Folder for the recordings"
+
+        onChosen: path => {
+            root.recordDir = path;
+            Mixxx.Config.setAndroidSetting("recordDir", path);
         }
     }
 }

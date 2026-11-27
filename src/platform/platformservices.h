@@ -26,6 +26,11 @@ QString removableVolumeIdOfPath(const QString& filePath);
 /// a removable volume. The Rekordbox database stores the files this way.
 QString removableVolumeRelativePath(const QString& filePath);
 
+/// Ejects a removable volume. Result: 0 = ejected (safe to unplug), 1 = failed (files in
+/// use or the system refused), 2 = the app cannot eject by itself: the storage settings of
+/// the system were opened, where the stick is ejected (Android).
+int ejectRemovableVolume(const QString& id);
+
 /// Root of the device's own storage, where own music folders live (the folder picker starts
 /// here), and its name on the SOURCE screen.
 QString internalStoragePath();

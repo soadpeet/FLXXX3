@@ -129,7 +129,13 @@ void RecordingManager::applyProductSettings() {
 #else
     const QString music = QStandardPaths::writableLocation(QStandardPaths::MusicLocation);
 #endif
-    if (!music.isEmpty()) {
+    // UTILITY > RECORDING > FOLDER: the folder chosen by the user, otherwise Music/FLXXX3.
+    const QString chosenDir = m_pConfig->getValue(
+            ConfigKey(QStringLiteral("[AndroidDJ]"), QStringLiteral("recordDir")),
+            QString());
+    if (!chosenDir.isEmpty()) {
+        m_pConfig->set(ConfigKey(RECORDING_PREF_KEY, "Directory"), ConfigValue(chosenDir));
+    } else if (!music.isEmpty()) {
         m_pConfig->set(ConfigKey(RECORDING_PREF_KEY, "Directory"),
                 ConfigValue(music + QStringLiteral("/FLXXX3")));
     }

@@ -91,6 +91,9 @@ class QmlDeviceStatusProxy : public QObject {
     // desktop: opens the folder).
     Q_INVOKABLE QString logFilePath() const;
     Q_INVOKABLE void shareLog();
+    // SOURCE > EJECT: ejects the stick of slot 1 or 2. Result: 0 = safe to unplug, 1 = failed
+    // (files in use), 2 = the system storage settings were opened (Android).
+    Q_INVOKABLE int ejectStick(int slot);
 
   signals:
     void changed();

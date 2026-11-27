@@ -194,6 +194,25 @@ void quitApp() {
     });
 }
 
+int ejectRemovableVolume(const QString& id) {
+    Q_UNUSED(id);
+    // An app cannot unmount a stick on Android: the storage settings of the system open,
+    // where the stick has its eject button.
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() {
+        QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (!activity.isValid()) {
+            return;
+        }
+        QJniObject intent("android/content/Intent",
+                "(Ljava/lang/String;)V",
+                QJniObject::fromString(QStringLiteral("android.settings.INTERNAL_STORAGE_SETTINGS"))
+                        .object<jstring>());
+        intent.callObjectMethod("addFlags", "(I)Landroid/content/Intent;", 0x10000000);
+        activity.callMethod<void>("startActivity", "(Landroid/content/Intent;)V", intent.object());
+    });
+    return 2;
+}
+
 void shareLogFiles(const QString& logFilePath) {
     const QDir folder = QFileInfo(logFilePath).absoluteDir();
     QStringList paths;

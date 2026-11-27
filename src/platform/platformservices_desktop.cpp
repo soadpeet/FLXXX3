@@ -16,6 +16,7 @@
 
 #ifdef Q_OS_WIN
 #include <windows.h>
+#include <winioctl.h>
 // WinMM (MIDI device list), after windows.h
 #include <mmsystem.h>
 #ifdef _MSC_VER
@@ -73,6 +74,47 @@ QStringList removableVolumeIds() {
     const QMutexLocker locker(&s_mutex);
     s_paths = found;
     return ids;
+}
+
+int ejectRemovableVolume(const QString& id) {
+#ifdef Q_OS_WIN
+    // id "E:" -> the volume \\.\E: : lock (fails while files are open), dismount, allow
+    // removal, eject.
+    const QString device = QStringLiteral("\\\\.\\") + id;
+    HANDLE handle = CreateFileW(reinterpret_cast<LPCWSTR>(device.utf16()),
+            GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr,
+            OPEN_EXISTING,
+            0,
+            nullptr);
+    if (handle == INVALID_HANDLE_VALUE) {
+        qWarning() << "FLXXX3: eject" << id << "cannot open the volume";
+        return 1;
+    }
+    DWORD returned = 0;
+    bool locked = false;
+    for (int attempt = 0; attempt < 5 && !locked; ++attempt) {
+        locked = DeviceIoControl(handle, FSCTL_LOCK_VOLUME, nullptr, 0, nullptr, 0, &returned, nullptr);
+        if (!locked) {
+            Sleep(300);
+        }
+    }
+    if (!locked) {
+        qWarning() << "FLXXX3: eject" << id << "the volume is in use";
+        CloseHandle(handle);
+        return 1;
+    }
+    DeviceIoControl(handle, FSCTL_DISMOUNT_VOLUME, nullptr, 0, nullptr, 0, &returned, nullptr);
+    PREVENT_MEDIA_REMOVAL allow = {FALSE};
+    DeviceIoControl(handle, IOCTL_STORAGE_MEDIA_REMOVAL, &allow, sizeof(allow), nullptr, 0, &returned, nullptr);
+    const bool ok = DeviceIoControl(handle, IOCTL_STORAGE_EJECT_MEDIA, nullptr, 0, nullptr, 0, &returned, nullptr);
+    CloseHandle(handle);
+    return ok ? 0 : 1;
+#else
+    Q_UNUSED(id);
+    return 1;
+#endif
 }
 
 QString removableVolumePath(const QString& id) {

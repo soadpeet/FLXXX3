@@ -164,6 +164,13 @@ QString QmlDeviceStatusProxy::logFilePath() const {
     return Logging::logFilePath();
 }
 
+int QmlDeviceStatusProxy::ejectStick(int slot) {
+    if (slot < 1 || slot > 2 || m_slotIds[slot - 1].isEmpty()) {
+        return 1;
+    }
+    return platform::ejectRemovableVolume(m_slotIds[slot - 1]);
+}
+
 void QmlDeviceStatusProxy::shareLog() {
     Logging::flushLogFile();
     const QString path = Logging::logFilePath();

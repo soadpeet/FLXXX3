@@ -76,12 +76,7 @@ Item {
         { key: "jog_scratch_sens", area: "JOGWHEEL", label: "JOG SENSITIVITY: TOP (SCRATCH, PLATTER TOUCHED)", kind: "number", min: 0.2, max: 4, step: 0.1, fine: 0.01, decimals: 2, unit: "x", def: 1, control: true },
         { key: "jog_bend_sens", area: "JOGWHEEL", label: "JOG SENSITIVITY: SIDE (PITCH BEND)", kind: "number", min: 0.2, max: 4, step: 0.1, fine: 0.01, decimals: 2, unit: "x", def: 1, control: true },
         { key: "backspin_length", area: "JOGWHEEL", label: "BACK SPIN LENGTH (DDJ-FLX4; THE DDJ-FLX10 FOLLOWS ITS PLATTER)", kind: "choice", choices: [{ t: "SHORT", v: 0 }, { t: "NORMAL", v: 1 }, { t: "LONG", v: 2 }], def: 1, control: true },
-        { key: "vinyl_stop_sec", area: "JOGWHEEL", label: "VINYL SPEED ADJUST - STOP TIME (PLAY -> PAUSE, 0 = OFF)", kind: "number", min: 0, max: 5, step: 0.1, fine: 0.01, decimals: 2, unit: "s", def: 0, control: true },
-        { key: "vinyl_start_sec", area: "JOGWHEEL", label: "VINYL SPEED ADJUST - START TIME (PAUSE -> PLAY, 0 = OFF)", kind: "number", min: 0, max: 5, step: 0.1, fine: 0.01, decimals: 2, unit: "s", def: 0, control: true },
         // BACK SPIN depends on how hard the jog was turned (speeds in times of the normal speed of the wheel)
-        { key: "backspin_sens", area: "JOGWHEEL", label: "BACK SPIN SENSITIVITY (DDJ-FLX4: START SPEED PER TURN SPEED)", kind: "number", min: 0.1, max: 3, step: 0.1, fine: 0.01, decimals: 2, unit: "x", def: 1, control: true },
-        { key: "backspin_min_rate", area: "JOGWHEEL", label: "BACK SPIN (DDJ-FLX4): SLOWEST START SPEED", kind: "number", min: 0.5, max: 10, step: 0.5, fine: 0.1, decimals: 1, unit: "x", def: 2, control: true },
-        { key: "backspin_max_rate", area: "JOGWHEEL", label: "BACK SPIN (DDJ-FLX4): FASTEST START SPEED", kind: "number", min: 2, max: 30, step: 1, fine: 0.5, decimals: 1, unit: "x", def: 12, control: true }
     ]
 
     // Current value of every key.
@@ -237,7 +232,86 @@ Item {
         root.values = copy;
     }
 
+    // ---- PLAYED TRACKS ----
+    // A track counts as played after it was heard for PLAYED_SECONDS on a deck. The library marks
+    // played tracks with a dot. The list of the file URLs is kept in the settings ("played_tracks").
+    readonly property int playedSeconds: 20
+    property var playedMap: ({})
+    // changes with every new played track, so that the library list evaluates its dots again
+    property int playedRevision: 0
+    property var playedCounter: ({})
+    property var playedLastUrl: ({})
+
+    function isPlayed(url) {
+        return root.playedMap[String(url)] === true;
+    }
+    function markPlayed(url) {
+        const key = String(url);
+        if (key === "" || root.playedMap[key] === true)
+            return;
+        root.playedMap[key] = true;
+        root.playedRevision++;
+        const keys = Object.keys(root.playedMap);
+        // at most 20000 entries (the oldest go first)
+        if (keys.length > 20000) {
+            keys.slice(0, keys.length - 20000).forEach(k => delete root.playedMap[k]);
+        }
+        Mixxx.Config.setAndroidSetting("played_tracks", JSON.stringify(Object.keys(root.playedMap)));
+    }
+    function countPlayed(deck, playing) {
+        const player = Mixxx.PlayerManager.getPlayer("[Channel" + deck + "]");
+        const track = player ? player.currentTrack : null;
+        const url = track ? String(track.trackLocationUrl) : "";
+        if (!playing || url === "") {
+            root.playedCounter[deck] = 0;
+            return;
+        }
+        if (root.playedLastUrl[deck] !== url) {
+            root.playedLastUrl[deck] = url;
+            root.playedCounter[deck] = 0;
+        }
+        root.playedCounter[deck] = (root.playedCounter[deck] || 0) + 1;
+        if (root.playedCounter[deck] === root.playedSeconds)
+            root.markPlayed(url);
+    }
+    Timer {
+        interval: 1000
+        repeat: true
+        running: true
+
+        onTriggered: {
+            root.countPlayed(1, pPlay1.value > 0);
+            root.countPlayed(2, pPlay2.value > 0);
+            root.countPlayed(3, pPlay3.value > 0);
+            root.countPlayed(4, pPlay4.value > 0);
+        }
+    }
+
     data: [
+        Mixxx.ControlProxy {
+            id: pPlay1
+
+            group: "[Channel1]"
+            key: "play"
+        },
+        Mixxx.ControlProxy {
+            id: pPlay2
+
+            group: "[Channel2]"
+            key: "play"
+        },
+        Mixxx.ControlProxy {
+            id: pPlay3
+
+            group: "[Channel3]"
+            key: "play"
+        },
+        Mixxx.ControlProxy {
+            id: pPlay4
+
+            group: "[Channel4]"
+            key: "play"
+        },
         Mixxx.ControlProxy {
             id: pMasterLimiter
 
@@ -320,6 +394,14 @@ Item {
             }
         });
         root.values = v;
+        try {
+            const played = JSON.parse(Mixxx.Config.androidSetting("played_tracks", "[]"));
+            const map = {};
+            if (Array.isArray(played))
+                played.forEach(u => map[u] = true);
+            root.playedMap = map;
+        } catch (e) {
+        }
         root.applyHeadroom();
         root.applyLimiter();
         root.applyAutoGain();

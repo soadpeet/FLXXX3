@@ -120,8 +120,6 @@ Rectangle {
         }
     }
 
-    Mixxx.ControlProxy { id: lastSpeed; group: "[AndroidDJ]"; key: "backspin_last_speed" }
-    Mixxx.ControlProxy { id: lastRate; group: "[AndroidDJ]"; key: "backspin_last_rate" }
 
     // ---- header ----
     Text {
@@ -291,10 +289,52 @@ Rectangle {
                             onStep: AdvSettings.set(row.def.key, row.current + row.def.step)
                         }
                     }
+                    // choice with many entries (BEAT FX positions): the current one with arrows, instead
+                    // of a row of 18 buttons per setting.
+                    Row {
+                        readonly property int count: row.def.kind === "choice" ? row.def.choices.length : 0
+                        readonly property int index: {
+                            for (let i = 0; i < count; ++i)
+                                if (row.def.choices[i].v === row.current)
+                                    return i;
+                            return 0;
+                        }
+
+                        spacing: root.u * 0.3
+                        visible: row.def.kind === "choice" && count > 6
+
+                        anchors {
+                            right: parent.right
+                            verticalCenter: parent.verticalCenter
+                        }
+
+                        StepBtn {
+                            text: "<"
+                            onStep: AdvSettings.set(row.def.key, row.def.choices[(parent.index + parent.count - 1) % parent.count].v)
+                        }
+                        Rectangle {
+                            border.color: "#5a5a5a"
+                            color: "#101010"
+                            height: root.u * 2.6
+                            width: root.u * 15
+
+                            Text {
+                                anchors.centerIn: parent
+                                color: row.current === row.def.def ? "#ffffff" : "#27a8e0"
+                                font.bold: true
+                                font.pixelSize: root.u * 1.05
+                                text: row.def.kind === "choice" ? row.def.choices[parent.parent.index].t : ""
+                            }
+                        }
+                        StepBtn {
+                            text: ">"
+                            onStep: AdvSettings.set(row.def.key, row.def.choices[(parent.index + 1) % parent.count].v)
+                        }
+                    }
                     // choice: segmented buttons
                     Row {
                         spacing: root.u * 0.3
-                        visible: row.def.kind === "choice"
+                        visible: row.def.kind === "choice" && row.def.choices.length <= 6
 
                         anchors {
                             right: parent.right
@@ -314,13 +354,6 @@ Rectangle {
                         }
                     }
                 }
-            }
-            // JOGWHEEL: what the last BACK SPIN measured (to find the right values).
-            Text {
-                color: "#8a8a8a"
-                font.pixelSize: root.u * 1.0
-                text: "LAST BACK SPIN:  turned at " + Number(lastSpeed.value).toFixed(1) + " x normal speed  ->  started at " + Number(lastRate.value).toFixed(1) + " x"
-                visible: root.area === "JOGWHEEL"
             }
             // START: read the sticks that are plugged in now (for READ REKORDBOX STICKS = ON REQUEST).
             Btn {
