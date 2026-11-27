@@ -2952,126 +2952,6 @@
                 </options>
             </control>
             <control>
-                <group>[Channel1]</group>
-                <key>beatsync</key>
-                <description>Beat Sync CH1</description>
-                <status>0x90</status>
-                <midino>0x66</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel2]</group>
-                <key>beatsync</key>
-                <description>Beat Sync CH2</description>
-                <status>0x91</status>
-                <midino>0x66</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel3]</group>
-                <key>beatsync</key>
-                <description>Beat Sync CH3</description>
-                <status>0x92</status>
-                <midino>0x66</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel4]</group>
-                <key>beatsync</key>
-                <description>Beat Sync CH4</description>
-                <status>0x93</status>
-                <midino>0x66</midino>
-                <options>
-                    <normal/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel1]</group>
-                <key>PioneerDDJFLX10.searchButton</key>
-                <description>Rewind CH1</description>
-                <status>0x90</status>
-                <midino>0x70</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel2]</group>
-                <key>PioneerDDJFLX10.searchButton</key>
-                <description>Rewind CH2</description>
-                <status>0x91</status>
-                <midino>0x70</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel3]</group>
-                <key>PioneerDDJFLX10.searchButton</key>
-                <description>Rewind CH3</description>
-                <status>0x92</status>
-                <midino>0x70</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel4]</group>
-                <key>PioneerDDJFLX10.searchButton</key>
-                <description>Rewind CH4</description>
-                <status>0x93</status>
-                <midino>0x70</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel1]</group>
-                <key>PioneerDDJFLX10.searchButton</key>
-                <description>Forward CH1</description>
-                <status>0x90</status>
-                <midino>0x71</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel2]</group>
-                <key>PioneerDDJFLX10.searchButton</key>
-                <description>Forward CH2</description>
-                <status>0x91</status>
-                <midino>0x71</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel3]</group>
-                <key>PioneerDDJFLX10.searchButton</key>
-                <description>Forward CH3</description>
-                <status>0x92</status>
-                <midino>0x71</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
-                <group>[Channel4]</group>
-                <key>PioneerDDJFLX10.searchButton</key>
-                <description>Forward CH4</description>
-                <status>0x93</status>
-                <midino>0x71</midino>
-                <options>
-                    <script-binding/>
-                </options>
-            </control>
-            <control>
                 <group>[Master]</group>
                 <key>maximize_library</key>
                 <description>Toggle library/waveform view (View button)</description>
@@ -4783,6 +4663,46 @@
                 <description>SHIFT + QUANTIZE: set the beat grid on the playhead</description>
                 <status>0x93</status>
                 <midino>0x68</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.syncLong</key>
+                <description>BEAT SYNC held: sync off</description>
+                <status>0x90</status>
+                <midino>0x78</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.syncLong</key>
+                <description>BEAT SYNC held: sync off</description>
+                <status>0x91</status>
+                <midino>0x78</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.syncLong</key>
+                <description>BEAT SYNC held: sync off</description>
+                <status>0x92</status>
+                <midino>0x78</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.syncLong</key>
+                <description>BEAT SYNC held: sync off</description>
+                <status>0x93</status>
+                <midino>0x78</midino>
                 <options>
                     <script-binding/>
                 </options>

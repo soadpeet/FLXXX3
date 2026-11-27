@@ -585,6 +585,12 @@ PioneerDDJFLX10.syncToggle = function(channel, control, value, status, group) {
     }
     engine.setValue(group, "sync_enabled", engine.getValue(group, "sync_enabled") > 0 ? 0 : 1);
 };
+// FLXXX3: BEAT SYNC held (note 0x78): sync off, like Pioneer players.
+PioneerDDJFLX10.syncLong = function(channel, control, value, status, group) {
+    if (value === 0x7F) {
+        engine.setValue(group, "sync_enabled", 0);
+    }
+};
 PioneerDDJFLX10.slipToggle = function(channel, control, value, status, group) {
     if (value !== 0x7F) {
         return;
