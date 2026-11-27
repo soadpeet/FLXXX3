@@ -9,6 +9,7 @@ import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
+import android.os.SystemClock;
 import android.util.Log;
 
 import java.util.HashMap;
@@ -24,6 +25,11 @@ public class UsbAudioHelper {
     private static UsbDeviceConnection sConnection;
     private static volatile boolean sGranted;
     private static CountDownLatch sLatch;
+    // The driver tries to open the device again every 300 ms while it is not connected. Asking
+    // for the USB permission each time opened the system dialog again at once (after the screen
+    // was off the permission is often gone), so that it could neither be answered nor the app
+    // closed. After a request the next one waits (denied: 5 minutes, no answer: 1 minute).
+    private static long sNextRequestMs = 0;
 
     // names: the product names it looks for, separated by "|" (the first one found is opened).
     public static synchronized int openDevice(Context context, String names) {
@@ -51,6 +57,10 @@ public class UsbAudioHelper {
             return -1;
         }
         if (!manager.hasPermission(found)) {
+            if (SystemClock.elapsedRealtime() < sNextRequestMs) {
+                return -2;
+            }
+            sNextRequestMs = SystemClock.elapsedRealtime() + 60000;
             sLatch = new CountDownLatch(1);
             sGranted = false;
             BroadcastReceiver receiver = new BroadcastReceiver() {
@@ -74,8 +84,13 @@ public class UsbAudioHelper {
             context.unregisterReceiver(receiver);
             if (!sGranted) {
                 Log.w(TAG, "USB permission denied");
+                if (sLatch.getCount() == 0) {
+                    // answered with "cancel": do not ask again for a while
+                    sNextRequestMs = SystemClock.elapsedRealtime() + 300000;
+                }
                 return -2;
             }
+            sNextRequestMs = 0;
         }
         sConnection = manager.openDevice(found);
         if (sConnection == null) {
