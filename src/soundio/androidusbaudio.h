@@ -120,6 +120,9 @@ class AndroidUsbAudio {
     std::vector<Slot> m_hidInSlots;
     // Transfers of the HID interface in flight (out and in).
     std::atomic<int> m_hidPending{0};
+    // Last jog wheel counters of the HID input reports (only the USB event thread).
+    int m_lastJogLeft = -1;
+    int m_lastJogRight = -1;
     std::thread m_superThread;
 
     // Rate accumulator (frames per packet: 48 at 48 kHz and 1000 packets a second,

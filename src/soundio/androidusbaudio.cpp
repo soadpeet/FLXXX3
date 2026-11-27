@@ -4,6 +4,7 @@
 
 #include "soundio/androidusbaudio.h"
 
+#include "controllers/midi/flx10jogscreen.h"
 #include "controllers/supportedcontrollers.h"
 
 #include <android/log.h>
@@ -536,6 +537,18 @@ bool AndroidUsbAudio::sendHid(const unsigned char* pData, int length) {
 // Events thread: an OUT report was sent (freed here) or an IN report came (submitted again).
 void AndroidUsbAudio::hidTransferDone(libusb_transfer* pTransfer) {
     const bool isIn = (pTransfer->endpoint & 0x80) != 0;
+    // FLXXX3: the input reports of the jog screens' interface carry the absolute position of
+    // the jog wheels (16 bit counters at bytes 5-6 and 7-8, see flx10jogscreen.cpp).
+    if (isIn && pTransfer->status == LIBUSB_TRANSFER_COMPLETED && pTransfer->actual_length >= 9) {
+        const unsigned char* pData = pTransfer->buffer;
+        const int left = pData[5] | (pData[6] << 8);
+        const int right = pData[7] | (pData[8] << 8);
+        if (left != m_lastJogLeft || right != m_lastJogRight) {
+            m_lastJogLeft = left;
+            m_lastJogRight = right;
+            flxxx3::jogscreen::publishJogPosition(left, right);
+        }
+    }
     if (isIn && m_connected && pTransfer->status != LIBUSB_TRANSFER_NO_DEVICE &&
             pTransfer->status != LIBUSB_TRANSFER_CANCELLED &&
             libusb_submit_transfer(pTransfer) == 0) {

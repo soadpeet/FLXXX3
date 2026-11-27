@@ -371,13 +371,16 @@ PioneerDDJFLX10.init = function(id) {
     // Hot-cue pad RGB LEDs (color-matched to Mixxx hot-cue colors, blink on loops)
     PioneerDDJFLX10._initHotcueLeds();
     for (var sd = 1; sd <= PioneerDDJFLX10.numDecks; sd++) {
-        (function(group) {
+        (function(group, deck) {
+            engine.makeConnection(group, "playposition", function() {
+                PioneerDDJFLX10._checkAdjustExit(deck);
+            });
             engine.makeConnection(group, "loop_enabled", function(value) {
                 if (value <= 0) {
                     PioneerDDJFLX10._slipRejoin(group);
                 }
             });
-        })("[Channel" + sd + "]");
+        })("[Channel" + sd + "]", sd);
     }
     engine.makeConnection("[AndroidDJ]", "hid_jog_left", function(v) {
         PioneerDDJFLX10._hidJogMove("left", v);
@@ -653,6 +656,29 @@ PioneerDDJFLX10._hidJogMove = function(side, value) {
 // (it would move twice)
 PioneerDDJFLX10._hidJogAlive = function() {
     return Date.now() - PioneerDDJFLX10._hidJogSeen < 1000;
+};
+
+// FLXXX3: leaves the loop boundary adjust mode (the waveform runs again). Any other action
+// resets the view: CUE, SHIFT + CUE, a hot cue, a jump out of the loop.
+PioneerDDJFLX10._endLoopAdjust = function(deck) {
+    if (PioneerDDJFLX10._loopAdjustMode[deck]) {
+        PioneerDDJFLX10._loopAdjustMode[deck] = null;
+        PioneerDDJFLX10._renderLoopLeds(deck);
+    }
+};
+PioneerDDJFLX10._checkAdjustExit = function(deck) {
+    if (!PioneerDDJFLX10._loopAdjustMode[deck]) {
+        return;
+    }
+    var g = "[Channel" + deck + "]";
+    var samples = engine.getValue(g, "track_samples");
+    var pos = engine.getValue(g, "playposition") * samples;
+    var start = engine.getValue(g, "loop_start_position");
+    var end = engine.getValue(g, "loop_end_position");
+    var margin = 8192;
+    if (!(start >= 0 && end > start) || pos < start - margin || pos > end + margin) {
+        PioneerDDJFLX10._endLoopAdjust(deck);
+    }
 };
 
 PioneerDDJFLX10._loopAdjustAccum = {1: 0, 2: 0, 3: 0, 4: 0};
@@ -2205,6 +2231,7 @@ PioneerDDJFLX10.shiftCue = function(channel, control, value, status, group) {
     if (value !== 0x7F) {
         return;
     }
+    PioneerDDJFLX10._endLoopAdjust(PioneerDDJFLX10._getDeckFromGroup(group));
     engine.setValue(group, "start_stop", 1);
     engine.setValue(group, "start_stop", 0);
 };
@@ -2214,6 +2241,7 @@ PioneerDDJFLX10.cueButton = function(channel, control, value, status, group) {
     var deck = PioneerDDJFLX10._getDeckFromGroup(group);
 
     if (pressed) {
+        PioneerDDJFLX10._endLoopAdjust(deck);
         if (PioneerDDJFLX10.shiftActive) {
             // FLXXX3: SHIFT + CUE jumps to the start of the track, like rekordbox (it used to
             // delete the cue point).

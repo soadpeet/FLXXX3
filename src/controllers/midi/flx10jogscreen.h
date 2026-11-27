@@ -32,6 +32,11 @@ constexpr bool kAvailable =
         false;
 #endif
 
+/// FLXXX3: jog positions of the HID input reports (16 bit counters of the left and right wheel)
+/// for the mapping script ([AndroidDJ] hid_jog_left / hid_jog_right). Called from the reader
+/// thread (Windows) or the USB event thread (Android).
+void publishJogPosition(int left, int right);
+
 /// Handles a jog screen request of the script; false if `data` is none.
 bool handleRequest(const QByteArray& data);
 

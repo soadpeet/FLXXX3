@@ -74,8 +74,6 @@ std::once_flag s_readerOnce;
 
 void readerLoop() {
     hid_device* pHid = nullptr;
-    std::unique_ptr<ControlProxy> pLeft;
-    std::unique_ptr<ControlProxy> pRight;
     int lastLeft = -1;
     int lastRight = -1;
     int logged = 0;
@@ -96,12 +94,6 @@ void readerLoop() {
             }
             qInfo() << "FLXXX3: DDJ-FLX10 jog position reader started";
         }
-        if (!pLeft || !pLeft->valid() || !pRight || !pRight->valid()) {
-            pLeft = std::make_unique<ControlProxy>(
-                    QStringLiteral("[AndroidDJ]"), QStringLiteral("hid_jog_left"));
-            pRight = std::make_unique<ControlProxy>(
-                    QStringLiteral("[AndroidDJ]"), QStringLiteral("hid_jog_right"));
-        }
         unsigned char buffer[65] = {0};
         const int count = hid_read_timeout(pHid, buffer, sizeof(buffer), 100);
         if (count < 0) {
@@ -110,26 +102,23 @@ void readerLoop() {
             lastLeft = lastRight = -1;
             continue;
         }
-        if (count < 9 || !pLeft->valid() || !pRight->valid()) {
+        if (count < 9) {
             continue;
         }
         const int left = buffer[5] | (buffer[6] << 8);
         const int right = buffer[7] | (buffer[8] << 8);
-        if (left != lastLeft) {
-            if (lastLeft >= 0 && logged < 12) {
+        if (left != lastLeft || right != lastRight) {
+            if (left != lastLeft && lastLeft >= 0 && logged < 4) {
                 qInfo() << "FLXXX3 jog HID left" << left << "right" << right;
                 ++logged;
             }
-            lastLeft = left;
-            pLeft->set(left);
-        }
-        if (right != lastRight) {
-            if (lastRight >= 0 && loggedRight < 12) {
+            if (right != lastRight && lastRight >= 0 && loggedRight < 4) {
                 qInfo() << "FLXXX3 jog HID RIGHT left" << left << "right" << right;
                 ++loggedRight;
             }
+            lastLeft = left;
             lastRight = right;
-            pRight->set(right);
+            publishJogPosition(left, right);
         }
     }
 }
@@ -353,6 +342,23 @@ void uploadRekordbox(int deck, int rate10000, int parts) {
 }
 
 } // namespace
+
+void publishJogPosition(int left, int right) {
+    static std::mutex mutex;
+    static std::unique_ptr<ControlProxy> pLeft;
+    static std::unique_ptr<ControlProxy> pRight;
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!pLeft || !pLeft->valid() || !pRight || !pRight->valid()) {
+        pLeft = std::make_unique<ControlProxy>(
+                QStringLiteral("[AndroidDJ]"), QStringLiteral("hid_jog_left"));
+        pRight = std::make_unique<ControlProxy>(
+                QStringLiteral("[AndroidDJ]"), QStringLiteral("hid_jog_right"));
+    }
+    if (pLeft->valid() && pRight->valid()) {
+        pLeft->set(left);
+        pRight->set(right);
+    }
+}
 
 bool handleRequest(const QByteArray& data) {
 #if !defined(__ANDROID__) && defined(__HID__)
