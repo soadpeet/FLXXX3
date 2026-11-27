@@ -7,10 +7,12 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
 
+#include "control/controlproxy.h"
 #include "mixer/playerinfo.h"
 #include "track/beats.h"
 #include "track/track.h"
@@ -57,6 +59,85 @@ hid_device* openScreens() {
     hid_free_enumeration(pList);
     qInfo() << "FLXXX3: DDJ-FLX10 jog screens" << (pDevice ? "opened" : "not found");
     return pDevice;
+}
+#endif
+
+#if !defined(__ANDROID__) && defined(__HID__)
+// FLXXX3: jog position from the HID input reports. Like rekordbox, the DDJ-FLX10 sends a
+// 64 byte report about 1000 times a second (endpoint 0x84 of the screens' interface) with the
+// absolute position of the jog wheels as 16 bit counters: bytes 5-6 (left wheel), 7-8 (right
+// wheel; the right one is a guess, a USB capture only shows the left one moving). Unlike its
+// MIDI messages, which only come above a minimum speed, the position also follows the slowest
+// movement. The reader writes the counters to [AndroidDJ] hid_jog_left / hid_jog_right; the
+// mapping script uses the changes (loop adjust).
+std::once_flag s_readerOnce;
+
+void readerLoop() {
+    hid_device* pHid = nullptr;
+    std::unique_ptr<ControlProxy> pLeft;
+    std::unique_ptr<ControlProxy> pRight;
+    int lastLeft = -1;
+    int lastRight = -1;
+    int logged = 0;
+    int loggedRight = 0;
+    while (true) {
+        if (!pHid) {
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            hid_device_info* pList = hid_enumerate(0x2B73, 0x0041);
+            for (hid_device_info* pInfo = pList; pInfo; pInfo = pInfo->next) {
+                if (pInfo->interface_number == 5) {
+                    pHid = hid_open_path(pInfo->path);
+                    break;
+                }
+            }
+            hid_free_enumeration(pList);
+            if (!pHid) {
+                continue;
+            }
+            qInfo() << "FLXXX3: DDJ-FLX10 jog position reader started";
+        }
+        if (!pLeft || !pLeft->valid() || !pRight || !pRight->valid()) {
+            pLeft = std::make_unique<ControlProxy>(
+                    QStringLiteral("[AndroidDJ]"), QStringLiteral("hid_jog_left"));
+            pRight = std::make_unique<ControlProxy>(
+                    QStringLiteral("[AndroidDJ]"), QStringLiteral("hid_jog_right"));
+        }
+        unsigned char buffer[65] = {0};
+        const int count = hid_read_timeout(pHid, buffer, sizeof(buffer), 100);
+        if (count < 0) {
+            hid_close(pHid);
+            pHid = nullptr;
+            lastLeft = lastRight = -1;
+            continue;
+        }
+        if (count < 9 || !pLeft->valid() || !pRight->valid()) {
+            continue;
+        }
+        const int left = buffer[5] | (buffer[6] << 8);
+        const int right = buffer[7] | (buffer[8] << 8);
+        if (left != lastLeft) {
+            if (lastLeft >= 0 && logged < 12) {
+                qInfo() << "FLXXX3 jog HID left" << left << "right" << right;
+                ++logged;
+            }
+            lastLeft = left;
+            pLeft->set(left);
+        }
+        if (right != lastRight) {
+            if (lastRight >= 0 && loggedRight < 12) {
+                qInfo() << "FLXXX3 jog HID RIGHT left" << left << "right" << right;
+                ++loggedRight;
+            }
+            lastRight = right;
+            pRight->set(right);
+        }
+    }
+}
+
+void startReader() {
+    std::call_once(s_readerOnce, [] {
+        std::thread(readerLoop).detach();
+    });
 }
 #endif
 
@@ -274,6 +355,9 @@ void uploadRekordbox(int deck, int rate10000, int parts) {
 } // namespace
 
 bool handleRequest(const QByteArray& data) {
+#if !defined(__ANDROID__) && defined(__HID__)
+    startReader();
+#endif
     if (data.size() < 6 || static_cast<uint8_t>(data[1]) != 0x7D ||
             static_cast<uint8_t>(data[2]) != 0x46) {
         return false;

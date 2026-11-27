@@ -206,6 +206,9 @@ class LoopingControl : public EngineControl {
 
     ControlPushButton* m_pCOBeatLoopActivate;
     ControlPushButton* m_pCOBeatLoopRollActivate;
+#ifdef FLXXX3
+    ControlObject* m_pCOLoopAdjustView;
+#endif
     ControlObject* m_pCOLoopStartPosition;
     ControlObject* m_pCOLoopEndPosition;
     ControlObject* m_pCOLoopEnabled;

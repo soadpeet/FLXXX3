@@ -119,7 +119,7 @@ var JOG_BEND_DIVISOR = 20;
 
 // Loop adjust step: samples moved per jog unit when in loop in/out adjust mode.
 // At 44.1 kHz, 100 samples ≈ 2.3 ms per minimum jog tick.
-var LOOP_ADJUST_STEP = 100;
+var LOOP_ADJUST_STEP = 4;
 // FLXXX3: scrolling with the jog, as a factor on its intervals (smooth like normal
 // turning, through the scratch of Mixxx). SHIFT + jog (CC 0x1F rim, 0x26 touched):
 // four times slower. A SEARCH key held + jog (CC 0x29): about 7 times faster.
@@ -379,6 +379,12 @@ PioneerDDJFLX10.init = function(id) {
             });
         })("[Channel" + sd + "]");
     }
+    engine.makeConnection("[AndroidDJ]", "hid_jog_left", function(v) {
+        PioneerDDJFLX10._hidJogMove("left", v);
+    });
+    engine.makeConnection("[AndroidDJ]", "hid_jog_right", function(v) {
+        PioneerDDJFLX10._hidJogMove("right", v);
+    });
     PioneerDDJFLX10._lightModePads();
     PioneerDDJFLX10._showPadMode(0, 0);
     PioneerDDJFLX10._showPadMode(1, 0);
@@ -619,13 +625,71 @@ PioneerDDJFLX10.tempoResetToggle = function(channel, control, value, status, gro
 // moving the playhead. loop_start_position / loop_end_position are writable COs
 // that adjust the loop directly (Mixxx clamps to keep in < out). No-op if the
 // boundary isn't set (cur < 0).
+// FLXXX3: fine jog position from the HID reports (flx10jogscreen.cpp, Windows): a 16 bit
+// counter per wheel in [AndroidDJ] hid_jog_left / hid_jog_right. Unlike the MIDI messages of the
+// jog (which only come above a minimum speed) it follows the slowest movement. Used to adjust
+// the loop boundary.
+PioneerDDJFLX10._hidJog = {left: null, right: null};
+PioneerDDJFLX10._hidJogSeen = 0;
+PioneerDDJFLX10._hidJogMove = function(side, value) {
+    var prev = PioneerDDJFLX10._hidJog[side];
+    PioneerDDJFLX10._hidJog[side] = value;
+    if (prev === null || prev === value) {
+        return;
+    }
+    PioneerDDJFLX10._hidJogSeen = Date.now();
+    var delta = value - prev;
+    if (delta > 32767) { delta -= 65536; }
+    if (delta < -32767) { delta += 65536; }
+    var deck = engine.getValue("[AndroidDJ]", side === "left" ? "deck_left" : "deck_right");
+    if (!(deck >= 1 && deck <= PioneerDDJFLX10.numDecks)) {
+        deck = side === "left" ? 1 : 2;
+    }
+    if (PioneerDDJFLX10._loopAdjustMode[deck]) {
+        PioneerDDJFLX10._nudgeLoop("[Channel" + deck + "]", deck, delta);
+    }
+};
+// true while HID jog reports arrive: then the MIDI messages of the jog do not adjust the loop
+// (it would move twice)
+PioneerDDJFLX10._hidJogAlive = function() {
+    return Date.now() - PioneerDDJFLX10._hidJogSeen < 1000;
+};
+
+PioneerDDJFLX10._loopAdjustAccum = {1: 0, 2: 0, 3: 0, 4: 0};
+PioneerDDJFLX10._loopAdjustTimer = 0;
+// FLXXX3: the jog sends about 1000 messages per second with +-1..5 intervals (about 12900 per
+// turn). The intervals are collected and applied every 25 ms: one interval = LOOP_ADJUST_STEP
+// samples, a fast turn (more than 3 intervals per message) moves 3 times as far.
 PioneerDDJFLX10._nudgeLoop = function(group, deck, newValue) {
-    var ctrl = PioneerDDJFLX10._loopAdjustMode[deck] === "in"
-        ? "loop_start_position"
-        : "loop_end_position";
-    var cur = engine.getValue(group, ctrl);
-    if (cur >= 0) {
-        engine.setValue(group, ctrl, cur + newValue * LOOP_ADJUST_STEP);
+    var gain = Math.abs(newValue) > 3 ? 3 : 1;
+    PioneerDDJFLX10._loopAdjustAccum[deck] += newValue * gain;
+    if (!PioneerDDJFLX10._loopAdjustTimer) {
+        PioneerDDJFLX10._loopAdjustTimer = engine.beginTimer(25, function() {
+            var any = false;
+            for (var d = 1; d <= PioneerDDJFLX10.numDecks; d++) {
+                var ticks = PioneerDDJFLX10._loopAdjustAccum[d];
+                var mode = PioneerDDJFLX10._loopAdjustMode[d];
+                if (ticks === 0 || !mode) {
+                    PioneerDDJFLX10._loopAdjustAccum[d] = 0;
+                    continue;
+                }
+                PioneerDDJFLX10._loopAdjustAccum[d] = 0;
+                any = true;
+                var g = "[Channel" + d + "]";
+                var ctrl = mode === "in" ? "loop_start_position" : "loop_end_position";
+                var cur = engine.getValue(g, ctrl);
+                if (cur >= 0) {
+                    // whole frames (2 samples each)
+                    var delta = Math.round(ticks * LOOP_ADJUST_STEP / 2) * 2;
+                    if (delta !== 0) {
+                        engine.setValue(g, ctrl, cur + delta);
+                    } else {
+                        // too small for one frame: keep it for the next round
+                        PioneerDDJFLX10._loopAdjustAccum[d] = ticks;
+                    }
+                }
+            }
+        });
     }
 };
 
@@ -635,7 +699,9 @@ PioneerDDJFLX10.wheelSeek = function(channel, control, value, status, group) {
     var newValue = value - 64;
     var deck = PioneerDDJFLX10._getDeckFromGroup(group);
     if (PioneerDDJFLX10._loopAdjustMode[deck]) {
-        PioneerDDJFLX10._nudgeLoop(group, deck, newValue);
+        if (!PioneerDDJFLX10._hidJogAlive()) {
+            PioneerDDJFLX10._nudgeLoop(group, deck, newValue);
+        }
         return;
     }
     // FLXXX3: the controller sends CC 0x1F / 0x26 for SHIFT + jog: slow scrolling.
@@ -722,7 +788,9 @@ PioneerDDJFLX10.wheelTurn = function(channel, control, value, status, group) {
     // Loop-adjust takes priority so a touched platter nudges the boundary
     // instead of scratching/seeking.
     if (PioneerDDJFLX10._loopAdjustMode[deckNumber]) {
-        PioneerDDJFLX10._nudgeLoop(group, deckNumber, newValue);
+        if (!PioneerDDJFLX10._hidJogAlive()) {
+            PioneerDDJFLX10._nudgeLoop(group, deckNumber, newValue);
+        }
     } else {
         if (engine.isScratching(deckNumber)) {
             // the last turns (time, ticks) for the speed of the BACK SPIN
@@ -2105,14 +2173,52 @@ PioneerDDJFLX10.rate_reset = function(channel, control, value, status, group) {
 };
 
 // Cue button management
+// FLXXX3: SHIFT + PLAY (note 0x47): stutter, play from the cue point.
+PioneerDDJFLX10.shiftPlay = function(channel, control, value, status, group) {
+    if (value !== 0x7F) {
+        return;
+    }
+    engine.setValue(group, "cue_gotoandplay", 1);
+    engine.setValue(group, "cue_gotoandplay", 0);
+};
+
+// FLXXX3: SHIFT + 4 BEAT/EXIT (note 0x50): reloop, starts the last loop again (or leaves it).
+PioneerDDJFLX10.shiftLoopExit = function(channel, control, value, status, group) {
+    if (value !== 0x7F) {
+        return;
+    }
+    engine.setValue(group, "reloop_toggle", 1);
+    engine.setValue(group, "reloop_toggle", 0);
+};
+
+// FLXXX3: SHIFT + QUANTIZE (note 0x68): moves the beat grid so that a beat is on the playhead.
+PioneerDDJFLX10.shiftQuantize = function(channel, control, value, status, group) {
+    if (value !== 0x7F) {
+        return;
+    }
+    engine.setValue(group, "beats_translate_curpos", 1);
+    engine.setValue(group, "beats_translate_curpos", 0);
+};
+
+// FLXXX3: SHIFT + CUE (its own note 0x48) jumps to the start of the track and stops, like rekordbox.
+PioneerDDJFLX10.shiftCue = function(channel, control, value, status, group) {
+    if (value !== 0x7F) {
+        return;
+    }
+    engine.setValue(group, "start_stop", 1);
+    engine.setValue(group, "start_stop", 0);
+};
+
 PioneerDDJFLX10.cueButton = function(channel, control, value, status, group) {
     var pressed = (value === 0x7F);
     var deck = PioneerDDJFLX10._getDeckFromGroup(group);
 
     if (pressed) {
         if (PioneerDDJFLX10.shiftActive) {
-            // SHIFT + Cue : efface le point Cue
-            engine.setValue(group, "cue_clear", 1);
+            // FLXXX3: SHIFT + CUE jumps to the start of the track, like rekordbox (it used to
+            // delete the cue point).
+            engine.setValue(group, "start", 1);
+            engine.setValue(group, "start", 0);
         } else {
             // Cue standard : lecture tant que maintenu
             engine.setValue(group, "cue_default", 1);
@@ -2714,6 +2820,9 @@ PioneerDDJFLX10._loopBlinkPhase = false;
 var LOOP_BLINK_MS = 300;
 
 PioneerDDJFLX10._renderLoopLeds = function(deck) {
+    // FLXXX3: the waveform stands still while a loop boundary is adjusted
+    engine.setValue("[Channel" + deck + "]", "loop_adjust_view",
+        PioneerDDJFLX10._loopAdjustMode[deck] ? 1 : 0);
     var status = 0x90 + (deck - 1);
     var group  = "[Channel" + deck + "]";
     var adjust = PioneerDDJFLX10._loopAdjustMode[deck];

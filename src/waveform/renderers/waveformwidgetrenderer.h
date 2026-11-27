@@ -96,6 +96,16 @@ class WaveformWidgetRenderer {
         return m_lastDisplayedPosition[type];
     }
 
+#ifdef FLXXX3
+    // FLXXX3: while a loop boundary is adjusted the view stands still (centred on the loop);
+    // the real play position is then drawn as a moving marker.
+    bool isViewFrozen() const {
+        return m_viewFrozen;
+    }
+    double getRealPlaySample() const {
+        return m_realPlaySample;
+    }
+#endif
     double getTruePosSample(::WaveformRendererAbstract::PositionSource type =
                                     ::WaveformRendererAbstract::Play) const {
         return m_truePosSample[type];
@@ -254,6 +264,14 @@ class WaveformWidgetRenderer {
     int m_posVSample[2];
     int m_totalVSamples;
     std::unique_ptr<ControlProxy> m_pRateRatioCO;
+#ifdef FLXXX3
+    std::unique_ptr<ControlProxy> m_pLoopAdjustViewCO;
+    std::unique_ptr<ControlProxy> m_pLoopStartCO;
+    std::unique_ptr<ControlProxy> m_pLoopEndCO;
+    bool m_viewFrozen = false;
+    double m_frozenViewPos = 0.0;      // fraction of the track
+    double m_realPlaySample = -1.0;
+#endif
     std::unique_ptr<ControlProxy> m_pGainControlObject;
     std::unique_ptr<ControlProxy> m_pTrackSamplesControlObject;
     double m_gain;

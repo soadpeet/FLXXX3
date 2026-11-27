@@ -551,6 +551,17 @@ void allshader::WaveformRenderMark::update() {
 
     const float playMarkerPos = static_cast<float>(m_waveformRenderer->getPlayMarkerPosition() *
             m_waveformRenderer->getLength());
+#ifdef FLXXX3
+    if (!m_isSlipRenderer && m_waveformRenderer->isViewFrozen()) {
+        // Loop adjust: no fixed play marker, the moving one is drawn below.
+        TexturedVertexUpdater hideUpdater{
+                m_pPlayPosNode->geometry()
+                        .vertexDataAs<Geometry::TexturedPoint2D>()};
+        hideUpdater.addRectangle({0.f, 0.f}, {0.f, 0.f}, {0.f, 0.f}, {1.f, 1.f});
+        m_pPlayPosNode->markDirtyGeometry();
+        m_lastPlayMarkerPos = -1.f;
+    } else
+#endif
     if (m_lastPlayMarkerPos != playMarkerPos) {
         const float drawOffset = roundToPixel(playMarkerPos + kPlayPosOffset);
         TexturedVertexUpdater vertexUpdater{
@@ -571,7 +582,19 @@ void allshader::WaveformRenderMark::update() {
         float x1 = 0.f;
         float x2 = 0.f;
         float y2 = 0.f;
-        if (slipActive) {
+        float markR = 1.f, markG = 0.2f, markB = 0.45f;
+        if (m_waveformRenderer->isViewFrozen()) {
+            // Loop adjust: the real play position moves through the standing view.
+            const float x = roundToPixel(static_cast<float>(
+                    m_waveformRenderer->transformSamplePositionInRendererWorld(
+                            m_waveformRenderer->getRealPlaySample(),
+                            ::WaveformRendererAbstract::Play)));
+            const float width = std::max(3.f, std::round(3.f * devicePixelRatio));
+            x1 = x - width / 2.f;
+            x2 = x + width / 2.f;
+            y2 = static_cast<float>(m_waveformRenderer->getBreadth());
+            markR = markG = markB = 1.f;
+        } else if (slipActive) {
             const double slipSample = m_waveformRenderer->getTruePosSample(
                     ::WaveformRendererAbstract::Slip);
             const float x = roundToPixel(static_cast<float>(
@@ -584,7 +607,7 @@ void allshader::WaveformRenderMark::update() {
         }
         RGBAVertexUpdater slipUpdater{
                 m_pSlipPosNode->geometry().vertexDataAs<Geometry::RGBAColoredPoint2D>()};
-        slipUpdater.addRectangle({x1, 0.f}, {x2, y2}, {1.f, 0.2f, 0.45f, 0.95f});
+        slipUpdater.addRectangle({x1, 0.f}, {x2, y2}, {markR, markG, markB, 0.95f});
         m_pSlipPosNode->markDirtyGeometry();
         m_pSlipPosNode->markDirtyMaterial();
     }

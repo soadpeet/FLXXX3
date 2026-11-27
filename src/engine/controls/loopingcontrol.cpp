@@ -107,6 +107,12 @@ LoopingControl::LoopingControl(const QString& group,
             &LoopingControl::slotLoopEnabledValueChangeRequest,
             Qt::DirectConnection);
 
+#ifdef FLXXX3
+    // 1 while the controller adjusts a loop boundary with the jog: the waveform stands still
+    // (set by the mapping script, read by the waveform renderers).
+    m_pCOLoopAdjustView = new ControlObject(ConfigKey(group, "loop_adjust_view"));
+    m_pCOLoopAdjustView->set(0.0);
+#endif
     m_pCOLoopStartPosition =
             new ControlObject(ConfigKey(group, "loop_start_position"));
     m_pCOLoopStartPosition->set(kNoTrigger);
@@ -261,6 +267,9 @@ LoopingControl::~LoopingControl() {
     delete m_pReloopToggleButton;
     delete m_pReloopAndStopButton;
     delete m_pCOLoopEnabled;
+#ifdef FLXXX3
+    delete m_pCOLoopAdjustView;
+#endif
     delete m_pCOLoopStartPosition;
     delete m_pCOLoopEndPosition;
     delete m_pCOLoopScale;

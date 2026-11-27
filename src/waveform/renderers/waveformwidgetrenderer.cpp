@@ -120,6 +120,14 @@ bool WaveformWidgetRenderer::init() {
     if (!m_group.isEmpty()) {
         m_pRateRatioCO = std::make_unique<ControlProxy>(
                 m_group, QStringLiteral("rate_ratio"));
+#ifdef FLXXX3
+        m_pLoopAdjustViewCO = std::make_unique<ControlProxy>(
+                m_group, QStringLiteral("loop_adjust_view"));
+        m_pLoopStartCO = std::make_unique<ControlProxy>(
+                m_group, QStringLiteral("loop_start_position"));
+        m_pLoopEndCO = std::make_unique<ControlProxy>(
+                m_group, QStringLiteral("loop_end_position"));
+#endif
         m_pGainControlObject = std::make_unique<ControlProxy>(
                 m_group, QStringLiteral("total_gain"));
         m_pTrackSamplesControlObject = std::make_unique<ControlProxy>(
@@ -246,6 +254,25 @@ void WaveformWidgetRenderer::onPreRender(VSyncTimeProvider* vsyncThread) {
         //        "displayedLengthRight=" << displayedLengthRight;
 
         m_totalVSamples = static_cast<int>(m_trackPixelCount * m_visualSamplePerPixel);
+#ifdef FLXXX3
+        // The view stands still while a loop boundary is adjusted (centred on the loop).
+        const bool wantFrozen = m_pLoopAdjustViewCO && m_pLoopAdjustViewCO->get() > 0.5 &&
+                m_trackSamples > 0;
+        if (wantFrozen && !m_viewFrozen) {
+            const double loopStart = m_pLoopStartCO->get();
+            const double loopEnd = m_pLoopEndCO->get();
+            m_frozenViewPos = (loopStart >= 0 && loopEnd > loopStart)
+                    ? (loopStart + loopEnd) / 2.0 / static_cast<double>(m_trackSamples)
+                    : truePos[::WaveformRendererAbstract::Play];
+        }
+        m_viewFrozen = wantFrozen;
+        m_realPlaySample = truePos[::WaveformRendererAbstract::Play] *
+                static_cast<double>(m_trackSamples);
+        if (m_viewFrozen) {
+            truePos[::WaveformRendererAbstract::Play] = m_frozenViewPos;
+            truePos[::WaveformRendererAbstract::Slip] = m_frozenViewPos;
+        }
+#endif
         for (int type = ::WaveformRendererAbstract::Play;
                 type <= ::WaveformRendererAbstract::Slip;
                 type++) {

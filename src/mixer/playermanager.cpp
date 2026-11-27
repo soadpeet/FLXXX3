@@ -201,6 +201,16 @@ PlayerManager::PlayerManager(UserSettingsPointer pConfig,
             false,
             false,
             1.0));
+    // Jog position of the DDJ-FLX10 from its HID reports (see flx10jogscreen.cpp): a 16 bit
+    // counter per wheel that the mapping script reads for fine movements.
+    for (const char* key : {"hid_jog_left", "hid_jog_right"}) {
+        m_jogControls.push_back(std::make_unique<ControlObject>(
+                ConfigKey(QStringLiteral("[AndroidDJ]"), QString::fromLatin1(key)),
+                false,
+                false,
+                false,
+                0.0));
+    }
     // Channel fader curve (UTILITY): 0 slow start, 1 linear (default), 2 fast start.
     // Applied by the FLX4 script to the channel faders.
     m_jogControls.push_back(std::make_unique<ControlObject>(

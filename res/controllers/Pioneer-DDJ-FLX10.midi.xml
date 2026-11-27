@@ -4627,6 +4627,166 @@
                     <normal/>
                 </options>
             </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.shiftCue</key>
+                <description>SHIFT + CUE: jump to the start of the track (like rekordbox)</description>
+                <status>0x90</status>
+                <midino>0x48</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.shiftCue</key>
+                <description>SHIFT + CUE: jump to the start of the track (like rekordbox)</description>
+                <status>0x91</status>
+                <midino>0x48</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.shiftCue</key>
+                <description>SHIFT + CUE: jump to the start of the track (like rekordbox)</description>
+                <status>0x92</status>
+                <midino>0x48</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.shiftCue</key>
+                <description>SHIFT + CUE: jump to the start of the track (like rekordbox)</description>
+                <status>0x93</status>
+                <midino>0x48</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.shiftPlay</key>
+                <description>SHIFT + PLAY: stutter, play from the cue point</description>
+                <status>0x90</status>
+                <midino>0x47</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.shiftPlay</key>
+                <description>SHIFT + PLAY: stutter, play from the cue point</description>
+                <status>0x91</status>
+                <midino>0x47</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.shiftPlay</key>
+                <description>SHIFT + PLAY: stutter, play from the cue point</description>
+                <status>0x92</status>
+                <midino>0x47</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.shiftPlay</key>
+                <description>SHIFT + PLAY: stutter, play from the cue point</description>
+                <status>0x93</status>
+                <midino>0x47</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.shiftLoopExit</key>
+                <description>SHIFT + 4 BEAT/EXIT: reloop (start the last loop again)</description>
+                <status>0x90</status>
+                <midino>0x50</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.shiftLoopExit</key>
+                <description>SHIFT + 4 BEAT/EXIT: reloop (start the last loop again)</description>
+                <status>0x91</status>
+                <midino>0x50</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.shiftLoopExit</key>
+                <description>SHIFT + 4 BEAT/EXIT: reloop (start the last loop again)</description>
+                <status>0x92</status>
+                <midino>0x50</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.shiftLoopExit</key>
+                <description>SHIFT + 4 BEAT/EXIT: reloop (start the last loop again)</description>
+                <status>0x93</status>
+                <midino>0x50</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel1]</group>
+                <key>PioneerDDJFLX10.shiftQuantize</key>
+                <description>SHIFT + QUANTIZE: set the beat grid on the playhead</description>
+                <status>0x90</status>
+                <midino>0x68</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel2]</group>
+                <key>PioneerDDJFLX10.shiftQuantize</key>
+                <description>SHIFT + QUANTIZE: set the beat grid on the playhead</description>
+                <status>0x91</status>
+                <midino>0x68</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel3]</group>
+                <key>PioneerDDJFLX10.shiftQuantize</key>
+                <description>SHIFT + QUANTIZE: set the beat grid on the playhead</description>
+                <status>0x92</status>
+                <midino>0x68</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
+            <control>
+                <group>[Channel4]</group>
+                <key>PioneerDDJFLX10.shiftQuantize</key>
+                <description>SHIFT + QUANTIZE: set the beat grid on the playhead</description>
+                <status>0x93</status>
+                <midino>0x68</midino>
+                <options>
+                    <script-binding/>
+                </options>
+            </control>
 </controls>
         <outputs>
             <output>
